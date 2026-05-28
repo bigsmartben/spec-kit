@@ -81,13 +81,13 @@ jobs:
             preset_download_url="https://github.com/bigsmartben/spec-kit-workflow-preset/releases/download/${preset_version}/workflow-preset.zip"
           fi
 
-          write_github_output "preset_version" "$preset_version"
-          write_github_output "preset_download_url" "$preset_download_url"
+          write_github_output "version" "$preset_version"
+          write_github_output "download_url" "$preset_download_url"
 
       - name: Install and verify external workflow preset
         env:
-          PRESET_VERSION: ${{ steps.release.outputs.preset_version }}
-          PRESET_DOWNLOAD_URL: ${{ steps.release.outputs.preset_download_url }}
+          PRESET_VERSION: ${{ steps.release.outputs.version }}
+          PRESET_DOWNLOAD_URL: ${{ steps.release.outputs.download_url }}
         run: |
           set -euo pipefail
           project_dir="$(mktemp -d)"

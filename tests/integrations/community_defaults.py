@@ -156,11 +156,6 @@ def bundled_community_default_files(
                 commands_dir=commands_dir,
             )
         )
-        files.extend(
-            _registered_workflow_preset_command_files(
-                integration_key,
-                skills_mode=skills_mode,
-                commands_dir=commands_dir,
-            )
-        )
-    return sorted(files)
+        # workflow-preset wraps/replaces core commands whose output paths are already
+        # accounted for by each integration's base command inventory.
+    return sorted(set(files))

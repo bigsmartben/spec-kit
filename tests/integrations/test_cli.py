@@ -981,6 +981,19 @@ class TestGitExtensionAutoInstall:
         assert (preset_dir / ".composed" / "speckit.tasks.md").exists()
         assert (preset_dir / ".composed" / "speckit.analyze.md").exists()
 
+        preset_registry = json.loads((project / ".specify" / "presets" / ".registry").read_text())
+        workflow_entry = preset_registry["presets"]["workflow-preset"]
+        expected_preset_commands = {
+            "speckit.specify",
+            "speckit.clarify",
+            "speckit.checklist",
+            "speckit.analyze",
+            "speckit.plan",
+            "speckit.tasks",
+            "speckit.implement",
+        }
+        assert set(workflow_entry["registered_commands"]["claude"]) == expected_preset_commands
+
         plan_skill = project / ".claude" / "skills" / "speckit-plan" / "SKILL.md"
         tasks_skill = project / ".claude" / "skills" / "speckit-tasks" / "SKILL.md"
         implement_skill = project / ".claude" / "skills" / "speckit-implement" / "SKILL.md"

@@ -21,7 +21,7 @@ on:
         default: false
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event.client_payload.preset_version || inputs.preset_version || 'unknown-version' }}-${{ github.run_id }}
+  group: ${{ github.workflow }}-${{ github.event.client_payload.preset_version || github.event.client_payload.version || inputs.preset_version || 'unknown-version' }}-${{ github.run_id }}
   cancel-in-progress: false
 
 jobs:
@@ -50,8 +50,8 @@ jobs:
       - name: Resolve workflow preset release
         id: release
         env:
-          EVENT_PRESET_VERSION: ${{ github.event.client_payload.preset_version || inputs.preset_version }}
-          EVENT_PRESET_DOWNLOAD_URL: ${{ github.event.client_payload.preset_download_url || inputs.preset_download_url }}
+          EVENT_PRESET_VERSION: ${{ github.event.client_payload.preset_version || github.event.client_payload.version || inputs.preset_version }}
+          EVENT_PRESET_DOWNLOAD_URL: ${{ github.event.client_payload.preset_download_url || github.event.client_payload.download_url || inputs.preset_download_url }}
         run: |
           set -euo pipefail
           write_github_output() {
@@ -75,10 +75,14 @@ jobs:
             echo "preset_version is required from repository_dispatch payload or workflow_dispatch input" >&2
             exit 1
           fi
+          if ! printf '%s\n' "$preset_version" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "preset_version must be a bare semantic version like 1.2.3" >&2
+            exit 1
+          fi
 
           preset_download_url="${EVENT_PRESET_DOWNLOAD_URL}"
           if [ -z "$preset_download_url" ]; then
-            preset_download_url="https://github.com/bigsmartben/spec-kit-workflow-preset/releases/download/${preset_version}/workflow-preset.zip"
+            preset_download_url="https://github.com/bigsmartben/spec-kit-workflow-preset/releases/download/v${preset_version}/spec-kit-workflow-preset-v${preset_version}.zip"
           fi
 
           write_github_output "version" "$preset_version"
@@ -143,7 +147,7 @@ jobs:
 
       - name: Check bundled workflow preset version
         env:
-          EVENT_PRESET_VERSION: ${{ github.event.client_payload.preset_version || inputs.preset_version }}
+          EVENT_PRESET_VERSION: ${{ github.event.client_payload.preset_version || github.event.client_payload.version || inputs.preset_version }}
           REQUIRE_BUNDLED_VERSION_MATCH: ${{ github.event.client_payload.require_bundled_version_match || inputs.require_bundled_version_match || 'false' }}
         run: |
           set -euo pipefail
@@ -153,6 +157,10 @@ jobs:
           fi
           if [ -z "$EVENT_PRESET_VERSION" ]; then
             echo "preset_version is required when require_bundled_version_match is true" >&2
+            exit 1
+          fi
+          if ! printf '%s\n' "$EVENT_PRESET_VERSION" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "preset_version must be a bare semantic version like 1.2.3" >&2
             exit 1
           fi
 

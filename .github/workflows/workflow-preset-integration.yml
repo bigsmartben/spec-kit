@@ -54,6 +54,22 @@ jobs:
           EVENT_PRESET_DOWNLOAD_URL: ${{ github.event.client_payload.preset_download_url || inputs.preset_download_url }}
         run: |
           set -euo pipefail
+          write_github_output() {
+            local name="$1"
+            local value="$2"
+            local delimiter
+            delimiter="ghadelim_${RANDOM}_${RANDOM}_$(date +%s%N)"
+            while printf '%s\n' "$value" | grep -Fxq "$delimiter"; do
+              delimiter="ghadelim_${RANDOM}_${RANDOM}_$(date +%s%N)"
+            done
+
+            {
+              printf '%s<<%s\n' "$name" "$delimiter"
+              printf '%s\n' "$value"
+              printf '%s\n' "$delimiter"
+            } >> "$GITHUB_OUTPUT"
+          }
+
           preset_version="${EVENT_PRESET_VERSION}"
           if [ -z "$preset_version" ]; then
             echo "preset_version is required from repository_dispatch payload or workflow_dispatch input" >&2
@@ -65,10 +81,8 @@ jobs:
             preset_download_url="https://github.com/bigsmartben/spec-kit-workflow-preset/releases/download/${preset_version}/workflow-preset.zip"
           fi
 
-          {
-            echo "preset_version=$preset_version"
-            echo "preset_download_url=$preset_download_url"
-          } >> "$GITHUB_OUTPUT"
+          write_github_output "preset_version" "$preset_version"
+          write_github_output "preset_download_url" "$preset_download_url"
 
       - name: Install and verify external workflow preset
         env:

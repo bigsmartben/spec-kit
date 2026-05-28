@@ -3477,6 +3477,26 @@ class TestBundledPresetLocator:
             assert catalog["presets"][preset_id]["bundled"] is True
             assert "download_url" not in catalog["presets"][preset_id]
 
+    def test_workflow_preset_catalog_matches_manifest(self):
+        """workflow-preset catalog entry matches bundled preset manifest."""
+        catalog_path = Path(__file__).parent.parent / "presets" / "catalog.json"
+        manifest_path = Path(__file__).parent.parent / "presets" / "workflow-preset" / "preset.yml"
+        catalog = json.loads(catalog_path.read_text(encoding="utf-8"))
+        manifest = yaml.safe_load(manifest_path.read_text(encoding="utf-8"))
+
+        entry = catalog["presets"]["workflow-preset"]
+        provided = manifest["provides"]["templates"]
+        command_count = sum(1 for item in provided if item["type"] == "command")
+        template_count = sum(1 for item in provided if item["type"] == "template")
+
+        assert entry["bundled"] is True
+        assert entry["version"] == manifest["preset"]["version"]
+        assert entry["repository"] == manifest["preset"]["repository"]
+        assert entry["requires"]["speckit_version"] == manifest["requires"]["speckit_version"]
+        assert entry["provides"]["commands"] == command_count
+        assert entry["provides"]["templates"] == template_count
+        assert entry["tags"] == manifest["tags"]
+
     def test_bundled_preset_download_raises_error(self, project_dir):
         """download_pack raises PresetError for bundled presets without download_url."""
         catalog = PresetCatalog(project_dir)

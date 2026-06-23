@@ -2185,6 +2185,13 @@ class PresetContractTests(unittest.TestCase):
             minimal_design_requirement_intake_trace()
         )
 
+    def test_design_requirement_intake_trace_validator_rejects_missing_visual_item_id(self) -> None:
+        intake = minimal_design_requirement_intake_trace()
+        del intake["visual_restoration_trace"][0]["visual_item_id"]
+
+        with self.assertRaisesRegex(ValueError, "missing visual_item_id"):
+            validate_design_requirement_intake_trace_contract(intake)
+
     def test_design_requirement_intake_trace_validator_rejects_full_provider_matrix_copy(self) -> None:
         intake = minimal_design_requirement_intake_trace()
         intake["visual_restoration_trace"][0]["visual_item_matrix"] = minimal_visual_item_matrix()

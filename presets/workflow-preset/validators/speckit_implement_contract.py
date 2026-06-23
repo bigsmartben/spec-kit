@@ -343,6 +343,8 @@ def validate_design_requirement_intake_trace_contract(intake: dict[str, Any]) ->
 
     for row in rows:
         item_id = row.get("visual_item_id", "<unknown>")
+        if not row.get("visual_item_id"):
+            raise ValueError("visual restoration trace row missing visual_item_id")
         copied_structures = FULL_PROVIDER_MATRIX_KEYS.intersection(row)
         if copied_structures:
             raise ValueError(

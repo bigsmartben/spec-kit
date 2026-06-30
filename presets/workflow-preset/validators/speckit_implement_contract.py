@@ -355,6 +355,15 @@ def _handoff_is_code_review_task(handoff: dict[str, Any]) -> bool:
     return "code review" in normalized
 
 
+def _receipt_is_approved_code_review(receipt: dict[str, Any]) -> bool:
+    review_conclusion = receipt.get("review_conclusion", {})
+    return (
+        isinstance(review_conclusion, dict)
+        and review_conclusion.get("status") == "approved"
+        and not receipt.get("deferred_validation_todos")
+    )
+
+
 def _receipt_defers_real_e2e(receipt: dict[str, Any]) -> bool:
     evidence = "\n".join(str(item) for item in receipt.get("validation_evidence", []))
     normalized = evidence.lower().replace("-", " ")
@@ -692,17 +701,20 @@ def validate_commit_ready(
         elif _handoff_is_code_review_task(handoff):
             code_review_receipts.append(receipt)
 
-    if implementation_changed_paths and not code_review_receipts:
+    approved_code_review_receipts = [
+        receipt for receipt in code_review_receipts if _receipt_is_approved_code_review(receipt)
+    ]
+    if implementation_changed_paths and not approved_code_review_receipts:
         first_path = sorted(implementation_changed_paths)[0]
         raise ValueError(
-            "implementation changed_paths require at least one code review receipt: "
+            "implementation changed_paths require at least one approved code review receipt: "
             f"{first_path}"
         )
 
-    if code_review_receipts:
+    if approved_code_review_receipts:
         reviewed_diff_paths = [
             str(path)
-            for review_receipt in code_review_receipts
+            for review_receipt in approved_code_review_receipts
             for path in review_receipt.get("data_side_effect_review", {}).get(
                 "reviewed_diff_paths",
                 [],

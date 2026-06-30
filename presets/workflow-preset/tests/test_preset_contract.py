@@ -2731,6 +2731,55 @@ class PresetContractTests(unittest.TestCase):
                 receipts_by_path={RECEIPT_PATH: minimal_receipt(changed_paths=[SERVICE_PATH])},
             )
 
+    def test_validate_commit_ready_rejects_unapproved_code_review_coverage(self) -> None:
+        review_shard_id = "S02-service-flow-02"
+        review_receipt_path = f"{HANDOFF_DIR}/results/{review_shard_id}.json"
+        review_handoff_path = f"{HANDOFF_DIR}/{review_shard_id}.json"
+        manifest = minimal_manifest(
+            shards=[
+                minimal_shard(),
+                minimal_shard(shard_id=review_shard_id, task_ids=["T099"]),
+            ],
+            dependencies=[{"shard_id": review_shard_id, "depends_on": [SHARD_ID]}],
+            dispatch_order=[[SHARD_ID], [review_shard_id]],
+        )
+        review_handoff = minimal_handoff(
+            shard_id=review_shard_id,
+            task_ids=["T099"],
+            allowed_write_paths=[review_receipt_path],
+            task_type="code_review",
+        )
+        review_handoff["allowed_read_paths"] = [TASKS_PATH, QUICKSTART_PATH, SERVICE_PATH]
+
+        with self.assertRaisesRegex(ValueError, "approved code review receipt"):
+            validate_commit_ready(
+                manifest,
+                handoffs_by_path={
+                    f"{HANDOFF_DIR}/{SHARD_ID}.json": minimal_handoff(),
+                    review_handoff_path: review_handoff,
+                },
+                receipts_by_path={
+                    RECEIPT_PATH: minimal_receipt(changed_paths=[SERVICE_PATH]),
+                    review_receipt_path: minimal_receipt(
+                        shard_id=review_shard_id,
+                        task_ids=["T099"],
+                        completed_task_ids=[],
+                        task_type="code_review",
+                        changed_paths=[review_receipt_path],
+                        validation_evidence=["Code review found implementation blockers."],
+                        review_conclusion={
+                            "status": "changes_requested",
+                            "summary": "Review found blockers.",
+                            "checked_sources": [QUICKSTART_PATH],
+                            "findings": [],
+                        },
+                        data_side_effect_review=no_data_side_effects_review(
+                            paths=[SERVICE_PATH]
+                        ),
+                    ),
+                },
+            )
+
     def test_validate_commit_ready_rejects_code_review_that_misses_implementation_diff(
         self,
     ) -> None:

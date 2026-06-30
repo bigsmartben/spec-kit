@@ -1,7 +1,7 @@
 name: Preset Submission
 description: Submit your preset to the Spec Kit preset catalog
 title: "[Preset]: Add "
-labels: ["enhancement", "needs-triage"]
+labels: ["enhancement", "needs-triage", "preset-submission"]
 body:
   - type: markdown
     attributes:

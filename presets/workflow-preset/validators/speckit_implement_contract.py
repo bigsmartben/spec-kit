@@ -93,8 +93,18 @@ def _path_within_or_equal(path: Any, allowed_path: Any) -> bool:
     return path_parts == allowed_parts or _is_prefix_path(allowed_parts, path_parts)
 
 
+def _paths_equal(left: Any, right: Any) -> bool:
+    left_absolute, left_parts = _normalized_path_parts(left)
+    right_absolute, right_parts = _normalized_path_parts(right)
+    return left_absolute == right_absolute and left_parts == right_parts
+
+
 def _path_allowed_by_any(path: Any, allowed_paths: list[Any]) -> bool:
     return any(_path_within_or_equal(path, allowed_path) for allowed_path in allowed_paths)
+
+
+def _path_list_contains_exact(path: Any, paths: list[Any]) -> bool:
+    return any(_paths_equal(path, candidate) for candidate in paths)
 
 
 def _first_path_overlap(
@@ -723,7 +733,7 @@ def validate_commit_ready(
         missing_paths = sorted(
             path
             for path in implementation_changed_paths
-            if not _path_allowed_by_any(path, reviewed_diff_paths)
+            if not _path_list_contains_exact(path, reviewed_diff_paths)
         )
         if missing_paths:
             raise ValueError(

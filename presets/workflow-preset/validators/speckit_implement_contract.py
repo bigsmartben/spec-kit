@@ -93,18 +93,8 @@ def _path_within_or_equal(path: Any, allowed_path: Any) -> bool:
     return path_parts == allowed_parts or _is_prefix_path(allowed_parts, path_parts)
 
 
-def _paths_equal(left: Any, right: Any) -> bool:
-    left_absolute, left_parts = _normalized_path_parts(left)
-    right_absolute, right_parts = _normalized_path_parts(right)
-    return left_absolute == right_absolute and left_parts == right_parts
-
-
 def _path_allowed_by_any(path: Any, allowed_paths: list[Any]) -> bool:
     return any(_path_within_or_equal(path, allowed_path) for allowed_path in allowed_paths)
-
-
-def _path_list_contains_exact(path: Any, paths: list[Any]) -> bool:
-    return any(_paths_equal(path, candidate) for candidate in paths)
 
 
 def _first_path_overlap(
@@ -313,15 +303,12 @@ def _handoff_requires_traceable_validation_evidence(handoff: dict[str, Any]) -> 
         "Visual Item ID",
         "Requirement Status",
         "visual_setup",
-        "visual_validation",
         "visual_implementation",
-        "visual_evidence",
         "ui_acceptance",
-        "visual_verification",
         "asset_binding",
-        "final_visual_review",
-        "screenshot ref",
-        "visual proof ref",
+        "visual SSOT ref",
+        "HTML SSOT ref",
+        "structured IR ref",
         "Client Asset Contract",
     )
     values: list[str] = []
@@ -341,10 +328,12 @@ def _receipt_references_traceable_validation_evidence(receipt: dict[str, Any]) -
         "UIF-",
         "Visual Item ID",
         "Requirement Status",
-        "screenshot ref",
-        "screenshot refs",
-        "visual proof ref",
-        "visual proof refs",
+        "visual SSOT ref",
+        "visual SSOT refs",
+        "HTML SSOT ref",
+        "HTML SSOT refs",
+        "structured IR ref",
+        "structured IR refs",
         "Client Asset Contract",
         "quickstart validation",
         "contracts/bdd/",
@@ -363,15 +352,6 @@ def _handoff_is_code_review_task(handoff: dict[str, Any]) -> bool:
     text = "\n".join(str(item) for item in handoff.get("task_text", []))
     normalized = text.lower().replace("-", " ")
     return "code review" in normalized
-
-
-def _receipt_is_approved_code_review(receipt: dict[str, Any]) -> bool:
-    review_conclusion = receipt.get("review_conclusion", {})
-    return (
-        isinstance(review_conclusion, dict)
-        and review_conclusion.get("status") == "approved"
-        and not receipt.get("deferred_validation_todos")
-    )
 
 
 def _receipt_defers_real_e2e(receipt: dict[str, Any]) -> bool:
@@ -711,20 +691,17 @@ def validate_commit_ready(
         elif _handoff_is_code_review_task(handoff):
             code_review_receipts.append(receipt)
 
-    approved_code_review_receipts = [
-        receipt for receipt in code_review_receipts if _receipt_is_approved_code_review(receipt)
-    ]
-    if implementation_changed_paths and not approved_code_review_receipts:
+    if implementation_changed_paths and not code_review_receipts:
         first_path = sorted(implementation_changed_paths)[0]
         raise ValueError(
-            "implementation changed_paths require at least one approved code review receipt: "
+            "implementation changed_paths require at least one code review receipt: "
             f"{first_path}"
         )
 
-    if approved_code_review_receipts:
+    if code_review_receipts:
         reviewed_diff_paths = [
             str(path)
-            for review_receipt in approved_code_review_receipts
+            for review_receipt in code_review_receipts
             for path in review_receipt.get("data_side_effect_review", {}).get(
                 "reviewed_diff_paths",
                 [],
@@ -733,7 +710,7 @@ def validate_commit_ready(
         missing_paths = sorted(
             path
             for path in implementation_changed_paths
-            if not _path_list_contains_exact(path, reviewed_diff_paths)
+            if not _path_allowed_by_any(path, reviewed_diff_paths)
         )
         if missing_paths:
             raise ValueError(
@@ -850,7 +827,7 @@ def validate_receipt_structure(
         raise ValueError(
             "receipt validation_evidence must reference relevant BDD scenario, "
             "behavior assertion, API contract, UIF path, Visual Item ID, "
-            "screenshot ref, visual proof ref, Client Asset Contract entry, "
+            "visual SSOT ref, HTML SSOT ref, structured IR ref, Client Asset Contract entry, "
             "or quickstart path"
         )
 

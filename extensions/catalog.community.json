@@ -2431,8 +2431,8 @@
       "id": "preview",
       "description": "Generate evidence-backed low, mid, or high fidelity previews from Spec Kit artifacts as Markdown or self-contained HTML",
       "author": "bigsmartben",
-      "version": "1.1.0",
-      "download_url": "https://github.com/bigsmartben/spec-kit-preview/archive/refs/tags/v1.1.0.zip",
+      "version": "1.2.0",
+      "download_url": "https://github.com/bigsmartben/spec-kit-preview/archive/refs/tags/v1.2.0.zip",
       "repository": "https://github.com/bigsmartben/spec-kit-preview",
       "homepage": "https://github.com/bigsmartben/spec-kit-preview",
       "documentation": "https://github.com/bigsmartben/spec-kit-preview/blob/main/README.md",
@@ -2459,7 +2459,7 @@
       "downloads": 0,
       "stars": 0,
       "created_at": "2026-05-15T00:00:00Z",
-      "updated_at": "2026-06-23T00:00:00Z"
+      "updated_at": "2026-07-01T00:00:00Z"
     },
     "product": {
       "name": "Product Spec Extension",

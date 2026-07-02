@@ -30,8 +30,6 @@ DEFAULT_EXTENSION_COMMANDS = (
     "speckit.discovery.poc",
     "speckit.discovery.decision",
     "speckit.intake.visual-design",
-    "speckit.intake.figma2htmlssot",
-    "speckit.intake.ir",
     "speckit.intake.prd",
     "speckit.intake.test-cases",
     "speckit.preview.low-md",

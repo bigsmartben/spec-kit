@@ -66,7 +66,7 @@ specify init my-project --integration codex --ignore-agent-tools
 | 自动扩展 | `agent-context` | `extensions/agent-context` | 维护 AGENTS、CLAUDE、Copilot 等 agent context 文件里的 Spec Kit 受管段。 |
 | 默认扩展 | `arch` | `extensions/arch` | 生成或反向生成项目级 4+1 架构视图，形成架构 SSOT。 |
 | 默认扩展 | `discovery` | `extensions/discovery` | 在正式计划前做可行性、技术选型、旧代码评估、接口理解、PoC 和场景化技术决策。 |
-| 默认扩展 | `intake` | `extensions/intake` | 把 PRD、设计稿、Figma、HTML SSOT、结构化 IR、测试用例等来源归一化为 SDD 可消费的证据包。 |
+| 默认扩展 | `intake` | `extensions/intake` | 把 PRD、设计稿、Figma、视觉规格资产包、preview 覆盖证据、测试用例等来源归一化为 SDD 可消费的证据包。 |
 | 默认扩展 | `preview` | `extensions/preview` | 从规格和计划生成低、中、高保真 Markdown 或自包含 HTML 预览。 |
 | 默认扩展 | `repository-governance` | `extensions/repository-governance` | 生成仓库治理 SSOT，帮助 agent 明确目录责任、读取顺序和事实证据。 |
 | 默认预设 | `workflow-preset` | `presets/workflow-preset` | 强化 BDD、NFR、UIF、设计产物、任务验证策略和 implement handoff 编排。 |
@@ -147,8 +147,6 @@ specify init my-project --integration codex --ignore-agent-tools
 ```text
 /speckit.intake.prd
 /speckit.intake.visual-design
-/speckit.intake.figma2htmlssot
-/speckit.intake.ir
 /speckit.intake.test-cases
 ```
 
@@ -156,7 +154,7 @@ specify init my-project --integration codex --ignore-agent-tools
 
 - PRD、产品说明、Markdown、PDF、导出的文档。
 - 图片、线框图、设计 PDF、Figma 文件、Figma 页面或节点。
-- Figma 派生的 HTML visual SSOT 和结构化 UI acceptance IR。
+- 视觉规格结构化资产包，以及 Figma 派生的组件矩阵 preview 覆盖证据。
 - 既有测试、Gherkin、手工测试用例、QA 导出、测试管理表格。
 
 主要产物：
@@ -164,8 +162,8 @@ specify init my-project --integration codex --ignore-agent-tools
 ```text
 specs/<feature>/intake/prd/
 specs/<feature>/intake/visual-design/
-specs/<feature>/intake/visual-design/figma2htmlssot/
-specs/<feature>/intake/visual-design/structured-ir/
+specs/<feature>/intake/visual-design/visual-spec-package/
+specs/<feature>/intake/visual-design/previews/
 specs/<feature>/intake/test-cases/
 ```
 
@@ -484,8 +482,6 @@ specify bundle build --path ./my-bundle
 ```text
 /speckit.intake.prd
 /speckit.intake.visual-design
-/speckit.intake.figma2htmlssot
-/speckit.intake.ir
 /speckit.intake.test-cases
 /speckit.specify
 /speckit.clarify
@@ -496,8 +492,6 @@ specify bundle build --path ./my-bundle
 
 ```text
 /speckit.intake.visual-design
-/speckit.intake.figma2htmlssot
-/speckit.intake.ir
 /speckit.specify
 /speckit.preview.low-md
 /speckit.plan

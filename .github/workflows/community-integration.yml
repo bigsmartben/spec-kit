@@ -35,7 +35,9 @@ jobs:
           $argsList = @(
             'scripts/community/validate_integration.py',
             '--branch',
-            '${{ github.head_ref }}'
+            '${{ github.head_ref }}',
+            '--repository-full-name',
+            '${{ github.repository }}'
           )
           if (Test-Path -LiteralPath .pr-body.md) {
             $argsList += @('--pr-body-file', '.pr-body.md')

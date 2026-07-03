@@ -12,10 +12,9 @@ Sync Impact Report
 ## Repository-Wide Instructions
 
 - Framework: Project Governance Projection Framework.
-- Generate and review only the resolved active agent platform target.
-- Use the Copilot instruction model for layering only; do not emit Copilot path-specific companion files.
-- Keep instructions short, self-contained, and free of conflicting rules.
-- Legacy managed-section cleanup: non-active context files enumerated by `CONTEXT_FILES`.
+- Treat this file as the active project-governance entrypoint for coding-agent work in this repository.
+- Keep task reasoning grounded in source-backed repository facts, matched SSOT routes, and explicit user instructions.
+- Keep edits scoped to the active task and matched path family.
 - architecture methodology: owned by Architecture SSOT.
 
 ### Authority
@@ -27,34 +26,44 @@ Sync Impact Report
 5. Active `PROJECT GOVERNANCE` projection
 6. Tests and CI results
 7. Historical documents
-8. Agent inference
+8. Explicit assumptions for reversible local edits
 
 - Active projection is generated routing guidance and is subordinate to explicit vertical SSOT documents or source-backed repository facts on substantive conflicts.
 
-## SSOT Routing
+## SSOT Index
 
 - Architecture SSOT: owns architecture boundaries, interfaces, dependencies, runtime constraints, deployment assumptions, and scenario-level architecture decisions.
 - Engineering SSOT: owns branch, version, release, CI/CD, collaboration process, standard tools, command entrypoints, configuration templates, and execution constraints.
 - Code Style SSOT: owns naming, formatting, comments, error handling, logging, tests, and quality standards.
 - Directory Structure SSOT: owns directory layout, file placement, module organization, and configuration locations.
 - Agent Harness SSOT: owns agent task boundaries, tool usage, permissions, audit, validation, and failure handling.
-- Architecture evidence: none detected
-- Engineering evidence: none detected
-- Code Style evidence: none detected
-- Directory Structure evidence: none detected
-- Agent Harness evidence: none detected
+- Architecture SSOT index:
+  - status: missing
+  - source_refs: none detected
+  - gap: NEEDS_CLARIFICATION:ARCHITECTURE
+- Engineering SSOT index:
+  - status: missing
+  - source_refs: none detected
+  - gap: NEEDS_CLARIFICATION:ENGINEERING
+- Code Style SSOT index:
+  - status: missing
+  - source_refs: none detected
+  - gap: NEEDS_CLARIFICATION:CODE_STYLE
+- Directory Structure SSOT index:
+  - status: missing
+  - source_refs: none detected
+  - gap: NEEDS_CLARIFICATION:DIRECTORY_STRUCTURE
+- Agent Harness SSOT index:
+  - status: missing
+  - source_refs: none detected
+  - gap: NEEDS_CLARIFICATION:AGENT_HARNESS
 
 ### Missing SSOT Handling
 
-- If a vertical SSOT is missing or incomplete, infer temporary guidance from current repository evidence.
-- Mark inferred guidance as pending SSOT solidification.
-- Do not present inferred guidance as an approved repository rule.
-- Do not let inference override explicit SSOT content.
-
-## Repository Evidence
-
-- Repository facts are descriptive source-backed evidence.
-- Repository facts do not override explicit vertical SSOT content.
+- If a vertical SSOT is missing or incomplete, treat repository evidence as descriptive context only.
+- Before changing a surface governed by missing SSOT, ask for clarification or record `NEEDS_CLARIFICATION:<SSOT>` in handoff.
+- Use existing code and config facts for narrow edits only when task scope and validation are explicit.
+- Do not invent repository policy from descriptive repository evidence.
 
 ## Path And Task Scope Rules
 
@@ -65,24 +74,22 @@ Sync Impact Report
 - Agent instructions, permissions, MCP, external tools, skills, validation, or failure-handling changes: read Agent Harness SSOT before edits.
 - If multiple rules match, read every matched SSOT and apply the highest authority non-conflicting rule.
 
-### Directory Governance
+### Directory Structure Fallback
 
-- Responsibility: one primary purpose per directory.
-- Depth: 2.
-- Coverage: include visible, hidden, generated, cache, config/env, tool, and agent directories.
-- Mixed concerns: follow existing repo convention or split responsibility.
-- Change impact: review linked code, tests, docs, config/env, data, assets, generated files, and tool outputs; update only when in scope and authorized.
+- Use only when Directory Structure SSOT is missing and the task scope is explicit.
+- Treat scanned repository areas as descriptive context, not as approved directory policy.
+- Keep new or moved files aligned with existing nearby conventions unless the user supplies a different target.
+- Record `NEEDS_CLARIFICATION:DIRECTORY_STRUCTURE` in handoff when placement is ambiguous.
 
 ## Agent Harness
 
-- Repository Capability: abstract repository-local skill and MCP evidence into scenario capabilities.
-- Spec Kit Agent Adapter: map integration metadata to the active agent platform target and supported discovery behavior.
-- Platform Projection: emit only the rules the active agent platform target can safely apply.
-- Repository-local skills: use when the task matches a declared skill name, description, or trigger.
-- MCP-backed external tools: use when the task needs external tool or resource access; enumerate runtime tools before use.
+- Repository capability layer: source-backed repository-local skills and MCP candidates only.
+- Agent adapter layer: use explicit integration support when available; otherwise use generic fallback rules.
+- Platform projection layer: apply only rules supported by the active target file.
+- Repository-local skills: evidence only unless an explicit Agent Harness SSOT source names them; read matching `SKILL.md` before planning or editing.
+- MCP-backed external tools: indexed as MCP config candidates only; enumerate runtime tools before use.
 - Repository config candidates are evidence only unless the active adapter supports them.
-- Repository-local skill specs should declare name, description or trigger, allowed read paths, allowed write paths, forbidden paths, outputs, and validation command.
-- Read matching `SKILL.md` files before planning or editing.
+- If a matching skill lacks scope or validation guidance, ask for clarification before expanding writes.
 - MCP default: read-only.
 - MCP mutation: explicit user intent with target, action, and expected effect.
 - Secrets: never log, never write.
@@ -90,14 +97,9 @@ Sync Impact Report
 ## Write Boundaries
 
 - Scope: active task only.
-- Active agent platform target: generated output, overwritten on generation.
-- Legacy managed-section cleanup: non-active context files enumerated by `CONTEXT_FILES`.
+- Agent context files: edit only when the user explicitly asks for instruction changes.
 - Protected files: implementation paths, CI configuration, MCP configuration, secrets, permissions, tool settings, and arbitrary repository paths outside the resolved write surface.
 - Protected-file writes: explicit user request, named matching contract or regression test, and passing validation commands.
-
-## Development Commands
-
-- none recorded
 
 ## Handoff
 

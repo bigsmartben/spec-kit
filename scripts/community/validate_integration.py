@@ -20,6 +20,7 @@ ISO_DAY_RE = re.compile(r"^\d{4}-\d{2}-\d{2}T00:00:00Z$")
 SHA_RE = re.compile(r"\b[0-9a-fA-F]{40}\b")
 URL_RE = re.compile(r"^https://")
 COMMUNITY_BRANCH_RE = re.compile(r"^community/(?:\d+-)?[a-z0-9][a-z0-9._-]*$")
+UPSTREAM_REPOSITORY = "github/spec-kit"
 
 
 class Validation:
@@ -149,7 +150,16 @@ def validate_branch(branch: str | None, validation: Validation) -> None:
         )
 
 
-def validate_pr_body(body_path: Path | None, branch: str | None, validation: Validation) -> None:
+def requires_direct_pr_approval(repository_full_name: str | None) -> bool:
+    return (repository_full_name or UPSTREAM_REPOSITORY).lower() == UPSTREAM_REPOSITORY
+
+
+def validate_pr_body(
+    body_path: Path | None,
+    branch: str | None,
+    validation: Validation,
+    repository_full_name: str | None = None,
+) -> None:
     if body_path is None:
         return
     try:
@@ -182,15 +192,16 @@ def validate_pr_body(body_path: Path | None, branch: str | None, validation: Val
 
     if route == "pr-template":
         direct_pr_approval = field_value(body, "Maintainer direct PR approval")
-        validation.require(
-            direct_pr_approval is not None and URL_RE.match(direct_pr_approval) is not None,
-            (
-                "direct pr-template community extension/preset PRs must include an https "
-                "Maintainer direct PR approval; otherwise submit extensions with "
-                ".github/ISSUE_TEMPLATE/extension_submission.yml and presets with "
-                ".github/ISSUE_TEMPLATE/preset_submission.yml"
-            ),
-        )
+        if requires_direct_pr_approval(repository_full_name):
+            validation.require(
+                direct_pr_approval is not None and URL_RE.match(direct_pr_approval) is not None,
+                (
+                    "direct pr-template community extension/preset PRs must include an https "
+                    "Maintainer direct PR approval; otherwise submit extensions with "
+                    ".github/ISSUE_TEMPLATE/extension_submission.yml and presets with "
+                    ".github/ISSUE_TEMPLATE/preset_submission.yml"
+                ),
+            )
 
         source_repository = field_value(body, "Source repository")
         source_version = field_value(body, "Source version")
@@ -220,6 +231,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--repo-root", type=Path, default=Path.cwd())
     parser.add_argument("--branch", default=None, help="Current branch name, usually github.head_ref in CI")
     parser.add_argument("--pr-body-file", type=Path, default=None)
+    parser.add_argument(
+        "--repository-full-name",
+        default=UPSTREAM_REPOSITORY,
+        help="GitHub repository in owner/name form; upstream github/spec-kit enforces direct PR approval",
+    )
     parser.add_argument("--show-warnings", action="store_true", help="Print non-blocking historical catalog style warnings")
     return parser.parse_args()
 
@@ -230,7 +246,7 @@ def main() -> int:
     validation = Validation()
 
     validate_branch(args.branch, validation)
-    validate_pr_body(args.pr_body_file, args.branch, validation)
+    validate_pr_body(args.pr_body_file, args.branch, validation, args.repository_full_name)
     validate_catalog(repo_root / "extensions" / "catalog.community.json", "extensions", validation)
     validate_catalog(repo_root / "presets" / "catalog.community.json", "presets", validation)
 

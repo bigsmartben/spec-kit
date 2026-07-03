@@ -38,6 +38,15 @@ def test_direct_pr_template_requires_maintainer_approval(tmp_path: Path) -> None
     assert any("Maintainer direct PR approval" in error for error in validation.errors)
 
 
+def test_fork_pr_template_does_not_require_maintainer_approval(tmp_path: Path) -> None:
+    validation = Validation()
+    body_path = _write_body(tmp_path, _base_body(route="pr-template"))
+
+    validate_pr_body(body_path, "community/example-extension", validation, "bigsmartben/spec-kit")
+
+    assert validation.errors == []
+
+
 def test_direct_pr_template_accepts_maintainer_approval(tmp_path: Path) -> None:
     validation = Validation()
     body_path = _write_body(

@@ -31,7 +31,7 @@ Generate project-governance projections for the active Spec Kit agent platform t
 ## Install
 
 ```bash
-specify extension add repository-governance --from https://github.com/bigsmartben/spec-kit-agent-governance/archive/42f0cb04891a29a4c05973b7fa5e746a7e0f8dd4.zip
+specify extension add repository-governance --from https://github.com/bigsmartben/spec-kit-agent-governance/archive/refs/tags/v3.0.2.zip
 ```
 
 Local development:

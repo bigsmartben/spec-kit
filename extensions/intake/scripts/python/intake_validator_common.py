@@ -42,6 +42,32 @@ def is_remote_ref(value: str) -> bool:
     return value.startswith(("http://", "https://", "figma://"))
 
 
+def is_supporting_visual_artifact_ref(value: Any) -> bool:
+    """Return true when a ref points at helper evidence, not a source-of-truth record."""
+    ref = str(value or "").strip().replace("\\", "/").lower()
+    if not ref:
+        return False
+    supporting_markers = (
+        "visual-evidence-packet.md",
+        "figma-evidence-packet.md",
+        "visual-spec-evidence-packet.md",
+        "preview.html",
+        "/previews/",
+        "previews/",
+        "/screenshots/",
+        "screenshots/",
+        "visual-diff",
+        "diff-output",
+    )
+    return any(marker in ref for marker in supporting_markers)
+
+
+def supporting_visual_artifact_refs(value: Any) -> list[str]:
+    if not isinstance(value, list):
+        return []
+    return [str(ref).strip() for ref in value if is_supporting_visual_artifact_ref(ref)]
+
+
 def has_needs_clarification(value: Any) -> bool:
     if isinstance(value, str):
         return "[NEEDS CLARIFICATION]" in value

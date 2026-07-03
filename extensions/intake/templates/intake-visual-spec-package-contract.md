@@ -4,6 +4,8 @@ Required visual requirements/spec structured asset package artifacts and readine
 
 Visual Spec Package does not generate requirements, tasks, code component names, implementation-owned selectors, or product semantics. It preserves source-backed DOM, ARIA, token, state, relation, locator-strategy, and assertion facts that can be consumed by low-cost CI checks.
 
+`visual-spec.yaml` and `visual-spec-assertions.yaml` are the structured asset records for this package. `visual-spec-evidence-packet.md`, preview panels, screenshots, and visual diffs are supporting artifacts only; they must not create, override, replace, or serve as source-of-truth records for spec items or assertions.
+
 ## Artifact Family
 
 Default directory:
@@ -18,14 +20,14 @@ Required files:
 - `visual-spec-assertions.yaml`
 - `visual-spec-evidence-packet.md`
 
-Optional helper refs may point to `previews/component-matrix-preview.html`, `previews/component-coverage.yaml`, `previews/viewport-coverage.yaml`, screenshots, or visual diff reports, but preview panels and screenshots are not the target deliverable.
+Optional helper refs may point to `previews/preview.html`, `previews/component-coverage.yaml`, `previews/viewport-coverage.yaml`, screenshots, or visual diff reports. In the visual spec package, these remain helper refs; `preview.html` is the equivalent HTML delivery artifact of the preview bundle, not a `source_refs` authority for spec facts.
 
 ## Source Boundary
 
 Visual Spec Package is downstream of source evidence and upstream of implementation tests:
 
 1. Visual/design intake records source-backed facts, limitations, Figma metadata, and visual requirements.
-2. Preview helpers record component matrix review, component coverage, viewport coverage, and screenshot comparison evidence when useful.
+2. Preview delivery records the visual-equivalent HTML page, component coverage, viewport coverage, and screenshot comparison evidence when useful.
 3. Visual Spec Package records deterministic visual requirements/spec facts suitable for downstream implementation and CI.
 
 If source evidence is missing, truncated, contradictory, or blocked, visual spec package must record `VISUAL_SPEC_PROVIDER_EVIDENCE_MISSING`. If the source is clear but product behavior is ambiguous, it must record `VISUAL_SPEC_PRODUCT_AMBIGUITY_UNRESOLVED`. Do not collapse these into one generic gap.
@@ -53,7 +55,7 @@ Each item must include:
 - source_refs: preserved source evidence refs
 - des_refs: optional design evidence source refs
 - visual_requirement_refs: optional refs to `visual-requirements.yaml`
-- preview_refs: optional refs to `previews/component-matrix-preview.html`, `previews/component-coverage.yaml`, `previews/viewport-coverage.yaml`, screenshots, or diff evidence
+- preview_refs: optional refs to `previews/preview.html`, `previews/component-coverage.yaml`, `previews/viewport-coverage.yaml`, screenshots, or diff evidence
 - page, region, role, state, viewport
 - locator: provider-neutral strategy, value, and `implementation_owned: false`
 - expectations: DOM, ARIA, design token, state, content, or relation facts
@@ -64,6 +66,8 @@ Each item must include:
 - blockers: array
 
 Locator strategies must not be implementation-owned CSS selectors, XPath, generated class names, or downstream test IDs. Candidate test IDs may be recorded only as `test-id-candidate` and must remain intake-owned guidance, not implementation ownership.
+
+`source_refs` must point to original design sources, provider metadata, upstream `visual-requirements.yaml` records, or source-backed structured asset records. Preview refs and evidence packet refs belong in helper fields such as `preview_refs`; they must not be used as `source_refs`.
 
 ## `visual-spec-assertions.yaml`
 
@@ -90,6 +94,8 @@ Each assertion must include:
 - blockers
 
 Ready assertions should use `ci_suitability: ci_low_cost`. Manual review and blocked assertions are allowed as explicit evidence, but they cannot satisfy CI readiness.
+
+`evidence_refs` for ready assertions must point to source-backed design refs or structured visual spec records. They must not point to preview HTML, screenshots, visual diffs, or evidence packets as the only fact source.
 
 ## Readiness
 

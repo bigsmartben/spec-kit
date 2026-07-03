@@ -17,7 +17,11 @@ try:
 except ImportError:  # pragma: no cover - exercised in user environments
     yaml = None
 
-from intake_validator_common import parse_evidence_packet_status, validate_json_schema
+from intake_validator_common import (
+    parse_evidence_packet_status,
+    supporting_visual_artifact_refs,
+    validate_json_schema,
+)
 
 
 ALLOWED_SOURCE_TYPES = {"image", "pdf", "markdown", "figma"}
@@ -393,6 +397,7 @@ def validate_visual_requirements(
     has_blocker_lint = isinstance(blocker_lint_errors, list) and len(blocker_lint_errors) > 0
     has_inference_contract_error = False
     evidence_type_counts: dict[str, int] = {}
+    supporting_source_refs: list[dict[str, Any]] = []
 
     for index, item in enumerate(requirements):
         if not isinstance(item, dict):
@@ -408,6 +413,12 @@ def validate_visual_requirements(
         source_refs = item.get("source_refs")
         if not isinstance(source_refs, list) or not source_refs or any(not str(ref).strip() for ref in source_refs):
             has_untraceable = True
+        else:
+            helper_refs = supporting_visual_artifact_refs(source_refs)
+            if helper_refs:
+                requirement_errors.append({"index": index, "supporting_artifact_source_refs": helper_refs})
+                supporting_source_refs.append({"index": index, "refs": helper_refs})
+                has_untraceable = True
 
         evidence_type = str(item.get("evidence_type") or "").strip().lower()
         if evidence_type:
@@ -437,6 +448,7 @@ def validate_visual_requirements(
 
     details["visual_requirements"]["requirement_errors"] = requirement_errors
     details["visual_requirements"]["evidence_type_counts"] = evidence_type_counts
+    details["visual_requirements"]["supporting_artifact_source_refs"] = supporting_source_refs
     details["visual_requirements"]["count_matches_requirements"] = count_matches
 
     if has_missing_required:

@@ -18,7 +18,7 @@
         "required": ["id", "source_ref", "name", "required_dimensions", "covered", "missing"],
         "properties": {
           "id": { "type": "string", "minLength": 1 },
-          "source_ref": { "type": "string", "minLength": 1 },
+          "source_ref": { "$ref": "#/$defs/source_ref" },
           "name": { "type": "string", "minLength": 1 },
           "required_dimensions": {
             "type": "object",
@@ -33,11 +33,12 @@
             "type": "array",
             "items": {
               "type": "object",
-              "required": ["visual_spec_ref", "preview_ref"],
+              "required": ["visual_spec_ref", "preview_ref", "interaction_ref"],
               "properties": {
                 "visual_spec_ref": { "type": "string", "minLength": 1 },
                 "preview_ref": { "type": "string", "minLength": 1 },
-                "source_ref": { "type": "string", "minLength": 1 },
+                "interaction_ref": { "type": "string", "minLength": 1 },
+                "source_ref": { "$ref": "#/$defs/source_ref" },
                 "screenshot_refs": {
                   "type": "array",
                   "items": { "type": "string", "minLength": 1 }
@@ -64,7 +65,8 @@
                     "visual_diff",
                     "source_evidence",
                     "visual_spec_ref",
-                    "preview_ref"
+                    "preview_ref",
+                    "interaction_ref"
                   ]
                 },
                 "reason": { "type": "string", "minLength": 1 },
@@ -85,6 +87,7 @@
         "VISUAL_PREVIEW_REQUIRED_ARTIFACT_MISSING",
         "VISUAL_PREVIEW_FIGMA_NODE_COVERAGE_INCOMPLETE",
         "VISUAL_PREVIEW_COMPONENT_STATE_COVERAGE_INCOMPLETE",
+        "VISUAL_PREVIEW_IA_MATRIX_INCOMPLETE",
         "VISUAL_PREVIEW_PAGE_COVERAGE_INCOMPLETE",
         "VISUAL_PREVIEW_ASSET_TRACEABILITY_INCOMPLETE",
         "VISUAL_PREVIEW_VIEWPORT_CAPTURE_INCOMPLETE",
@@ -94,6 +97,13 @@
         "VISUAL_SPEC_PROVIDER_EVIDENCE_MISSING",
         "VISUAL_SPEC_ASSERTION_COVERAGE_INCOMPLETE"
       ]
+    },
+    "source_ref": {
+      "type": "string",
+      "minLength": 1,
+      "not": {
+        "pattern": "(visual-evidence-packet\\.md|figma-evidence-packet\\.md|visual-spec-evidence-packet\\.md|preview\\.html|previews/|screenshots/|visual-diff|diff-output)"
+      }
     }
   },
   "additionalProperties": true

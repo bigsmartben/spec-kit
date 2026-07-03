@@ -9,6 +9,7 @@
 - Update Architecture Workflow extension to v1.2.2 with full-workflow commands and readiness validators.
 - Update Spec Kit Preview extension to v1.2.0 with structured IR-backed mid-fidelity previews.
 - Update Intake extension to v0.1.3 with HTML SSOT validation and bounded visual inference gates.
+- Update bundled Repository Governance extension to v3.0.2 with a formal source release tag.
 - Update bundled Repository Governance extension with SSOT index projections, Zed target mapping, and bounded evidence scanning.
 - Update bundled Repository Governance extension to v2.0.2, including the `/speckit.repository-governance.refresh` command, `.specify/memory/repository-governance.md` internal cache, and default bundled installation behavior.
 - Update bundled Workflow Preset documentation for v1.3.2 Final Code Review task generation and structured code review receipts.

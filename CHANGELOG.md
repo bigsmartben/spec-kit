@@ -2,6 +2,117 @@
 
 <!-- insert new changelog below this comment -->
 
+## [0.11.10] - 2026-07-03
+
+### Changed
+
+- Point Repository Governance bundle at v3.0.2
+- Update repository-governance extension to v3.0.2
+- Fix fork community integration validation
+- Update bundled repository governance snapshot
+- Handle compact false truncation markers
+- Retrigger community validation
+- Restore intake metadata regression coverage
+- Update bundled intake HTML mock readiness
+- Fix intake metadata shard validation
+- Update intake extension to v0.1.5
+- Update bundled intake visual spec package
+- Update intake extension to v0.1.4 (#45)
+- Update intake bundled extension contracts (#44)
+- Update preview extension to v1.2.0 (#43)
+- Update workflow-preset to v1.3.12
+- Require exact reviewed diff path coverage
+- Require approved review receipts for commit readiness
+- Align catalog issue template labels
+- Guard community submission PR route
+- Update bundled workflow-preset runtime boundaries
+- Sync workflow preset subagent context controls
+- test: align workflow preset contract version
+- Update workflow-preset provider boundaries
+- rerun intake integration checks
+- update bundled intake to v0.1.3
+- Update repository-governance extension to v3.0.1
+- Add community bundle submission path (#3162)
+- Docs: Document /speckit.converge command (#3181)
+- chore: release 0.11.9, begin 0.11.10.dev0 development (#3189)
+- fix: satisfy shellcheck for arch validation
+- Fix workflow preset contract test version
+- Align tests with repository governance generate command
+- Update Architecture Workflow extension to v1.2.2
+- Update workflow-preset to v1.3.11
+- Update repository governance smoke expectations
+- Update repository-governance extension to v3.0.0
+- Update docs links to spec-kit fork
+- Document local extension workflow
+- chore: update repository governance community catalog
+- Update repository-governance extension to v2.0.6
+- Update repository-governance extension to v2.0.5
+- chore: remove stale agent governance catalog entry
+- fix: align intake smoke assertion
+- fix: bundle intake extension in wheel
+- test: align arch extension contract checks
+- docs: update quickstart arch commands
+- docs: update bundled extension usage
+- chore: codify community integration workflow
+- Update discovery extension to v0.2.0
+- Add Spec Kit Discovery Extension to community catalog
+- Add discovery bundled extension
+- update preview smoke test expectations
+- fix preview smoke checks
+- update preview extension to v1.1.0
+- Update Architecture Workflow extension to v1.2.1
+- Add Intake community extension
+- Update workflow-preset to v1.3.10
+- Sync workflow-preset community catalog to v1.3.9
+- Update workflow-preset to v1.3.9
+- add workflow preset visual item matrix contract
+- test: write CRLF fixture as bytes
+- test: make CRLF prompt rewrite cross-platform
+- fix: normalize skill command refs for presets
+- fix: refresh init manifest after default bundle
+- test: align inventory expectations with community bundle
+- fix: avoid global Path.exists pytest side effects
+- fix: update community smoke init integration flag
+- docs: update community release install tag
+- Fix workflow preset release contract
+- Update workflow-preset to v1.3.8
+- docs: update quickstart and capabilities overview
+- Update workflow-preset to v1.3.6
+- Fix workflow preset release feedback
+- Update workflow-preset to v1.3.5
+- docs: update community release install tag
+- Fix workflow-preset 1.3.4 validation checks
+- Update workflow-preset to v1.3.4
+- Update documentation for workflow preset and extensions
+- fix: align workflow preset smoke version
+- fix: verify workflow preset wheel smoke
+- Update repository-governance extension to v2.0.2
+- Update workflow-preset to v1.3.2
+- Update workflow preset to v1.3.1
+- fix: align workflow preset integration assertions
+- [codex] Add workflow-preset integration Actions (#4)
+- docs: update community release install tag
+- Update bundled workflow preset to v1.3.0
+- docs: update community release install tag
+- Integrate updated workflow preset
+- Update workflow preset to v1.2.0
+- Update workflow preset to v1.1.0
+- docs: update community release install tag
+- fix: align defaults with repository governance
+- Integrate Repository Governance extension
+- Update Repository Governance extension catalog entry
+- docs: keep README focused on local fork
+- docs: rewrite README for users
+- fix: tolerate copilot prompt rewrites during upgrade
+- ci: keep pytest matrix running after failures
+- test: include integration upgrade output
+- docs: add internal bundle install smoke
+- feat: bundle community extensions in init
+- feat(extensions): add arch workflow extension
+- Refine arch command as architecture SSOT
+- Add agent governance projection support
+- Add arch and agent command support
+
 ## Unreleased
 
 ### Changed

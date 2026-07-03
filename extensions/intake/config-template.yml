@@ -14,7 +14,7 @@ artifacts:
   prd_intake: "prd-intake.yaml"
   visual_requirements: "visual-requirements.yaml"
   test_case_intake: "test-case-intake.yaml"
-  component_matrix_preview: "component-matrix-preview.html"
+  preview_html: "preview.html"
   component_coverage: "component-coverage.yaml"
   viewport_coverage: "viewport-coverage.yaml"
   visual_previews_known_gaps: "known-gaps.md"

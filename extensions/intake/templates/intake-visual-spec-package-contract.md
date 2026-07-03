@@ -20,14 +20,14 @@ Required files:
 - `visual-spec-assertions.yaml`
 - `visual-spec-evidence-packet.md`
 
-Optional helper refs may point to `previews/component-matrix-preview.html`, `previews/component-coverage.yaml`, `previews/viewport-coverage.yaml`, screenshots, or visual diff reports, but preview panels and screenshots are not the target deliverable.
+Optional helper refs may point to `previews/preview.html`, `previews/component-coverage.yaml`, `previews/viewport-coverage.yaml`, screenshots, or visual diff reports. In the visual spec package, these remain helper refs; `preview.html` is the equivalent HTML delivery artifact of the preview bundle, not a `source_refs` authority for spec facts.
 
 ## Source Boundary
 
 Visual Spec Package is downstream of source evidence and upstream of implementation tests:
 
 1. Visual/design intake records source-backed facts, limitations, Figma metadata, and visual requirements.
-2. Preview helpers record component matrix review, component coverage, viewport coverage, and screenshot comparison evidence when useful.
+2. Preview delivery records the visual-equivalent HTML page, component coverage, viewport coverage, and screenshot comparison evidence when useful.
 3. Visual Spec Package records deterministic visual requirements/spec facts suitable for downstream implementation and CI.
 
 If source evidence is missing, truncated, contradictory, or blocked, visual spec package must record `VISUAL_SPEC_PROVIDER_EVIDENCE_MISSING`. If the source is clear but product behavior is ambiguous, it must record `VISUAL_SPEC_PRODUCT_AMBIGUITY_UNRESOLVED`. Do not collapse these into one generic gap.
@@ -55,7 +55,7 @@ Each item must include:
 - source_refs: preserved source evidence refs
 - des_refs: optional design evidence source refs
 - visual_requirement_refs: optional refs to `visual-requirements.yaml`
-- preview_refs: optional refs to `previews/component-matrix-preview.html`, `previews/component-coverage.yaml`, `previews/viewport-coverage.yaml`, screenshots, or diff evidence
+- preview_refs: optional refs to `previews/preview.html`, `previews/component-coverage.yaml`, `previews/viewport-coverage.yaml`, screenshots, or diff evidence
 - page, region, role, state, viewport
 - locator: provider-neutral strategy, value, and `implementation_owned: false`
 - expectations: DOM, ARIA, design token, state, content, or relation facts

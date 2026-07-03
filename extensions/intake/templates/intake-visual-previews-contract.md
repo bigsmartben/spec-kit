@@ -1,10 +1,10 @@
-# Visual Preview Coverage Contract
+# HTML Mock Delivery Contract
 
-Required IA-matrix preview helper artifacts and readiness gates. Preview coverage artifacts help reviewers inspect whether design-source pages, components, visual states, component states, interaction events, resources, content samples, and viewports were enumerated before downstream implementation, but they are not the target visual requirements/spec asset package.
+Required HTML mock equivalent delivery page and coverage readiness gates. `preview.html` is the static HTML/CSS mock equivalent for the visual input design, generated from upstream intake artifacts. It renders intake-backed pages, layout regions, components, visual states, interaction states, content samples, and viewport surfaces before downstream implementation. Coverage artifacts prove whether those rendered mock surfaces are traceable and complete, but they are not the target visual requirements/spec asset package.
 
-Preview coverage does not generate requirements, implementation HTML, product semantics, downstream-owned selectors, tasks, code component names, or design tokens. It preserves source-backed coverage evidence that points back to design-source refs and forward to `visual-spec-package/` records.
+HTML mock delivery does not generate requirements, production implementation HTML, product semantics, downstream-owned selectors, tasks, code component names, or design tokens. It preserves source-backed coverage evidence that points back to design-source refs and forward to `visual-spec-package/` records.
 
-Preview coverage is assembled from the structured UI/visual asset and source-backed records. It must not create, override, replace, or backfill `visual-requirements.yaml`, `visual-spec.yaml`, or `visual-spec-assertions.yaml`; do not infer specifications from `component-matrix-preview.html`.
+HTML mock delivery is assembled from the structured UI/visual asset, visual spec package records, coverage YAML, screenshot refs, and source-backed records. It must not create, override, replace, or backfill `visual-requirements.yaml`, `visual-spec.yaml`, or `visual-spec-assertions.yaml`; `preview.html` may implement only existing structured facts and explicit missing or blocked records as the HTML mock equivalent.
 
 ## Artifact Family
 
@@ -16,7 +16,7 @@ specs/<feature>/intake/visual-design/previews/
 
 Required files:
 
-- `component-matrix-preview.html`
+- `preview.html`
 - `component-coverage.yaml`
 - `viewport-coverage.yaml`
 - `known-gaps.md`
@@ -24,33 +24,35 @@ Required files:
 
 ## Source Boundary
 
-Preview coverage is downstream of visual-design intake and adjacent to the visual spec package:
+HTML mock delivery is downstream of visual-design intake and adjacent to the visual spec package:
 
 1. Visual-design intake records source-backed facts, limitations, Figma metadata, node inventory, and visual requirements.
 2. Visual Spec Package records the target structured visual requirements/spec facts.
-3. Preview coverage records reviewer-oriented matrix surfaces and machine-readable coverage evidence.
+3. HTML mock delivery records the generated visual-equivalent mock page plus machine-readable coverage evidence.
 
-If Figma or design-source evidence is missing, truncated, contradictory, or blocked, preview coverage must record a `VISUAL_PREVIEW_*` blocker and keep the affected coverage cell missing. Do not silently complete a missing state, variant, resource, or viewport in preview HTML.
+If Figma or design-source evidence is missing, truncated, contradictory, or blocked, HTML mock delivery must record a `VISUAL_PREVIEW_*` blocker and keep the affected coverage cell missing. Do not silently complete a missing state, variant, resource, viewport, or page behavior in preview HTML.
 
-## `component-matrix-preview.html`
+## `preview.html`
 
-The file is a human-review panel only. Each preview cell should expose stable anchors such as `id` or `data-preview-id` so `component-coverage.yaml` can reference the cell.
+The file is the generated static HTML/CSS mock equivalent for UI intake. It implements the visual input design from upstream intake artifacts as rendered mock pages, regions, components, states, interaction surfaces, content samples, and viewport surfaces. Each visualized mock surface that coverage records reference must expose a stable anchor such as `id`, `data-preview-id`, or `data-interaction-id`.
 
-The preview panel must use an IA matrix structure that fuses interaction evidence into page and component review surfaces. Do not create a standalone interaction matrix that is disconnected from the visual states it exercises.
+The IA matrix is the coverage and interaction evidence layer for the HTML mock. Do not let IA matrix tables replace the visualized page and component mock surfaces, and do not create a standalone interaction matrix that is disconnected from the visual states it exercises.
 
 Required top-level order:
 
-1. IA matrix overview for fused interactions.
-2. For each required page:
+1. Rendered mock page surfaces, including required page regions, component instances, content samples, and viewport-specific surfaces.
+2. IA matrix overview for fused interactions.
+3. For each required page:
    - page visual state enumeration
    - page IA matrix
-3. For each required component:
+4. For each required component:
    - component visual state enumeration
    - component IA matrix with event interaction information
-4. Coverage evidence conclusion
+5. Coverage evidence conclusion
 
 The HTML must expose these stable section anchors so readiness can be checked:
 
+- `data-preview-section="mock-page"`
 - `data-preview-section="ia-matrix-overview"`
 - `data-preview-section="page-state-enumeration"`
 - `data-preview-section="page-ia-matrix"`
@@ -59,6 +61,8 @@ The HTML must expose these stable section anchors so readiness can be checked:
 - `data-preview-section="coverage-evidence-conclusion"`
 
 Each visual-state enumeration cell must render the state visually or point to source-backed screenshot evidence. A prose-only state row is a missing coverage cell unless the state is explicitly blocked or out of scope.
+
+Stable anchors must be unambiguous. Values used in `id`, `data-preview-id`, or `data-interaction-id` must not resolve to multiple HTML elements.
 
 Each page IA matrix row must fuse the current interaction matrix information into the page state that owns it. Required IA fields:
 
@@ -87,12 +91,21 @@ Each component IA matrix row must include event interaction information for the 
 - `evidence_ref`
 - `coverage_status`
 
-Use stable anchors such as `id`, `data-preview-id`, or `data-interaction-id` for every visual-state cell and IA matrix row that a coverage record references.
+Use stable anchors such as `id`, `data-preview-id`, or `data-interaction-id` for every visualized mock page, visualized component/state node, visual-state cell, and IA matrix row that a coverage record references. Component `preview_ref` values must resolve to visualized component or state nodes, not only explanatory text or IA matrix rows.
 
-The preview panel may display:
+Every visualized component or state node referenced by `component-coverage.yaml` `preview_ref` must expose `data-preview-kind` with one of these values:
 
-- pages and page regions
-- component sets and component instances
+- `component`
+- `component-state`
+- `component-instance`
+- `mock-component`
+- `mock-component-state`
+- `visual-state`
+
+The preview page may display:
+
+- rendered pages and page regions
+- component sets and component instances as HTML/CSS mock nodes
 - variant props
 - states
 - page IA rows and component IA rows
@@ -102,7 +115,7 @@ The preview panel may display:
 - viewport-specific snapshots or links
 - missing, blocked, and out-of-scope labels
 
-The preview panel must not define product semantics, downstream component names, implementation selectors, design tokens, or source-backed facts that are absent from the design source.
+The preview page must not define product semantics, downstream component names, production implementation selectors, design tokens, or source-backed facts that are absent from upstream intake artifacts. Its equivalence is bounded by the validated intake facts and explicit missing or blocked records.
 
 ## `component-coverage.yaml`
 
@@ -134,6 +147,8 @@ Each covered record must include:
 - optional screenshot_refs
 - dimension values matching the component's required dimensions when applicable
 
+`visual_spec_ref` values must point to `../visual-spec-package/visual-spec.yaml#<item-id>` and resolve to existing `visual-spec-package/visual-spec.yaml` item IDs. `screenshot_refs`, when present, must resolve to existing files under the preview artifact directory.
+
 Each missing record must include:
 
 - missing_type: state|variant|viewport|resource|asset|token|screenshot|visual_diff|source_evidence|visual_spec_ref|preview_ref
@@ -162,17 +177,22 @@ Missing viewport evidence must stay explicit in `missing` records or top-level b
 
 ## Readiness
 
-Preview coverage is ready only when:
+HTML mock delivery is ready only when:
 
 - upstream visual-design intake readiness is PASS
+- adjacent `visual-spec-package/` readiness is PASS
 - required preview artifacts exist
 - `component-coverage.yaml` validates against `component-coverage.schema.json`
 - `viewport-coverage.yaml` validates against `viewport-coverage.schema.json`
 - every covered component record has a `visual_spec_ref`
-- every covered component record has a `preview_ref` that resolves inside `component-matrix-preview.html`
-- every covered component record has an `interaction_ref` that resolves inside `component-matrix-preview.html`
-- `component-matrix-preview.html` contains the required IA matrix sections and required IA field markers
-- page refs in `viewport-coverage.yaml` resolve inside `component-matrix-preview.html`
+- every covered component record has a `preview_ref` that resolves to a visualized mock component or state node inside `preview.html`
+- every covered component record has an `interaction_ref` that resolves inside `preview.html`
+- every covered component `visual_spec_ref` points to `visual-spec-package/visual-spec.yaml` and resolves to an existing item
+- component screenshot refs resolve to existing files when present
+- `preview.html` contains the required mock page section, IA matrix sections, and required IA field markers
+- each page and component IA matrix row contains the full required IA field set
+- preview anchors are unique across `id`, `data-preview-id`, and `data-interaction-id`
+- page refs and visual spec refs in `viewport-coverage.yaml` resolve to mock page surfaces and visual spec items
 - no missing record remains for required component states, variants, resources, assets, tokens, screenshots, visual diffs, source evidence, visual spec refs, or preview refs
 - every viewport record is covered and has existing screenshot refs
 - at least one viewport has page refs

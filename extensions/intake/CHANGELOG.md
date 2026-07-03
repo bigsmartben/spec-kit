@@ -5,8 +5,13 @@
 ### Added
 
 - Added `capture_figma_metadata_shards.py` to stage sharded Figma `get_metadata` captures into canonical raw metadata shards, index, and node inventory artifacts without passing large provider responses through agent context.
-- Added IA-matrix preview readiness checks that require page visual-state enumerations, page IA matrices, component visual-state enumerations, component IA matrices with interaction refs, and coverage evidence conclusions.
+- Added HTML mock readiness checks that require rendered mock page surfaces, page visual-state enumerations, page IA matrices, component visual-state enumerations, component IA matrices with interaction refs, and coverage evidence conclusions.
+- Added HTML mock readiness checks for adjacent visual spec package readiness, `visual-spec-package/visual-spec.yaml` refs, visualized component node kinds, and preview-local screenshot refs.
 - Added structured UI/visual asset source-of-truth checks that block evidence packets, preview HTML, screenshots, and visual diffs from being used as `source_refs` or `evidence_refs`.
+
+### Changed
+
+- Repositioned `previews/preview.html` as the static HTML/CSS mock equivalent for the visual input design generated from upstream intake artifacts, with coverage YAML preserving machine-checkable traceability.
 
 ## [0.1.4] - 2026-07-01
 
@@ -14,13 +19,13 @@
 
 - Added visual-design visual spec package artifacts for CI-friendly DOM, ARIA, token, state, locator, relation, and assertion evidence.
 - Added visual spec package schemas and `validate_visual_spec_package.py` for source readiness, cross-reference, provider-evidence, product-ambiguity, locator, downstream-ownership, and CI assertion checks.
-- Added `visual-design/previews/` with `component-matrix-preview.html` for human review and `component-coverage.yaml` / `viewport-coverage.yaml` for machine-checkable coverage evidence under `/speckit.intake.visual-design`.
+- Added `visual-design/previews/` with `preview.html` as the visual-equivalent HTML delivery and `component-coverage.yaml` / `viewport-coverage.yaml` for machine-checkable coverage evidence under `/speckit.intake.visual-design`.
 
 ## [0.1.3] - 2026-06-29
 
 ### Added
 
-- Added Figma-derived visual preview coverage evidence with component-state, page, asset, viewport, screenshot, and known-gap readiness checks.
+- Added Figma-derived HTML mock coverage evidence with component-state, page, asset, viewport, screenshot, and known-gap readiness checks.
 - Added bounded visual inference statuses for irregular Figma and visual-design sources, including `candidate` and `unsupported` claim handling.
 - Added readiness blocking for unbounded visual inference and unsupported visual claims.
 

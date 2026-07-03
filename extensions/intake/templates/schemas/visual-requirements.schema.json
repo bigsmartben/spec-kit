@@ -247,7 +247,7 @@
       "type": "string",
       "minLength": 1,
       "not": {
-        "pattern": "(visual-evidence-packet\\.md|figma-evidence-packet\\.md|visual-spec-evidence-packet\\.md|component-matrix-preview\\.html|previews/|screenshots/|visual-diff|diff-output)"
+        "pattern": "(visual-evidence-packet\\.md|figma-evidence-packet\\.md|visual-spec-evidence-packet\\.md|preview\\.html|previews/|screenshots/|visual-diff|diff-output)"
       }
     }
   },

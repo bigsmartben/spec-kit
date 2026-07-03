@@ -16,7 +16,7 @@ This packet is a human-readable readiness summary. Machine-readable UI acceptanc
 
 - Visual/design intake directory:
 - Visual/design readiness:
-- HTML preview/helper refs, if used:
+- HTML delivery/helper refs, if used:
 - Screenshot or visual diff refs, if used:
 
 ## Visual Spec Package Summary

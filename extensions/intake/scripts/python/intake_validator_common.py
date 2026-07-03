@@ -51,7 +51,7 @@ def is_supporting_visual_artifact_ref(value: Any) -> bool:
         "visual-evidence-packet.md",
         "figma-evidence-packet.md",
         "visual-spec-evidence-packet.md",
-        "component-matrix-preview.html",
+        "preview.html",
         "/previews/",
         "previews/",
         "/screenshots/",

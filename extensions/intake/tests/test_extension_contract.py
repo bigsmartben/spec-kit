@@ -367,17 +367,24 @@ def write_image_visual_intake_fixture(intake: Path):
 
 def write_visual_previews_fixture(html_dir: Path):
     visual_intake = html_dir.parent
-    write_visual_intake_fixture(visual_intake, "figma", "high", "figma-source.txt")
-    write_figma_metadata_fixture(visual_intake)
+    write_visual_spec_package_fixture(visual_intake / "visual-spec-package")
     html_dir.mkdir(parents=True, exist_ok=True)
     screenshots = html_dir / "screenshots"
     screenshots.mkdir(exist_ok=True)
     (screenshots / "home-desktop.png").write_bytes(b"fake-png")
 
-    (html_dir / "component-matrix-preview.html").write_text(
-        '<main data-preview-section="ia-matrix-overview">'
-        '<section id="home-page" data-preview-id="home-page" data-preview-section="page-state-enumeration" '
+    (html_dir / "preview.html").write_text(
+        '<main>'
+        '<section id="home-page" data-preview-id="home-page" data-preview-section="mock-page" '
         'data-figma-node-id="1" data-spec-role="home-page">'
+        '<header>Home</header>'
+        '<button id="button-md-primary-default" data-preview-id="button-md-primary-default" '
+        'data-preview-kind="component-state" data-figma-node-id="2" '
+        'data-acceptance-unit="component-state">Save</button>'
+        "</section>"
+        '<section data-preview-section="ia-matrix-overview">IA matrix overview</section>'
+        '<section id="home-page-states" data-preview-id="home-page-states" '
+        'data-preview-section="page-state-enumeration" data-figma-node-id="1" data-spec-role="home-page">'
         '<div id="home-page-default" data-preview-id="home-page-default">Home default state</div>'
         "</section>"
         '<table id="home-page-ia" data-preview-id="home-page-ia" data-preview-section="page-ia-matrix">'
@@ -395,8 +402,7 @@ def write_visual_previews_fixture(html_dir: Path):
         "</tr>"
         "</table>"
         '<section id="button-states" data-preview-id="button-states" data-preview-section="component-state-enumeration">'
-        '<button id="button-md-primary-default" data-preview-id="button-md-primary-default" '
-        'data-figma-node-id="2" data-acceptance-unit="component-state">Save</button>'
+        '<div data-preview-id="button-md-primary-default-state">Save button default state</div>'
         "</section>"
         '<table id="button-ia" data-preview-id="button-ia" data-preview-section="component-ia-matrix">'
         '<tr data-interaction-id="button-md-primary-default-click">'
@@ -439,8 +445,8 @@ def write_visual_previews_fixture(html_dir: Path):
                 "        icon: none",
                 "        source_ref: figma://node/2",
                 "        visual_spec_ref: ../visual-spec-package/visual-spec.yaml#VS-home-save-default",
-                "        preview_ref: component-matrix-preview.html#button-md-primary-default",
-                "        interaction_ref: component-matrix-preview.html#button-md-primary-default-click",
+                "        preview_ref: preview.html#button-md-primary-default",
+                "        interaction_ref: preview.html#button-md-primary-default-click",
                 "        screenshot_refs:",
                 "          - screenshots/home-desktop.png",
                 "    missing: []",
@@ -462,7 +468,7 @@ def write_visual_previews_fixture(html_dir: Path):
         "    visual_spec_refs:\n"
         "      - ../visual-spec-package/visual-spec.yaml#VS-home-save-default\n"
         "    page_refs:\n"
-        "      - component-matrix-preview.html#home-page\n"
+        "      - preview.html#home-page\n"
         "    screenshot_refs:\n"
         "      - screenshots/home-desktop.png\n"
         "    visual_diff_status: pass\n",
@@ -496,7 +502,7 @@ def write_visual_spec_package_fixture(package_dir: Path):
                 "    visual_requirement_refs:",
                 "      - ../visual-requirements.yaml#VR-001",
                 "    preview_refs:",
-                "      - ../previews/component-matrix-preview.html#button-md-primary-default",
+                "      - ../previews/preview.html#button-md-primary-default",
                 "      - ../previews/component-coverage.yaml#component-button",
                 "    page: home",
                 "    region: header",
@@ -656,6 +662,15 @@ def test_visual_previews_schema_and_validator_paths_are_declared():
     assert (ROOT / "templates" / "intake-visual-previews-contract.md").exists()
     assert (ROOT / "templates" / "schemas" / "component-coverage.schema.json").exists()
     assert (ROOT / "templates" / "schemas" / "viewport-coverage.schema.json").exists()
+
+
+def test_visual_design_command_uses_html_mock_mode_names():
+    command = (ROOT / "commands" / "speckit.intake.visual-design.md").read_text(encoding="utf-8")
+
+    assert "build-previews" not in command
+    assert "validate-previews" not in command
+    assert "build-html-mock" in command
+    assert "validate-html-mock" in command
 
 
 def test_visual_spec_package_schema_and_validator_paths_are_declared():
@@ -1673,7 +1688,7 @@ def test_visual_validator_blocks_helper_artifacts_as_source_refs():
 
     requirements = yaml.safe_load((intake / "visual-requirements.yaml").read_text(encoding="utf-8"))
     requirements["requirements"][0]["source_refs"] = [
-        "previews/component-matrix-preview.html#home-page",
+        "previews/preview.html#home-page",
         "source-files/wireframe.png#full",
     ]
     (intake / "visual-requirements.yaml").write_text(yaml.safe_dump(requirements), encoding="utf-8")
@@ -1690,7 +1705,7 @@ def test_visual_validator_blocks_helper_artifacts_as_source_refs():
     assert "VISUAL_SCHEMA_INVALID" in payload["blockers"]
     assert "VISUAL_REQUIREMENTS_UNTRACEABLE" in payload["blockers"]
     helper_refs = payload["details"]["visual_requirements"]["supporting_artifact_source_refs"]
-    assert helper_refs[0]["refs"] == ["previews/component-matrix-preview.html#home-page"]
+    assert helper_refs[0]["refs"] == ["previews/preview.html#home-page"]
 
     shutil.rmtree(work_dir)
 
@@ -1772,100 +1787,6 @@ def test_figma_metadata_capture_blocks_truncated_shard():
     intake.mkdir(parents=True)
     raw = work_dir / "truncated.xml"
     raw.write_text('<figma truncated="true"><node id="1" name="Root" /></figma>\n', encoding="utf-8")
-
-    capture = subprocess.run(
-        [
-            sys.executable,
-            str(FIGMA_METADATA_CAPTURE),
-            str(intake),
-            "--metadata-source",
-            str(raw),
-            "--file-url",
-            "https://www.figma.com/design/example/Foo",
-            "--file-key",
-            "example",
-            "--page-id",
-            "page-1",
-            "--node-id",
-            "1",
-            "--captured-at",
-            "2026-07-02T00:00:00Z",
-            "--json",
-        ],
-        cwd=ROOT,
-        text=True,
-        capture_output=True,
-    )
-
-    payload = json.loads(capture.stdout)
-    index = yaml.safe_load((intake / "figma-metadata.index.yaml").read_text(encoding="utf-8"))
-    assert capture.returncode == 1
-    assert payload["status"] == "BLOCKED"
-    assert "FIGMA_RAW_METADATA_TRUNCATED" in payload["blockers"]
-    assert index["raw_metadata_complete"] is False
-    assert index["shards"][0]["truncated"] is True
-
-    shutil.rmtree(work_dir)
-
-
-def test_figma_metadata_capture_blocks_mismatched_supplied_root_id():
-    work_dir = ROOT / ".tmp" / "test-figma-metadata-capture-root-mismatch"
-    if work_dir.exists():
-        shutil.rmtree(work_dir)
-    intake = work_dir / "visual-design"
-    intake.mkdir(parents=True)
-    raw = work_dir / "root-2.xml"
-    raw.write_text('<figma><node id="2" name="Different root" /></figma>\n', encoding="utf-8")
-
-    capture = subprocess.run(
-        [
-            sys.executable,
-            str(FIGMA_METADATA_CAPTURE),
-            str(intake),
-            "--metadata-source",
-            str(raw),
-            "--file-url",
-            "https://www.figma.com/design/example/Foo",
-            "--file-key",
-            "example",
-            "--page-id",
-            "page-1",
-            "--node-id",
-            "1",
-            "--captured-at",
-            "2026-07-02T00:00:00Z",
-            "--json",
-        ],
-        cwd=ROOT,
-        text=True,
-        capture_output=True,
-    )
-
-    payload = json.loads(capture.stdout)
-    index = yaml.safe_load((intake / "figma-metadata.index.yaml").read_text(encoding="utf-8"))
-    assert capture.returncode == 1
-    assert payload["status"] == "BLOCKED"
-    assert "FIGMA_METADATA_PARITY_FAILED" in payload["blockers"]
-    assert payload["captured_root_node_ids"] == ["2"]
-    assert payload["missing_root_node_ids"] == ["1"]
-    assert index["expected_root_node_ids"] == ["1"]
-    assert index["captured_root_node_ids"] == ["2"]
-    assert index["shards"][0]["root_node_ids"] == ["2"]
-
-    shutil.rmtree(work_dir)
-
-
-def test_figma_metadata_capture_blocks_nested_true_truncation_marker():
-    work_dir = ROOT / ".tmp" / "test-figma-metadata-capture-nested-truncated"
-    if work_dir.exists():
-        shutil.rmtree(work_dir)
-    intake = work_dir / "visual-design"
-    intake.mkdir(parents=True)
-    raw = work_dir / "nested-truncated.xml"
-    raw.write_text(
-        '<figma truncated="false"><node id="1" name="Root"><node id="1:child" truncated="true" /></node></figma>\n',
-        encoding="utf-8",
-    )
 
     capture = subprocess.run(
         [
@@ -2078,7 +1999,7 @@ def test_visual_previews_validator_passes_complete_minimal_bundle():
     )
 
     assert result.returncode == 0, result.stdout + result.stderr
-    assert "Visual preview readiness: PASS" in result.stdout
+    assert "HTML mock readiness: PASS" in result.stdout
 
     shutil.rmtree(work_dir)
 
@@ -2160,13 +2081,13 @@ def test_visual_previews_validator_blocks_helper_artifacts_as_source_refs():
     write_visual_previews_fixture(html_dir)
 
     component_coverage = yaml.safe_load((html_dir / "component-coverage.yaml").read_text(encoding="utf-8"))
-    component_coverage["components"][0]["source_ref"] = "component-matrix-preview.html#button-md-primary-default"
+    component_coverage["components"][0]["source_ref"] = "preview.html#button-md-primary-default"
     component_coverage["components"][0]["covered"][0]["source_ref"] = "screenshots/home-desktop.png"
     (html_dir / "component-coverage.yaml").write_text(yaml.safe_dump(component_coverage), encoding="utf-8")
 
     viewport_coverage = yaml.safe_load((html_dir / "viewport-coverage.yaml").read_text(encoding="utf-8"))
     viewport_coverage["viewports"][0]["source_refs"] = [
-        "previews/component-matrix-preview.html#home-page",
+        "previews/preview.html#home-page",
         "figma://node/1",
     ]
     (html_dir / "viewport-coverage.yaml").write_text(yaml.safe_dump(viewport_coverage), encoding="utf-8")
@@ -2192,10 +2113,25 @@ def test_visual_previews_validator_blocks_helper_artifacts_as_source_refs():
     ("edit_kind", "expected_blocker"),
     [
         ("missing_selector", "VISUAL_PREVIEW_FIGMA_NODE_COVERAGE_INCOMPLETE"),
+        ("wrong_preview_file_ref", "VISUAL_PREVIEW_FIGMA_NODE_COVERAGE_INCOMPLETE"),
+        ("missing_mock_page", "VISUAL_PREVIEW_IA_MATRIX_INCOMPLETE"),
+        ("component_ref_to_matrix", "VISUAL_PREVIEW_FIGMA_NODE_COVERAGE_INCOMPLETE"),
         ("ia_matrix", "VISUAL_PREVIEW_IA_MATRIX_INCOMPLETE"),
+        ("incomplete_ia_row", "VISUAL_PREVIEW_IA_MATRIX_INCOMPLETE"),
+        ("duplicate_anchor", "VISUAL_PREVIEW_IA_MATRIX_INCOMPLETE"),
         ("interaction_ref", "VISUAL_PREVIEW_IA_MATRIX_INCOMPLETE"),
+        ("missing_visual_spec_ref", "VISUAL_PREVIEW_COMPONENT_STATE_COVERAGE_INCOMPLETE"),
+        ("wrong_visual_spec_file_ref", "VISUAL_PREVIEW_COMPONENT_STATE_COVERAGE_INCOMPLETE"),
+        ("visual_spec_package_blocked", "VISUAL_PREVIEW_COMPONENT_STATE_COVERAGE_INCOMPLETE"),
         ("component_state", "VISUAL_PREVIEW_COMPONENT_STATE_COVERAGE_INCOMPLETE"),
+        ("missing_component_screenshot", "VISUAL_PREVIEW_VIEWPORT_CAPTURE_INCOMPLETE"),
+        ("component_screenshot_directory", "VISUAL_PREVIEW_VIEWPORT_CAPTURE_INCOMPLETE"),
+        ("component_screenshot_outside_preview_dir", "VISUAL_PREVIEW_VIEWPORT_CAPTURE_INCOMPLETE"),
         ("page", "VISUAL_PREVIEW_PAGE_COVERAGE_INCOMPLETE"),
+        ("wrong_page_file_ref", "VISUAL_PREVIEW_PAGE_COVERAGE_INCOMPLETE"),
+        ("page_ref_to_matrix", "VISUAL_PREVIEW_PAGE_COVERAGE_INCOMPLETE"),
+        ("viewport_visual_spec_ref", "VISUAL_PREVIEW_PAGE_COVERAGE_INCOMPLETE"),
+        ("viewport_wrong_visual_spec_file_ref", "VISUAL_PREVIEW_PAGE_COVERAGE_INCOMPLETE"),
         ("asset", "VISUAL_PREVIEW_ASSET_TRACEABILITY_INCOMPLETE"),
         ("viewport", "VISUAL_PREVIEW_VIEWPORT_CAPTURE_INCOMPLETE"),
         ("visual_diff", "VISUAL_PREVIEW_VISUAL_DIFF_BLOCKED"),
@@ -2210,25 +2146,73 @@ def test_visual_previews_validator_blocks_incomplete_coverage(edit_kind, expecte
     write_visual_previews_fixture(html_dir)
 
     if edit_kind == "missing_selector":
-        html = (html_dir / "component-matrix-preview.html").read_text(encoding="utf-8")
-        (html_dir / "component-matrix-preview.html").write_text(
+        html = (html_dir / "preview.html").read_text(encoding="utf-8")
+        (html_dir / "preview.html").write_text(
             html.replace('id="button-md-primary-default"', "").replace(
                 'data-preview-id="button-md-primary-default"', ""
             ),
             encoding="utf-8",
         )
+    elif edit_kind == "wrong_preview_file_ref":
+        component_coverage = yaml.safe_load((html_dir / "component-coverage.yaml").read_text(encoding="utf-8"))
+        component_coverage["components"][0]["covered"][0]["preview_ref"] = (
+            "wrong-preview.html#button-md-primary-default"
+        )
+        (html_dir / "component-coverage.yaml").write_text(yaml.safe_dump(component_coverage), encoding="utf-8")
+    elif edit_kind == "missing_mock_page":
+        html = (html_dir / "preview.html").read_text(encoding="utf-8")
+        (html_dir / "preview.html").write_text(
+            html.replace('data-preview-section="mock-page"', ""),
+            encoding="utf-8",
+        )
+    elif edit_kind == "component_ref_to_matrix":
+        component_coverage = yaml.safe_load((html_dir / "component-coverage.yaml").read_text(encoding="utf-8"))
+        component_coverage["components"][0]["covered"][0]["preview_ref"] = "preview.html#button-ia"
+        (html_dir / "component-coverage.yaml").write_text(yaml.safe_dump(component_coverage), encoding="utf-8")
     elif edit_kind == "ia_matrix":
-        html = (html_dir / "component-matrix-preview.html").read_text(encoding="utf-8")
-        (html_dir / "component-matrix-preview.html").write_text(
+        html = (html_dir / "preview.html").read_text(encoding="utf-8")
+        (html_dir / "preview.html").write_text(
             html.replace('data-preview-section="component-ia-matrix"', ""),
             encoding="utf-8",
         )
+    elif edit_kind == "incomplete_ia_row":
+        html = (html_dir / "preview.html").read_text(encoding="utf-8")
+        (html_dir / "preview.html").write_text(
+            html.replace(
+                "</table>"
+                '<section id="button-states"',
+                '<tr><td data-page-ia-field="page_region">footer</td></tr></table>'
+                '<section id="button-states"',
+                1,
+            ),
+            encoding="utf-8",
+        )
+    elif edit_kind == "duplicate_anchor":
+        html = (html_dir / "preview.html").read_text(encoding="utf-8")
+        (html_dir / "preview.html").write_text(
+            html.replace("</main>", '<div data-preview-id="home-page">Duplicate</div></main>'),
+            encoding="utf-8",
+        )
     elif edit_kind == "interaction_ref":
-        html = (html_dir / "component-matrix-preview.html").read_text(encoding="utf-8")
-        (html_dir / "component-matrix-preview.html").write_text(
+        html = (html_dir / "preview.html").read_text(encoding="utf-8")
+        (html_dir / "preview.html").write_text(
             html.replace('data-interaction-id="button-md-primary-default-click"', ""),
             encoding="utf-8",
         )
+    elif edit_kind == "missing_visual_spec_ref":
+        component_coverage = yaml.safe_load((html_dir / "component-coverage.yaml").read_text(encoding="utf-8"))
+        component_coverage["components"][0]["covered"][0]["visual_spec_ref"] = (
+            "../visual-spec-package/visual-spec.yaml#VS-missing"
+        )
+        (html_dir / "component-coverage.yaml").write_text(yaml.safe_dump(component_coverage), encoding="utf-8")
+    elif edit_kind == "wrong_visual_spec_file_ref":
+        component_coverage = yaml.safe_load((html_dir / "component-coverage.yaml").read_text(encoding="utf-8"))
+        component_coverage["components"][0]["covered"][0]["visual_spec_ref"] = (
+            "../visual-spec-package/other.yaml#VS-home-save-default"
+        )
+        (html_dir / "component-coverage.yaml").write_text(yaml.safe_dump(component_coverage), encoding="utf-8")
+    elif edit_kind == "visual_spec_package_blocked":
+        (html_dir.parent / "visual-spec-package" / "visual-spec-assertions.yaml").unlink()
     elif edit_kind == "component_state":
         component_coverage = yaml.safe_load((html_dir / "component-coverage.yaml").read_text(encoding="utf-8"))
         component_coverage["components"][0]["missing"].append(
@@ -2240,9 +2224,43 @@ def test_visual_previews_validator_blocks_incomplete_coverage(edit_kind, expecte
             }
         )
         (html_dir / "component-coverage.yaml").write_text(yaml.safe_dump(component_coverage), encoding="utf-8")
+    elif edit_kind == "missing_component_screenshot":
+        component_coverage = yaml.safe_load((html_dir / "component-coverage.yaml").read_text(encoding="utf-8"))
+        component_coverage["components"][0]["covered"][0]["screenshot_refs"] = ["screenshots/missing.png"]
+        (html_dir / "component-coverage.yaml").write_text(yaml.safe_dump(component_coverage), encoding="utf-8")
+    elif edit_kind == "component_screenshot_directory":
+        component_coverage = yaml.safe_load((html_dir / "component-coverage.yaml").read_text(encoding="utf-8"))
+        component_coverage["components"][0]["covered"][0]["screenshot_refs"] = ["screenshots"]
+        (html_dir / "component-coverage.yaml").write_text(yaml.safe_dump(component_coverage), encoding="utf-8")
+    elif edit_kind == "component_screenshot_outside_preview_dir":
+        outside = html_dir.parent / "outside.png"
+        outside.write_bytes(b"fake-png")
+        component_coverage = yaml.safe_load((html_dir / "component-coverage.yaml").read_text(encoding="utf-8"))
+        component_coverage["components"][0]["covered"][0]["screenshot_refs"] = ["../outside.png"]
+        (html_dir / "component-coverage.yaml").write_text(yaml.safe_dump(component_coverage), encoding="utf-8")
     elif edit_kind == "page":
         viewport_coverage = yaml.safe_load((html_dir / "viewport-coverage.yaml").read_text(encoding="utf-8"))
         viewport_coverage["viewports"][0]["page_refs"] = []
+        (html_dir / "viewport-coverage.yaml").write_text(yaml.safe_dump(viewport_coverage), encoding="utf-8")
+    elif edit_kind == "wrong_page_file_ref":
+        viewport_coverage = yaml.safe_load((html_dir / "viewport-coverage.yaml").read_text(encoding="utf-8"))
+        viewport_coverage["viewports"][0]["page_refs"] = ["wrong-preview.html#home-page"]
+        (html_dir / "viewport-coverage.yaml").write_text(yaml.safe_dump(viewport_coverage), encoding="utf-8")
+    elif edit_kind == "page_ref_to_matrix":
+        viewport_coverage = yaml.safe_load((html_dir / "viewport-coverage.yaml").read_text(encoding="utf-8"))
+        viewport_coverage["viewports"][0]["page_refs"] = ["preview.html#home-page-ia"]
+        (html_dir / "viewport-coverage.yaml").write_text(yaml.safe_dump(viewport_coverage), encoding="utf-8")
+    elif edit_kind == "viewport_visual_spec_ref":
+        viewport_coverage = yaml.safe_load((html_dir / "viewport-coverage.yaml").read_text(encoding="utf-8"))
+        viewport_coverage["viewports"][0]["visual_spec_refs"] = [
+            "../visual-spec-package/visual-spec.yaml#VS-missing"
+        ]
+        (html_dir / "viewport-coverage.yaml").write_text(yaml.safe_dump(viewport_coverage), encoding="utf-8")
+    elif edit_kind == "viewport_wrong_visual_spec_file_ref":
+        viewport_coverage = yaml.safe_load((html_dir / "viewport-coverage.yaml").read_text(encoding="utf-8"))
+        viewport_coverage["viewports"][0]["visual_spec_refs"] = [
+            "../visual-spec-package/other.yaml#VS-home-save-default"
+        ]
         (html_dir / "viewport-coverage.yaml").write_text(yaml.safe_dump(viewport_coverage), encoding="utf-8")
     elif edit_kind == "asset":
         component_coverage = yaml.safe_load((html_dir / "component-coverage.yaml").read_text(encoding="utf-8"))
@@ -2371,7 +2389,7 @@ def test_visual_spec_package_validator_blocks_helper_artifacts_as_fact_refs():
 
     package_doc = yaml.safe_load((package_dir / "visual-spec.yaml").read_text(encoding="utf-8"))
     package_doc["items"][0]["source_refs"] = [
-        "../previews/component-matrix-preview.html#button-md-primary-default",
+        "../previews/preview.html#button-md-primary-default",
         "figma://node/2",
     ]
     (package_dir / "visual-spec.yaml").write_text(yaml.safe_dump(package_doc), encoding="utf-8")

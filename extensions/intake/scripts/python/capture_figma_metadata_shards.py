@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import re
 import shutil
 import sys
 from datetime import datetime, timezone
@@ -111,6 +112,17 @@ def looks_truncated(text: str) -> bool:
     lower = text.lower()
     if "truncated" not in lower:
         return False
+    true_marker = re.search(
+        r"""(?ix)
+        (?:\btruncated\s*=\s*["']?true["']?)
+        |(?:"truncated"\s*:\s*true\b)
+        |(?:'truncated'\s*:\s*true\b)
+        |(?:\btruncated\s*:\s*true\b)
+        """,
+        text,
+    )
+    if true_marker:
+        return True
     allowed = [
         'truncated="false"',
         "truncated='false'",
@@ -232,7 +244,19 @@ def build_artifacts(args: argparse.Namespace) -> dict[str, Any]:
         text = raw.decode("utf-8-sig", errors="replace")
         root_ids, node_ids, parse_error = extract_node_ids(raw, source)
         if args.node_id:
-            root_ids = [args.node_id[index - 1] if len(args.node_id) == len(sources) else args.node_id[0]]
+            expected_source_roots = [args.node_id[index - 1] if len(args.node_id) == len(sources) else args.node_id[0]]
+            missing_source_roots = sorted(set(expected_source_roots) - set(root_ids))
+            if missing_source_roots:
+                gaps.append(
+                    {
+                        "code": "FIGMA_METADATA_PARITY_FAILED",
+                        "source": str(source),
+                        "reason": (
+                            "supplied root node id(s) were not found as metadata root ids: "
+                            + ", ".join(missing_source_roots)
+                        ),
+                    }
+                )
 
         truncated = looks_truncated(text)
         any_truncated = any_truncated or truncated

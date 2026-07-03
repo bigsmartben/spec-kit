@@ -1917,6 +1917,49 @@ def test_figma_metadata_capture_blocks_nested_true_truncation_marker():
     shutil.rmtree(work_dir)
 
 
+def test_figma_metadata_capture_allows_compact_false_truncation_marker():
+    work_dir = ROOT / ".tmp" / "test-figma-metadata-capture-compact-false-truncated"
+    if work_dir.exists():
+        shutil.rmtree(work_dir)
+    intake = work_dir / "visual-design"
+    intake.mkdir(parents=True)
+    raw = work_dir / "compact-false.json"
+    raw.write_text('{"id":"1","truncated":false,"children":[{"id":"1:child"}]}\n', encoding="utf-8")
+
+    capture = subprocess.run(
+        [
+            sys.executable,
+            str(FIGMA_METADATA_CAPTURE),
+            str(intake),
+            "--metadata-source",
+            str(raw),
+            "--file-url",
+            "https://www.figma.com/design/example/Foo",
+            "--file-key",
+            "example",
+            "--page-id",
+            "page-1",
+            "--node-id",
+            "1",
+            "--captured-at",
+            "2026-07-02T00:00:00Z",
+            "--json",
+        ],
+        cwd=ROOT,
+        text=True,
+        capture_output=True,
+    )
+
+    payload = json.loads(capture.stdout)
+    index = yaml.safe_load((intake / "figma-metadata.index.yaml").read_text(encoding="utf-8"))
+    assert capture.returncode == 0, capture.stdout + capture.stderr
+    assert payload["status"] == "PASS"
+    assert index["raw_metadata_complete"] is True
+    assert index["shards"][0]["truncated"] is False
+
+    shutil.rmtree(work_dir)
+
+
 def test_validator_passes_complete_minimal_figma_intake():
     work_dir = ROOT / ".tmp" / "test-validator-pass"
     if work_dir.exists():

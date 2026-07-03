@@ -123,14 +123,16 @@ def looks_truncated(text: str) -> bool:
     )
     if true_marker:
         return True
-    allowed = [
-        'truncated="false"',
-        "truncated='false'",
-        '"truncated": false',
-        "'truncated': false",
-        "truncated: false",
-    ]
-    return not any(marker in lower for marker in allowed)
+    false_marker = re.search(
+        r"""(?ix)
+        (?:\btruncated\s*=\s*["']?false["']?)
+        |(?:"truncated"\s*:\s*false\b)
+        |(?:'truncated'\s*:\s*false\b)
+        |(?:\btruncated\s*:\s*false\b)
+        """,
+        text,
+    )
+    return not bool(false_marker)
 
 
 def extract_xml_node_ids(text: str) -> tuple[list[str], list[str], str | None]:

@@ -6,6 +6,7 @@ from __future__ import annotations
 import json
 import re
 import sys
+from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
@@ -63,6 +64,7 @@ CONTEXT_FILES = {
     "trae": ".trae/rules/project_rules.md",
     "vibe": "AGENTS.md",
     "windsurf": ".windsurf/rules/specify-rules.md",
+    "zed": "AGENTS.md",
 }
 
 README_FILES = ["README.md", "README.markdown", "README.txt"]
@@ -83,6 +85,8 @@ PACKAGE_MANIFESTS = [
     "pom.xml",
     "build.gradle",
     "build.gradle.kts",
+    "settings.gradle",
+    "settings.gradle.kts",
     "composer.json",
     "requirements.txt",
     "setup.py",
@@ -157,7 +161,6 @@ CODE_STYLE_FILES = [
     "biome.json",
     "ruff.toml",
     ".ruff.toml",
-    "pyproject.toml",
     "mypy.ini",
     "pytest.ini",
     "tox.ini",
@@ -179,7 +182,100 @@ RUNTIME_CONFIG_FILES = [
     "netlify.toml",
     "fly.toml",
 ]
+ROUTE_BASE_DIRS = ("src", "app", "lib", "services", "packages")
+ROUTE_TEXT_SUFFIXES = {
+    ".cjs",
+    ".cs",
+    ".go",
+    ".java",
+    ".js",
+    ".jsx",
+    ".kt",
+    ".mjs",
+    ".php",
+    ".py",
+    ".rb",
+    ".rs",
+    ".scala",
+    ".ts",
+    ".tsx",
+}
+MAX_ROUTE_FILE_BYTES = 512_000
 SPEC_KIT_METADATA = [".specify/integration.json", ".specify/init-options.json", ".specify/extensions.yml"]
+EVIDENCE_SCAN_MAX_PARENT_DEPTH = 3
+SUPPORTED_ADAPTERS = {"codex", "zed"}
+ARCHITECTURE_SSOT_FILES = ["ARCHITECTURE.md", "architecture.md"]
+ARCHITECTURE_SSOT_GLOBS = [
+    "docs/architecture*.md",
+    "docs/**/architecture*.md",
+    "adr/*.md",
+    "adr/**/*.md",
+    "adrs/*.md",
+    "adrs/**/*.md",
+]
+ENGINEERING_SSOT_FILES = [
+    "CONTRIBUTING.md",
+    "contributing.md",
+    "DEVELOPMENT.md",
+    "development.md",
+    "RELEASE.md",
+    "release.md",
+    "VERSION",
+    "docs/engineering.md",
+    "docs/development.md",
+    "docs/release.md",
+    "docs/releases.md",
+    "docs/ci.md",
+    "docs/tooling.md",
+    "docs/commands.md",
+    *EXTENSION_CONTRACT_FILES,
+]
+EXTENSION_ENGINEERING_SSOT_FILES = ["extension.yml", ".extensionignore"]
+DIRECTORY_STRUCTURE_SSOT_FILES = [
+    "STRUCTURE.md",
+    "structure.md",
+    "LAYOUT.md",
+    "layout.md",
+    "docs/structure.md",
+    "docs/directory-structure.md",
+    "docs/repository-structure.md",
+    "docs/layout.md",
+]
+DIRECTORY_STRUCTURE_SSOT_GLOBS = [
+    "docs/*structure*.md",
+    "docs/**/structure*.md",
+    "docs/**/directory-structure*.md",
+    "docs/**/repository-structure*.md",
+]
+AGENT_HARNESS_SSOT_FILES = [
+    "AGENT_HARNESS.md",
+    "agent-harness.md",
+    "AGENT_GOVERNANCE.md",
+    "agent-governance.md",
+    "docs/agent-harness.md",
+    "docs/agent-governance.md",
+    "docs/agents.md",
+]
+AGENT_HARNESS_SSOT_GLOBS = [
+    "docs/*agent*harness*.md",
+    "docs/**/*agent*harness*.md",
+    "docs/*agent*governance*.md",
+    "docs/**/*agent*governance*.md",
+]
+CODE_STYLE_SSOT_FILES = [
+    ".editorconfig",
+    "STYLE.md",
+    "style.md",
+    "CODE_STYLE.md",
+    "code-style.md",
+    "docs/style.md",
+    "docs/code-style.md",
+    "docs/coding-style.md",
+]
+CODE_STYLE_SSOT_GLOBS = [
+    "docs/*style*.md",
+    "docs/**/*style*.md",
+]
 
 
 def main() -> int:
@@ -192,6 +288,7 @@ def main() -> int:
     init_options = read_json(root / INIT_OPTIONS_JSON)
     target = resolve_target(root, state, init_options)
     projection = render_projection(root, target, state, init_options)
+    index_summary = ssot_index_summary(root, state, init_options)
     evidence_summary = repository_evidence_summary(root, state, init_options)
     action = write_projection(target, projection)
     remove_stale_sections(root, target, init_options)
@@ -199,8 +296,19 @@ def main() -> int:
     print(f"Target agent platform file: {rel(root, target)}")
     print(f"Project-governance projection: {action}")
     print(f"Review target: {rel(root, target)}")
-    print(f"Repository evidence: {evidence_summary}")
+    print(f"SSOT index summary: {index_summary}")
+    print(f"Evidence scan summary: {evidence_summary}")
     return 0
+
+
+def ssot_index_summary(root: Path, state: dict[str, Any], init_options: dict[str, Any]) -> str:
+    entries = ssot_index_data(root, state, init_options)
+    parts = []
+    for name, refs in entries:
+        status = "indexed" if refs else "missing"
+        gap = "none" if refs else ssot_gap_code(name)
+        parts.append(f"{name}: {status} ({len(refs)} refs, gap: {gap})")
+    return "; ".join(parts)
 
 
 def repository_evidence_summary(root: Path, state: dict[str, Any], init_options: dict[str, Any]) -> str:
@@ -236,64 +344,46 @@ def repository_evidence_lines(root: Path, state: dict[str, Any], init_options: d
     return lines
 
 
-def vertical_ssot_evidence_lines(root: Path, state: dict[str, Any], init_options: dict[str, Any]) -> list[str]:
-    return [
-        evidence_line("Architecture evidence", architecture_evidence(root)),
-        evidence_line("Engineering evidence", engineering_evidence(root)),
-        evidence_line("Code Style evidence", code_style_evidence(root)),
-        evidence_line("Directory Structure evidence", directory_structure_evidence(root)),
-        evidence_line("Agent Harness evidence", agent_harness_evidence(root, init_options, state)),
-    ]
-
-
-def architecture_evidence(root: Path) -> list[str]:
+def architecture_ssot_refs(root: Path) -> list[str]:
     return unique_ordered(
         [
-            *source_paths(root),
-            *route_files(root),
-            *api_contract_paths(root),
-            *existing_dirs(root, ARCHITECTURE_DIRS),
+            *existing_paths(root, ARCHITECTURE_SSOT_FILES),
+            *bounded_glob_files(root, ARCHITECTURE_SSOT_GLOBS),
         ]
     )
 
 
-def engineering_evidence(root: Path) -> list[str]:
+def engineering_ssot_refs(root: Path) -> list[str]:
+    refs = existing_paths(root, ENGINEERING_SSOT_FILES)
+    if is_repository_governance_extension_source(root):
+        refs.extend(existing_paths(root, EXTENSION_ENGINEERING_SSOT_FILES))
+    return unique_ordered(refs)
+
+
+def code_style_ssot_refs(root: Path) -> list[str]:
     return unique_ordered(
         [
-            *directory_files(root, ".github/workflows"),
-            *existing_paths(root, ["CHANGELOG.md", "RELEASE.md", "VERSION"]),
-            *existing_paths(root, EXTENSION_CONTRACT_FILES),
-            *package_manifest_paths(root),
-            *lockfile_paths(root),
-            *existing_paths(root, TASK_RUNNERS),
-            *extension_asset_paths(root),
-            *build_config_paths(root),
-            *runtime_config_paths(root),
+            *existing_paths(root, CODE_STYLE_SSOT_FILES),
+            *bounded_glob_files(root, CODE_STYLE_SSOT_GLOBS),
         ]
     )
 
 
-def code_style_evidence(root: Path) -> list[str]:
+def directory_structure_ssot_refs(root: Path) -> list[str]:
     return unique_ordered(
         [
-            *existing_paths(root, CODE_STYLE_FILES),
-            *existing_top_level_globs(root, ["*.prettierrc.*", "eslint.config.*", "jest.config.*", "playwright.config.*", "vitest.config.*"]),
-            *test_paths(root),
+            *existing_paths(root, DIRECTORY_STRUCTURE_SSOT_FILES),
+            *bounded_glob_files(root, DIRECTORY_STRUCTURE_SSOT_GLOBS),
         ]
     )
 
 
-def directory_structure_evidence(root: Path) -> list[str]:
-    return repository_area_paths(root)
-
-
-def agent_harness_evidence(root: Path, init_options: dict[str, Any], state: dict[str, Any]) -> list[str]:
+def agent_harness_ssot_refs(root: Path, init_options: dict[str, Any], state: dict[str, Any]) -> list[str]:
     return unique_ordered(
         [
             *existing_context_files(root, init_options, state),
-            *existing_paths(root, SPEC_KIT_METADATA),
-            *scan_skills(root),
-            *scan_mcp_configs(root),
+            *existing_paths(root, AGENT_HARNESS_SSOT_FILES),
+            *bounded_glob_files(root, AGENT_HARNESS_SSOT_GLOBS),
         ]
     )
 
@@ -304,6 +394,12 @@ def evidence_line(label: str, values: list[str]) -> str:
 
 def format_values(values: list[str]) -> str:
     return ", ".join(f"`{value}`" for value in values) if values else "none detected"
+
+
+def format_index_refs(values: list[str]) -> str:
+    if not values:
+        return "none detected"
+    return ", ".join(f"`{value}`" for value in values)
 
 
 def unique_ordered(values: list[str]) -> list[str]:
@@ -318,11 +414,81 @@ def unique_ordered(values: list[str]) -> list[str]:
 
 
 def existing_paths(root: Path, names: list[str]) -> list[str]:
-    return [name for name in names if (root / name).is_file()]
+    return bounded_named_files(root, names)
 
 
 def existing_dirs(root: Path, names: list[str]) -> list[str]:
-    return [f"{name}/" for name in names if (root / name).is_dir()]
+    return bounded_named_dirs(root, names)
+
+
+def bounded_named_files(root: Path, names: list[str], max_parent_depth: int = EVIDENCE_SCAN_MAX_PARENT_DEPTH) -> list[str]:
+    matches: list[str] = []
+    files = project_files(root)
+    for name in names:
+        for path in files:
+            relative = path.relative_to(root)
+            path_text = relative.as_posix()
+            if (path_text == name or path.name == name) and len(relative.parts) - 1 <= max_parent_depth:
+                matches.append(rel(root, path))
+    return unique_ordered(matches)
+
+
+def bounded_named_dirs(root: Path, names: list[str], max_parent_depth: int = EVIDENCE_SCAN_MAX_PARENT_DEPTH) -> list[str]:
+    matches: list[str] = []
+    dirs = project_dirs(root)
+    for name in names:
+        for path in dirs:
+            if path.name != name:
+                continue
+            relative = path.relative_to(root)
+            if len(relative.parts) - 1 <= max_parent_depth:
+                matches.append(f"{rel(root, path)}/")
+    return unique_ordered(matches)
+
+
+def bounded_glob_files(root: Path, patterns: list[str], max_parent_depth: int = EVIDENCE_SCAN_MAX_PARENT_DEPTH) -> list[str]:
+    matches: list[str] = []
+    for path in project_files(root):
+        relative = path.relative_to(root)
+        if len(relative.parts) - 1 > max_parent_depth:
+            continue
+        if any(relative.match(pattern) for pattern in patterns):
+            matches.append(rel(root, path))
+    return unique_ordered(matches)
+
+
+def project_files(root: Path) -> tuple[Path, ...]:
+    files, _dirs = project_walk(root)
+    return files
+
+
+def project_dirs(root: Path) -> tuple[Path, ...]:
+    _files, dirs = project_walk(root)
+    return dirs
+
+
+@lru_cache(maxsize=16)
+def project_walk(root: Path) -> tuple[tuple[Path, ...], tuple[Path, ...]]:
+    files: list[Path] = []
+    dirs: list[Path] = []
+    stack = [root]
+    while stack:
+        base = stack.pop()
+        try:
+            children = sorted(base.iterdir(), key=lambda path: path.as_posix())
+        except OSError:
+            continue
+        next_dirs: list[Path] = []
+        for child in children:
+            if ignored(child):
+                continue
+            if child.is_dir():
+                dirs.append(child)
+                next_dirs.append(child)
+            elif child.is_file():
+                files.append(child)
+        stack.extend(reversed(next_dirs))
+    return tuple(files), tuple(dirs)
 
 
 def existing_top_level_globs(root: Path, patterns: list[str]) -> list[str]:
@@ -377,6 +543,10 @@ def extension_asset_paths(root: Path) -> list[str]:
     return unique_ordered([*existing_paths(root, EXTENSION_ASSET_FILES), *existing_dirs(root, EXTENSION_ASSET_DIRS)])
 
 
+def is_repository_governance_extension_source(root: Path) -> bool:
+    return all((root / path).is_file() for path in ("extension.yml", *EXTENSION_CONTRACT_FILES))
+
+
 def runtime_config_paths(root: Path) -> list[str]:
     return unique_ordered(
         [
@@ -400,22 +570,33 @@ def route_files(root: Path) -> list[str]:
         r"(@app\.route|APIRouter|router\.|Route::|express\(|fastify\(|app\.(get|post|put|delete|patch)\()",
         re.IGNORECASE,
     )
-    for base in (root / name for name in ("src", "app", "lib", "services", "packages")):
-        if not base.is_dir():
+    for path in project_files(root):
+        if not route_file_candidate(root, path):
             continue
-        for path in sorted(base.rglob("*")):
-            if not path.is_file() or ignored(path):
-                continue
-            if route_name_pattern.search(path.name):
-                result.append(rel(root, path))
-                continue
-            try:
-                text = path.read_text(encoding="utf-8", errors="ignore")
-            except OSError:
-                continue
-            if route_content_pattern.search(text):
-                result.append(rel(root, path))
+        if route_name_pattern.search(path.name):
+            result.append(rel(root, path))
+            continue
+        try:
+            text = path.read_text(encoding="utf-8", errors="ignore")
+        except OSError:
+            continue
+        if route_content_pattern.search(text):
+            result.append(rel(root, path))
     return unique_ordered(result)
+
+
+def route_file_candidate(root: Path, path: Path) -> bool:
+    relative = path.relative_to(root)
+    if not relative.parts or relative.parts[0] not in ROUTE_BASE_DIRS:
+        return False
+    if len(relative.parts) - 1 > EVIDENCE_SCAN_MAX_PARENT_DEPTH:
+        return False
+    if path.suffix.lower() not in ROUTE_TEXT_SUFFIXES:
+        return False
+    try:
+        return path.stat().st_size <= MAX_ROUTE_FILE_BYTES
+    except OSError:
+        return False
 
 
 def repository_area_lines(root: Path) -> list[str]:
@@ -610,46 +791,36 @@ def render_projection(root: Path, target: Path, state: dict[str, Any], init_opti
         "",
         "## Repository-Wide Instructions",
         f"- {style_lead(style)}",
-        "- Generate and review only the resolved active agent platform target.",
-        "- Use the Copilot instruction model for layering only; do not emit Copilot path-specific companion files.",
-        "- Keep instructions short, self-contained, and free of conflicting rules.",
-        "- Project-governance projection for the active agent platform target.",
-        "- Legacy managed-section cleanup limited to non-active context files enumerated by `CONTEXT_FILES`.",
+        "- Treat this file as the active project-governance entrypoint for coding-agent work in this repository.",
+        "- Keep task reasoning grounded in source-backed repository facts, matched SSOT routes, and explicit user instructions.",
+        "- Keep edits scoped to the active task and matched path family.",
         "- architecture methodology: owned by Architecture SSOT.",
         "",
         "### Context",
         f"- Installed integrations: {', '.join(installed) if installed else 'none'}",
-        f"- Skills: {', '.join(scan_skills(root)) or 'none'}",
-        f"- MCP configs: {', '.join(scan_mcp_configs(root)) or 'none'}",
+        f"- Repository-local skill evidence: {evidence_count(scan_skills(root))}",
+        f"- MCP config candidates: {evidence_count(scan_mcp_configs(root))}",
         f"- Extensions config: .specify/extensions.yml ({extensions_status(root)})",
         "",
         "### Authority",
         *authority_default(),
         "",
-        "## SSOT Routing",
+        "## SSOT Index",
         *vertical_ssot_registry_default(),
         "",
-        *vertical_ssot_routing_lines(root, state, init_options),
+        *ssot_index_lines(root, state, init_options),
         "",
         "### Missing SSOT Handling",
         *missing_ssot_handling_default(),
         "",
-        "## Repository Evidence",
-        *repository_evidence_lines(root, state, init_options),
-        "",
         "## Path And Task Scope Rules",
         *task_scope_rules_default(),
         "",
-        "### Repository Areas",
-        *repository_area_lines(root),
-        "",
-        "### Directory Governance",
-        *directory_governance_default(),
+        "### Directory Structure Fallback",
+        *directory_structure_fallback_default(),
         "",
         "## Agent Harness",
         *agent_adapter_lines(root, target, default_key),
-        "",
-        *capability_index_lines(root),
         "",
         *mcp_default(style),
         "",
@@ -659,9 +830,6 @@ def render_projection(root: Path, target: Path, state: dict[str, Any], init_opti
         "",
         "## Write Boundaries",
         *write_boundary_default(style),
-        "",
-        "## Development Commands",
-        *development_command_lines(root),
         "",
         "## Handoff",
         *handoff_default(style),
@@ -705,13 +873,12 @@ def remove_section(path: Path) -> None:
         path.write_text(updated, encoding="utf-8")
 
 
-def directory_governance_default() -> list[str]:
+def directory_structure_fallback_default() -> list[str]:
     return [
-        "- Responsibility: one primary purpose per directory.",
-        "- Depth: 2.",
-        "- Coverage: include visible, hidden, generated, cache, config/env, tool, and agent directories.",
-        "- Mixed concerns: follow existing repo convention or split responsibility.",
-        "- Change impact: review linked code, tests, docs, config/env, data, assets, generated files, and tool outputs; update only when in scope and authorized.",
+        "- Use only when Directory Structure SSOT is missing and the task scope is explicit.",
+        "- Treat scanned repository areas as descriptive context, not as approved directory policy.",
+        "- Keep new or moved files aligned with existing nearby conventions unless the user supplies a different target.",
+        "- Record `NEEDS_CLARIFICATION:DIRECTORY_STRUCTURE` in handoff when placement is ambiguous.",
     ]
 
 
@@ -740,28 +907,44 @@ def vertical_ssot_registry_default() -> list[str]:
     ]
 
 
-def vertical_ssot_routing_lines(root: Path, state: dict[str, Any], init_options: dict[str, Any]) -> list[str]:
-    evidence = vertical_ssot_evidence_lines(root, state, init_options)
+def ssot_index_lines(root: Path, state: dict[str, Any], init_options: dict[str, Any]) -> list[str]:
+    lines: list[str] = []
+    for name, refs in ssot_index_data(root, state, init_options):
+        lines.extend(ssot_index_entry(name, refs))
+    return lines
+
+
+def ssot_index_data(root: Path, state: dict[str, Any], init_options: dict[str, Any]) -> list[tuple[str, list[str]]]:
     return [
-        "- Architecture SSOT route: use for source roots, route files, API contracts, runtime constraints, deployment assumptions, and architecture decisions.",
-        evidence[0],
-        "- Engineering SSOT route: use for branch, version, release, CI/CD, command entrypoints, manifests, lockfiles, build config, runtime config, and extension packaging.",
-        evidence[1],
-        "- Code Style SSOT route: use for naming, formatting, comments, error handling, logging, tests, linting, typing, and quality standards.",
-        evidence[2],
-        "- Directory Structure SSOT route: use for directory layout, file placement, module organization, configuration locations, and generated artifact placement.",
-        evidence[3],
-        "- Agent Harness SSOT route: use for agent task boundaries, tool usage, permissions, audit, validation, failure handling, skills, and MCP config candidates.",
-        evidence[4],
+        ("Architecture", architecture_ssot_refs(root)),
+        ("Engineering", engineering_ssot_refs(root)),
+        ("Code Style", code_style_ssot_refs(root)),
+        ("Directory Structure", directory_structure_ssot_refs(root)),
+        ("Agent Harness", agent_harness_ssot_refs(root, init_options, state)),
     ]
+
+
+def ssot_index_entry(name: str, refs: list[str]) -> list[str]:
+    status = "indexed" if refs else "missing"
+    gap = "none" if refs else ssot_gap_code(name)
+    return [
+        f"- {name} SSOT index:",
+        f"  - status: {status}",
+        f"  - source_refs: {format_index_refs(refs)}",
+        f"  - gap: {gap}",
+    ]
+
+
+def ssot_gap_code(name: str) -> str:
+    return f"NEEDS_CLARIFICATION:{name.replace(' ', '_').upper()}"
 
 
 def missing_ssot_handling_default() -> list[str]:
     return [
-        "- If a vertical SSOT is missing or incomplete, infer temporary guidance from current repository evidence.",
-        "- Mark inferred guidance as pending SSOT solidification.",
-        "- Do not present inferred guidance as an approved repository rule.",
-        "- Do not let inference override explicit SSOT content.",
+        "- If a vertical SSOT is missing or incomplete, treat repository evidence as descriptive context only.",
+        "- Before changing a surface governed by missing SSOT, ask for clarification or record `NEEDS_CLARIFICATION:<SSOT>` in handoff.",
+        "- Use existing code and config facts for narrow edits only when task scope and validation are explicit.",
+        "- Do not invent repository policy from descriptive repository evidence.",
     ]
 
 
@@ -774,7 +957,7 @@ def authority_default() -> list[str]:
         "5. Active `PROJECT GOVERNANCE` projection",
         "6. Tests and CI results",
         "7. Historical documents",
-        "8. Agent inference",
+        "8. Explicit assumptions for reversible local edits",
         "- Active projection is generated routing guidance and is subordinate to explicit vertical SSOT documents or source-backed repository facts on substantive conflicts.",
     ]
 
@@ -783,8 +966,8 @@ def repository_workflow_default() -> list[str]:
     return [
         "- Classify task type and path family before changing files.",
         "- Read every SSOT route matched by Path And Task Scope Rules.",
-        "- Use Repository Evidence as source-backed facts, not as higher authority than explicit SSOT.",
-        "- Run Development Commands that match the changed surface.",
+        "- Use SSOT Index source_refs as entrypoints, not as replacement content for the referenced sources.",
+        "- Run validation commands from explicit Engineering SSOT instructions or user direction when they match the changed surface.",
         "- Scope: active task only.",
         "- Preserve: user-authored edits.",
         "- Protected files: implementation paths, CI configuration, MCP configuration, secrets, permissions, tool settings, and arbitrary repository paths outside the resolved write surface.",
@@ -833,14 +1016,12 @@ def write_boundary_default(style: str) -> list[str]:
     if style == "rule":
         return [
             "- Stay inside the active task scope.",
-            "- The active agent platform target is generated output and may be overwritten.",
-            "- Legacy managed-section cleanup is limited to non-active context files enumerated by `CONTEXT_FILES`.",
+            "- Edit agent context files only when the user explicitly asks for instruction changes.",
             "- Protected-file writes require explicit user request, a named matching contract or regression test, and passing validation commands.",
         ]
     return [
         "- Keep edits inside the active task scope.",
-        "- The active agent platform target is generated output and may be overwritten.",
-        "- Legacy managed-section cleanup is limited to non-active context files enumerated by `CONTEXT_FILES`.",
+        "- Edit agent context files only when the user explicitly asks for instruction changes.",
         "- Protected-file writes require explicit user request, a named matching contract or regression test, and passing validation commands.",
     ]
 
@@ -855,9 +1036,10 @@ def mcp_default(style: str) -> list[str]:
 
 def skill_default(style: str) -> list[str]:
     return [
-        "- Use active skill `SKILL.md`.",
-        "- Write scope: declared skill paths only.",
-        "- Repository-local skill specs should declare name, description or trigger, allowed read paths, allowed write paths, forbidden paths, outputs, and validation command.",
+        "- Repository-local skills are evidence only unless an explicit Agent Harness SSOT source names them.",
+        "- Read matching repository-local `SKILL.md` before planning or editing.",
+        "- Treat skill scope declarations as task-local constraints.",
+        "- If a matching skill lacks scope or validation guidance, ask for clarification before expanding writes.",
     ]
 
 
@@ -877,75 +1059,18 @@ def scan_feature_specs(root: Path) -> list[str]:
 
 
 def scan_skills(root: Path) -> list[str]:
-    return sorted(rel(root, path) for path in root.rglob("SKILL.md") if not ignored(path))
-
-
-def skill_capability_lines(root: Path) -> list[str]:
-    lines: list[str] = []
-    for path_text in scan_skills(root):
-        path = root / path_text
-        fields = skill_frontmatter(path)
-        name = fields.get("name") or fallback_skill_name(path_text)
-        description = fields.get("description") or f"Repository-local skill spec at {path_text}."
-        lines.extend(
-            [
-                f"- Repository capability: {name}",
-                f"  - Scenario: {description}",
-                *([f"  - Trigger: {fields['trigger']}"] if fields.get("trigger") else []),
-                f"  - Source: `{path_text}`.",
-                "  - Runtime action: read matching skill before planning or editing.",
-            ]
-        )
-    return lines
-
-
-def skill_frontmatter(path: Path) -> dict[str, str]:
-    try:
-        lines = normalize_newlines(path.read_text(encoding="utf-8-sig")).splitlines()
-    except (OSError, UnicodeDecodeError):
-        return {}
-    if not lines or lines[0].strip() != "---":
-        return {}
-    fields: dict[str, str] = {}
-    for line in lines[1:]:
-        if line.strip() == "---":
-            break
-        key, separator, value = line.partition(":")
-        if not separator:
-            continue
-        key = key.strip()
-        value = value.strip().strip("'\"")
-        if key in {"name", "description", "trigger"} and value:
-            fields[key] = value
-    return fields
-
-
-def fallback_skill_name(path_text: str) -> str:
-    parent = Path(path_text).parent.name
-    return parent or path_text.replace("/", "-")
-
-
-def capability_index_lines(root: Path) -> list[str]:
-    mcp_configs = scan_mcp_configs(root)
-    mcp_sources = format_values(mcp_configs) if mcp_configs else "none detected"
-    lines = skill_capability_lines(root)
-    lines.extend(
-        [
-            "- Repository capability: MCP-backed external tools",
-            f"  - Sources: MCP config candidates are evidence, not proof of active tools: {mcp_sources}.",
-            "  - Runtime action: enumerate available servers, resources, and tools before use.",
-        ]
-    )
-    return lines
+    return sorted(rel(root, path) for path in project_files(root) if path.name == "SKILL.md")
 
 
 def agent_adapter_lines(root: Path, target: Path, integration: str) -> list[str]:
+    adapter_support = integration if integration in SUPPORTED_ADAPTERS else "generic fallback"
     lines = [
-        "- Repository Capability layer: abstract repository-local abilities and evidence independent of agent runtime.",
-        "- Agent Adapter layer: translate repository capabilities into platform-specific discovery and activation rules.",
-        "- Platform Projection layer: render the active agent platform target without claiming unavailable platform support.",
+        "- Repository capability layer: source-backed repository-local skills and MCP candidates only.",
+        "- Agent adapter layer: use explicit integration support when available; otherwise use generic fallback rules.",
+        "- Platform projection layer: apply only rules supported by the active target file.",
         f"- Active integration: {integration}",
         f"- Context target: {rel(root, target)}",
+        f"- Adapter support: {adapter_support}",
     ]
     if integration == "codex":
         lines.extend(
@@ -954,26 +1079,43 @@ def agent_adapter_lines(root: Path, target: Path, integration: str) -> list[str]
                 "- MCP discovery: platform runtime enumeration first; repository config candidates are evidence only unless supported by this adapter.",
             ]
         )
+    elif integration == "zed":
+        lines.extend(
+            [
+                "- Instruction discovery: Zed project instructions from the active context target.",
+                "- Skill discovery: evidence-only repository scan; activate skills through the Zed runtime when available.",
+                "- MCP discovery: enumerate Zed runtime tools before use; repository config candidates are evidence only.",
+            ]
+        )
     else:
         lines.extend(
             [
-                "- Skill discovery: evidence-only repository scan; platform activation is integration-specific.",
-                "- MCP discovery: platform-specific; repository config candidates are evidence only.",
+                "- Skill discovery: evidence-only repository scan; no platform activation is assumed.",
+                "- MCP discovery: no platform support is assumed; repository config candidates are evidence only.",
             ]
         )
     return lines
 
 
+def evidence_count(values: list[str]) -> str:
+    if not values:
+        return "none detected"
+    return f"{len(values)} detected"
+
+
 def scan_mcp_configs(root: Path) -> list[str]:
     return sorted(
         rel(root, path)
-        for path in root.rglob("*")
-        if path.is_file() and not ignored(path) and path.name in MCP_CONFIG_NAMES
+        for path in project_files(root)
+        if path.name in MCP_CONFIG_NAMES
     )
 
 
 def ignored(path: Path) -> bool:
-    return any(part in {".git", "__pycache__", ".venv", "node_modules"} for part in path.parts)
+    parts = path.parts
+    if any(part in {".git", "__pycache__", ".venv", "node_modules"} for part in parts):
+        return True
+    return any(parts[index : index + 2] == (".specify", "extensions") for index in range(len(parts) - 1))
 
 
 def extensions_status(root: Path) -> str:

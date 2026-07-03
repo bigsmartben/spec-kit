@@ -12,6 +12,10 @@
 - Restrict custom `context_file` projection targets to safe agent/rules/instructions context paths.
 - Tighten generated write-boundary instructions around cache-free active-target generation, `CONTEXT_FILES` legacy cleanup, and protected-write validation gates.
 - Rename the public command and packaged script from `refresh` to `generate`.
+- Separate generator operations from generated target-file guidance, require clarification for missing vertical SSOT, add explicit Zed target mapping, and bound repository-local skill projection.
+- Collapse generated target content into SSOT index entries and remove expanded repository evidence, repository area, skill capability, and development command lists from active targets.
+- Keep SSOT index source refs complete while narrowing Agent Harness SSOT refs to explicit governance entrypoints and treating ordinary `SKILL.md` files as evidence only.
+- Bound route evidence scanning to cached project files and text candidates, narrow Directory Structure fallback wording, and treat extension metadata as Engineering SSOT only for this extension source repository.
 
 ## [3.0.0] - 2026-06-25
 

@@ -1823,6 +1823,100 @@ def test_figma_metadata_capture_blocks_truncated_shard():
     shutil.rmtree(work_dir)
 
 
+def test_figma_metadata_capture_blocks_mismatched_supplied_root_id():
+    work_dir = ROOT / ".tmp" / "test-figma-metadata-capture-root-mismatch"
+    if work_dir.exists():
+        shutil.rmtree(work_dir)
+    intake = work_dir / "visual-design"
+    intake.mkdir(parents=True)
+    raw = work_dir / "root-2.xml"
+    raw.write_text('<figma><node id="2" name="Different root" /></figma>\n', encoding="utf-8")
+
+    capture = subprocess.run(
+        [
+            sys.executable,
+            str(FIGMA_METADATA_CAPTURE),
+            str(intake),
+            "--metadata-source",
+            str(raw),
+            "--file-url",
+            "https://www.figma.com/design/example/Foo",
+            "--file-key",
+            "example",
+            "--page-id",
+            "page-1",
+            "--node-id",
+            "1",
+            "--captured-at",
+            "2026-07-02T00:00:00Z",
+            "--json",
+        ],
+        cwd=ROOT,
+        text=True,
+        capture_output=True,
+    )
+
+    payload = json.loads(capture.stdout)
+    index = yaml.safe_load((intake / "figma-metadata.index.yaml").read_text(encoding="utf-8"))
+    assert capture.returncode == 1
+    assert payload["status"] == "BLOCKED"
+    assert "FIGMA_METADATA_PARITY_FAILED" in payload["blockers"]
+    assert payload["captured_root_node_ids"] == ["2"]
+    assert payload["missing_root_node_ids"] == ["1"]
+    assert index["expected_root_node_ids"] == ["1"]
+    assert index["captured_root_node_ids"] == ["2"]
+    assert index["shards"][0]["root_node_ids"] == ["2"]
+
+    shutil.rmtree(work_dir)
+
+
+def test_figma_metadata_capture_blocks_nested_true_truncation_marker():
+    work_dir = ROOT / ".tmp" / "test-figma-metadata-capture-nested-truncated"
+    if work_dir.exists():
+        shutil.rmtree(work_dir)
+    intake = work_dir / "visual-design"
+    intake.mkdir(parents=True)
+    raw = work_dir / "nested-truncated.xml"
+    raw.write_text(
+        '<figma truncated="false"><node id="1" name="Root"><node id="1:child" truncated="true" /></node></figma>\n',
+        encoding="utf-8",
+    )
+
+    capture = subprocess.run(
+        [
+            sys.executable,
+            str(FIGMA_METADATA_CAPTURE),
+            str(intake),
+            "--metadata-source",
+            str(raw),
+            "--file-url",
+            "https://www.figma.com/design/example/Foo",
+            "--file-key",
+            "example",
+            "--page-id",
+            "page-1",
+            "--node-id",
+            "1",
+            "--captured-at",
+            "2026-07-02T00:00:00Z",
+            "--json",
+        ],
+        cwd=ROOT,
+        text=True,
+        capture_output=True,
+    )
+
+    payload = json.loads(capture.stdout)
+    index = yaml.safe_load((intake / "figma-metadata.index.yaml").read_text(encoding="utf-8"))
+    assert capture.returncode == 1
+    assert payload["status"] == "BLOCKED"
+    assert "FIGMA_RAW_METADATA_TRUNCATED" in payload["blockers"]
+    assert index["raw_metadata_complete"] is False
+    assert index["shards"][0]["truncated"] is True
+
+    shutil.rmtree(work_dir)
+
+
 def test_validator_passes_complete_minimal_figma_intake():
     work_dir = ROOT / ".tmp" / "test-validator-pass"
     if work_dir.exists():

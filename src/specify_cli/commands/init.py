@@ -80,6 +80,49 @@ def ensure_constitution_from_template(
             )
 
 
+def _update_agent_context_config_file(
+    project_path: Path,
+    context_file: str,
+    *,
+    preserve_markers: bool = True,
+) -> None:
+    """Write the active integration context file into agent-context config."""
+    import yaml
+
+    config_path = (
+        project_path
+        / ".specify"
+        / "extensions"
+        / "agent-context"
+        / "agent-context-config.yml"
+    )
+    data: dict[str, Any] = {}
+    if config_path.exists():
+        loaded = yaml.safe_load(config_path.read_text(encoding="utf-8"))
+        if isinstance(loaded, dict):
+            data = loaded
+
+    markers = data.get("context_markers") if preserve_markers else None
+    data["context_file"] = context_file
+    data.setdefault("context_files", [])
+    if preserve_markers and isinstance(markers, dict):
+        data["context_markers"] = markers
+    else:
+        data.setdefault(
+            "context_markers",
+            {
+                "start": "<!-- SPECKIT START -->",
+                "end": "<!-- SPECKIT END -->",
+            },
+        )
+
+    config_path.parent.mkdir(parents=True, exist_ok=True)
+    config_path.write_text(
+        yaml.safe_dump(data, sort_keys=False, allow_unicode=True),
+        encoding="utf-8",
+    )
+
+
 def register(app: typer.Typer) -> None:
     @app.command()
     def init(
@@ -181,7 +224,6 @@ def register(app: typer.Typer) -> None:
         from .. import (
             _install_shared_infra_or_exit,
             _print_cli_warning,
-            _update_agent_context_config_file,
             ensure_executable_scripts,
             save_init_options,
         )

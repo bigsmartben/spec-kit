@@ -5408,10 +5408,12 @@ class TestExtensionAddCLI:
                 hooks=[],
             )
 
+        valid_empty_zip = b"PK\x05\x06" + b"\x00" * 18
+
         runner = CliRunner()
         with patch.object(Path, "cwd", return_value=project_dir), \
              patch("typer.confirm", return_value=True), \
-             patch("specify_cli.authentication.http.open_url", return_value=FakeResponse(b"zip-bytes")), \
+             patch.object(ExtensionCatalog, "_open_url", return_value=FakeResponse(valid_empty_zip)), \
              patch.object(ExtensionManager, "install_from_zip", fake_install_from_zip), \
              patch.object(ExtensionRegistry, "get", return_value={}):
             result = runner.invoke(
@@ -5553,10 +5555,12 @@ class TestExtensionAddCLI:
                 hooks=[],
             )
 
+        valid_empty_zip = b"PK\x05\x06" + b"\x00" * 18
+
         runner = CliRunner()
         with patch.object(Path, "cwd", return_value=project_dir), \
              patch("typer.confirm", return_value=True), \
-             patch("specify_cli.authentication.http.open_url", return_value=FakeResponse(b"zip-bytes")), \
+             patch.object(ExtensionCatalog, "_open_url", return_value=FakeResponse(valid_empty_zip)), \
              patch.object(ExtensionManager, "install_from_zip", fake_install_from_zip):
             result = runner.invoke(
                 app,
@@ -5565,7 +5569,7 @@ class TestExtensionAddCLI:
             )
 
         assert result.exit_code == 0
-        assert installed["zip_bytes"] == b"zip-bytes"
+        assert installed["zip_bytes"] == valid_empty_zip
         assert installed["zip_path"].resolve().is_relative_to(downloads_dir.resolve())
         assert installed["zip_path"].name.startswith("extension-url-download-")
         assert not installed["zip_path"].exists()

@@ -167,6 +167,7 @@ class TestClineIntegration(MarkdownIntegrationTests):
             else self.COMMAND_STEMS
         ):
             files.append(f"{cmd_dir}/speckit-{stem.replace('.', '-')}.md")
+        files.append(f"{cmd_dir}/speckit-agent-context-update.md")
 
         # Framework files
         files.append(".specify/integration.json")
@@ -211,6 +212,7 @@ class TestClineIntegration(MarkdownIntegrationTests):
         files.append(".specify/extensions.yml")
         files.append(".specify/extensions/.registry")
         files.append(".specify/extensions/agent-context/README.md")
+        files.append(".specify/extensions/agent-context/agent-context-defaults.json")
         files.append(".specify/extensions/agent-context/agent-context-config.yml")
         files.append(".specify/extensions/agent-context/commands/speckit.agent-context.update.md")
         files.append(".specify/extensions/agent-context/extension.yml")

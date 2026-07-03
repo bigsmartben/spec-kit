@@ -4,7 +4,6 @@ Copilot has several unique behaviors compared to standard markdown agents:
 - Commands use ``.agent.md`` extension (not ``.md``)
 - Each command gets a companion ``.prompt.md`` file in ``.github/prompts/``
 - Installs ``.vscode/settings.json`` with prompt file recommendations
-- Context file lives at ``.github/copilot-instructions.md``
 
 When ``--skills`` is passed via ``--integration-options``, Copilot scaffolds
 commands as ``speckit-<name>/SKILL.md`` directories under ``.github/skills/``
@@ -56,6 +55,17 @@ def _allow_all() -> bool:
         return old_var != "0"
 
     return True
+
+
+def _warn_legacy_markdown_default() -> None:
+    """Warn that Copilot's default markdown scaffold is being phased out."""
+    warnings.warn(
+        "Copilot legacy markdown mode is deprecated and will stop being the "
+        'default in a future Spec Kit release; pass --integration-options "--skills" '
+        "to opt in to Copilot skills mode now.",
+        UserWarning,
+        stacklevel=3,
+    )
 
 
 class _CopilotSkillsHelper(SkillsIntegration):
@@ -319,6 +329,8 @@ class CopilotIntegration(IntegrationBase):
         self._skills_mode = bool(parsed_options.get("skills"))
         if self._skills_mode:
             return self._setup_skills(project_root, manifest, parsed_options, **opts)
+        if "skills" not in parsed_options:
+            _warn_legacy_markdown_default()
         return self._setup_default(project_root, manifest, parsed_options, **opts)
 
     def _setup_default(
@@ -362,6 +374,7 @@ class CopilotIntegration(IntegrationBase):
             processed = self.process_template(
                 raw, self.key, script_type, arg_placeholder,
                 context_file=context_file_display,
+                project_root=project_root,
             )
             dst_name = self.command_filename(src_file.stem)
             dst_file = self.write_file_and_record(
@@ -396,7 +409,6 @@ class CopilotIntegration(IntegrationBase):
                 self.record_file_in_manifest(dst_settings, project_root, manifest)
                 created.append(dst_settings)
 
-        # 4. Upsert managed context section into the agent context file
         self.upsert_context_section(project_root)
 
         return created

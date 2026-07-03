@@ -451,6 +451,7 @@ class SkillsIntegrationTests:
         files.append(".specify/extensions.yml")
         files.append(".specify/extensions/.registry")
         files.append(".specify/extensions/agent-context/README.md")
+        files.append(".specify/extensions/agent-context/agent-context-defaults.json")
         files.append(".specify/extensions/agent-context/agent-context-config.yml")
         files.append(".specify/extensions/agent-context/commands/speckit.agent-context.update.md")
         files.append(".specify/extensions/agent-context/extension.yml")

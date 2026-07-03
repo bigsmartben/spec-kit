@@ -2,128 +2,98 @@
 
 <!-- insert new changelog below this comment -->
 
-## [0.11.10] - 2026-07-03
+## [0.12.4] - 2026-07-02
 
 ### Changed
 
-- Point Repository Governance bundle at v3.0.2
-- Update repository-governance extension to v3.0.2
-- Fix fork community integration validation
-- Update bundled repository governance snapshot
-- Handle compact false truncation markers
-- Retrigger community validation
-- Restore intake metadata regression coverage
-- Update bundled intake HTML mock readiness
-- Fix intake metadata shard validation
-- Update intake extension to v0.1.5
-- Update bundled intake visual spec package
-- Update intake extension to v0.1.4 (#45)
-- Update intake bundled extension contracts (#44)
-- Update preview extension to v1.2.0 (#43)
-- Update workflow-preset to v1.3.12
-- Require exact reviewed diff path coverage
-- Require approved review receipts for commit readiness
-- Align catalog issue template labels
-- Guard community submission PR route
-- Update bundled workflow-preset runtime boundaries
-- Sync workflow preset subagent context controls
-- test: align workflow preset contract version
-- Update workflow-preset provider boundaries
-- rerun intake integration checks
-- update bundled intake to v0.1.3
-- Update repository-governance extension to v3.0.1
+- feat(cli): add `py` script type & Python interpreter resolution (#3278) (#3285)
+- fix: resolve GitHub release asset API URL for private repo bundle downloads (#3136)
+- [extension] Add Analytics extension to community catalog (#3296)
+- fix: interpolate multi-expression templates instead of returning None (#3208) (#3228)
+- feat(cli): honor SPECIFY_INIT_DIR in the specify CLI project resolver (#3186)
+- fix(extensions): resolve core-command dirs via _assets helpers (#3274) (#3287)
+- fix: fall back to feature dir basename for empty CURRENT_BRANCH (#3026) (#3229)
+- feat(bug-fix): add label-driven bug-fix agentic workflow (#3258)
+- feat(workflows): add label-driven bug-test workflow (#3239) (#3257)
+- chore: release 0.12.3, begin 0.12.4.dev0 development (#3295)
+
+## [0.12.3] - 2026-07-01
+
+### Changed
+
+- feat(copilot): warn before skills default rollout (#3256)
+- Add June 2026 newsletter (#3289)
+- docs(toc): add Bundles and Authentication to the Reference nav (#3267)
+- fix(integrations): add zed to discovery catalog.json (#3266)
+- fix(integrations): cline hook note collapses onto instruction at EOF (#3263)
+- refactor: move workflow command handlers to workflows/_commands.py (PR-8/8) (#3159)
+- chore: retire Roo Code integration — extension shut down (#3167) (#3212)
+- fix(bundle): allow 'catalog remove' by the same relative path used to add (#3242)
+- fix(workflows): reject bool max_iterations in while/do-while validation (#3237)
+- fix: allow prerelease spec-kit versions in compatibility checks (#2695)
+- chore: release 0.12.2, begin 0.12.3.dev0 development (#3259)
+
+## [0.12.2] - 2026-06-30
+
+### Changed
+
+- fix(scripts): portable uppercase for branch-name acronym retention (bash 3.2) (#3192)
+- chore: retire Windsurf integration — absorbed into Cognition Devin (#3168) (#3213)
+- [extension] Update Intake extension to v0.1.3 (#3254)
+- feat(workflows): honor max_concurrency in fan-out via a bounded thread pool (#3224)
+- Update Architecture Workflow extension to v1.2.2 (#3255)
+- Add Repository Governance extension to community catalog (#3252)
+- Update Workflow Preset to v1.3.11 (#3251)
+- chore: retire iflow integration — product discontinued (#3166) (#3211)
+- docs(codebuddy): fix dead install links and CodeBuddy capitalization (#3172) (#3216)
+- fix: reject host-less catalog URLs in base and preset validators (#3209) (#3227)
+- chore: release 0.12.1, begin 0.12.2.dev0 development (#3253)
+
+## [0.12.1] - 2026-06-30
+
+### Changed
+
+- chore: align CI Python matrix with devguide lifecycle + fix bash 3.2 portability (#3244)
+- fix: stop check-prerequisites --paths-only from writing feature.json (#3025) (#3190)
+- docs: document integration catalog subcommands (#3206)
+- fix(scripts): use ASCII [OK] marker in initialize-repo.sh (parity with PowerShell twin) (#3231)
+- docs: document integration `search`/`info`/`scaffold` subcommands (#3174) (#3194)
+- docs: remove Cursor from `specify check` agent list (#3178) (#3193)
+- fix(goose): repoint install_url and docs to goose-docs.ai (#3171) (#3215)
+- fix(scripts): route 'Plan template not found' per --json in setup-plan.ps1 (parity with bash) (#3241)
+- fix(bundle): send command errors to stderr so --json stdout stays parseable (#3235)
+- chore: release 0.12.0, begin 0.12.1.dev0 development (#3243)
+
+## [0.12.0] - 2026-06-29
+
+### Changed
+
+- feat: make agent-context extension a full opt-in (#3097)
+- docs(workflows): add the built-in 'init' step type to the Step Types table (#3234)
+- fix(workflows): gate validate() must not crash on non-string options (#3233)
+- fix(workflows): make pipe-filter detection quote-aware in expressions (#3232)
+- fix(workflows): reject a fan-in wait_for that names an unknown step at validation (#3225)
+- fix(scripts): warn when spec template is missing in create-new-feature.ps1 (parity with bash) (#3230)
+- fix(scripts): count subdirectory-only dirs as non-empty in PowerShell (parity with bash) (#3137)
+- fix(scripts): drop HAS_GIT from PowerShell git-extension output (parity with bash) (#3195)
+- Update Product Spec Extension to v1.0.1 (#3226)
+- chore: release 0.11.10, begin 0.11.11.dev0 development (#3240)
+
+## [0.11.10] - 2026-06-29
+
+### Changed
+
+- fix(extensions): apply GHES auth and resolve release assets for `extension add --from` (#3217)
+- fix(pi): repoint install_url to @earendil-works/pi-coding-agent (#3169) (#3214)
+- fix(catalogs): reject host-less catalog URLs in base and preset validators (#3210)
+- fix: update CodeBuddy install docs URL (#3187)
+- fix(workflows): reject infinite number-input default instead of raising OverflowError (#3199)
+- fix(scripts): emit 'Copied plan template' status in setup-plan.ps1 (parity with bash) (#3198)
+- fix(workflows): make expression operator/literal parsing quote-aware (#3197)
+- fix(scripts): honor explicit -Number 0 in PowerShell create-new-feature (parity with bash) (#3196)
 - Add community bundle submission path (#3162)
 - Docs: Document /speckit.converge command (#3181)
 - chore: release 0.11.9, begin 0.11.10.dev0 development (#3189)
-- fix: satisfy shellcheck for arch validation
-- Fix workflow preset contract test version
-- Align tests with repository governance generate command
-- Update Architecture Workflow extension to v1.2.2
-- Update workflow-preset to v1.3.11
-- Update repository governance smoke expectations
-- Update repository-governance extension to v3.0.0
-- Update docs links to spec-kit fork
-- Document local extension workflow
-- chore: update repository governance community catalog
-- Update repository-governance extension to v2.0.6
-- Update repository-governance extension to v2.0.5
-- chore: remove stale agent governance catalog entry
-- fix: align intake smoke assertion
-- fix: bundle intake extension in wheel
-- test: align arch extension contract checks
-- docs: update quickstart arch commands
-- docs: update bundled extension usage
-- chore: codify community integration workflow
-- Update discovery extension to v0.2.0
-- Add Spec Kit Discovery Extension to community catalog
-- Add discovery bundled extension
-- update preview smoke test expectations
-- fix preview smoke checks
-- update preview extension to v1.1.0
-- Update Architecture Workflow extension to v1.2.1
-- Add Intake community extension
-- Update workflow-preset to v1.3.10
-- Sync workflow-preset community catalog to v1.3.9
-- Update workflow-preset to v1.3.9
-- add workflow preset visual item matrix contract
-- test: write CRLF fixture as bytes
-- test: make CRLF prompt rewrite cross-platform
-- fix: normalize skill command refs for presets
-- fix: refresh init manifest after default bundle
-- test: align inventory expectations with community bundle
-- fix: avoid global Path.exists pytest side effects
-- fix: update community smoke init integration flag
-- docs: update community release install tag
-- Fix workflow preset release contract
-- Update workflow-preset to v1.3.8
-- docs: update quickstart and capabilities overview
-- Update workflow-preset to v1.3.6
-- Fix workflow preset release feedback
-- Update workflow-preset to v1.3.5
-- docs: update community release install tag
-- Fix workflow-preset 1.3.4 validation checks
-- Update workflow-preset to v1.3.4
-- Update documentation for workflow preset and extensions
-- fix: align workflow preset smoke version
-- fix: verify workflow preset wheel smoke
-- Update repository-governance extension to v2.0.2
-- Update workflow-preset to v1.3.2
-- Update workflow preset to v1.3.1
-- fix: align workflow preset integration assertions
-- [codex] Add workflow-preset integration Actions (#4)
-- docs: update community release install tag
-- Update bundled workflow preset to v1.3.0
-- docs: update community release install tag
-- Integrate updated workflow preset
-- Update workflow preset to v1.2.0
-- Update workflow preset to v1.1.0
-- docs: update community release install tag
-- fix: align defaults with repository governance
-- Integrate Repository Governance extension
-- Update Repository Governance extension catalog entry
-- docs: keep README focused on local fork
-- docs: rewrite README for users
-- fix: tolerate copilot prompt rewrites during upgrade
-- ci: keep pytest matrix running after failures
-- test: include integration upgrade output
-- docs: add internal bundle install smoke
-- feat: bundle community extensions in init
-- feat(extensions): add arch workflow extension
-- Refine arch command as architecture SSOT
-- Add agent governance projection support
-- Add arch and agent command support
-
-## Unreleased
-
-### Changed
-
-- Update Architecture Workflow extension to v1.2.2 with full-workflow commands and readiness validators.
-- Update Spec Kit Preview extension to v1.2.0 with structured IR-backed mid-fidelity previews.
-- Update Intake extension to v0.1.3 with HTML SSOT validation and bounded visual inference gates.
-- Update bundled Repository Governance extension to v3.0.2 with a formal source release tag.
-- Update bundled Repository Governance extension with SSOT index projections, Zed target mapping, and bounded evidence scanning.
-- Update bundled Repository Governance extension to v2.0.2, including the `/speckit.repository-governance.refresh` command, `.specify/memory/repository-governance.md` internal cache, and default bundled installation behavior.
-- Update bundled Workflow Preset documentation for v1.3.2 Final Code Review task generation and structured code review receipts.
 
 ## [0.11.9] - 2026-06-26
 

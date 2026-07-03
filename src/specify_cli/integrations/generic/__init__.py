@@ -126,6 +126,7 @@ class GenericIntegration(MarkdownIntegration):
             processed = self.process_template(
                 raw, self.key, script_type, arg_placeholder,
                 context_file=context_file_display,
+                project_root=project_root,
             )
             dst_name = self.command_filename(src_file.stem)
             dst_file = self.write_file_and_record(
@@ -133,7 +134,6 @@ class GenericIntegration(MarkdownIntegration):
             )
             created.append(dst_file)
 
-        # Upsert managed context section into the agent context file
         self.upsert_context_section(project_root)
 
         return created

@@ -4,7 +4,9 @@
 from __future__ import annotations
 
 import argparse
+import json
 import re
+import subprocess
 import sys
 from pathlib import Path
 from typing import Any
@@ -15,6 +17,7 @@ from intake_validator_common import (
     load_yaml,
     non_empty,
     parse_evidence_packet_status,
+    supporting_visual_artifact_refs,
     validate_json_schema,
 )
 
@@ -115,26 +118,24 @@ def validate_source_intake(
     blocker_codes: list[str],
 ) -> None:
     upstream = package_dir.parent
-    packet = upstream / "visual-evidence-packet.md"
-    if not packet.exists():
-        details["source_intake"] = {"missing": True}
-        blocker_codes.append(BLOCKERS["SOURCE_INTAKE_BLOCKED"])
-        return
-
-    packet_status = parse_evidence_packet_status(packet.read_text(encoding="utf-8", errors="replace"))
-    metadata = packet_status["metadata"]
+    validator = Path(__file__).resolve().with_name("validate_visual_design_intake.py")
+    result = subprocess.run(
+        [sys.executable, str(validator), str(upstream), "--json"],
+        text=True,
+        capture_output=True,
+    )
+    try:
+        payload = json.loads(result.stdout or "{}")
+    except json.JSONDecodeError:
+        payload = {}
     details["source_intake"] = {
-        "path": str(packet),
-        "ready_gate": packet_status["ready_gate"],
-        "blockers": metadata.get("blockers"),
-        "errors": packet_status["errors"],
+        "path": str(upstream),
+        "validator": str(validator),
+        "status": payload.get("status"),
+        "blockers": payload.get("blockers"),
+        "errors": payload.get("details", {}).get("evidence_packet_metadata", {}).get("errors"),
     }
-    source_blockers = metadata.get("blockers")
-    if (
-        packet_status["ready_gate"] != "PASS"
-        or packet_status["errors"]
-        or (isinstance(source_blockers, list) and source_blockers)
-    ):
+    if result.returncode != 0 or payload.get("status") != "PASS":
         blocker_codes.append(BLOCKERS["SOURCE_INTAKE_BLOCKED"])
 
 
@@ -170,6 +171,7 @@ def validate_visual_spec_package(
     provider_evidence_gaps: list[str] = []
     product_ambiguity_gaps: list[str] = []
     blocker_lint_items: list[str] = []
+    supporting_source_refs: list[dict[str, Any]] = []
     has_ready_item = False
 
     details["visual_spec_package"] = {
@@ -237,8 +239,11 @@ def validate_visual_spec_package(
         if missing:
             item_errors.append({"id": item_id, "missing_fields": missing})
 
-        if not valid_source_refs(item.get("source_refs")):
+        helper_refs = supporting_visual_artifact_refs(item.get("source_refs"))
+        if not valid_source_refs(item.get("source_refs")) or helper_refs:
             provider_evidence_gaps.append(item_id)
+        if helper_refs:
+            supporting_source_refs.append({"id": item_id, "refs": helper_refs})
 
         evidence_type = str(item.get("evidence_type") or "")
         if evidence_type in {"missing", "unsupported"} or non_empty(item.get("missing_evidence")):
@@ -268,6 +273,7 @@ def validate_visual_spec_package(
     details["visual_spec_package"]["invalid_locators"] = sorted(set(invalid_locators))
     details["visual_spec_package"]["ownership_leaks"] = sorted(set(ownership_leaks))
     details["visual_spec_package"]["blocker_lint_items"] = sorted(set(blocker_lint_items))
+    details["visual_spec_package"]["supporting_artifact_source_refs"] = supporting_source_refs
 
     if item_errors or blocker_lint_items or not has_ready_item:
         blocker_codes.append(BLOCKERS["INTAKE_INCOMPLETE"])
@@ -314,6 +320,7 @@ def validate_visual_spec_assertions(
     product_ambiguity_gaps: list[str] = []
     provider_evidence_gaps: list[str] = []
     blocker_lint_assertions: list[str] = []
+    supporting_evidence_refs: list[dict[str, Any]] = []
     ready_ci_count = 0
 
     details["visual_spec_assertions"] = {
@@ -366,8 +373,11 @@ def validate_visual_spec_assertions(
         elif status == "ready":
             non_ci_assertions.append(assertion_id)
 
-        if not valid_source_refs(assertion.get("evidence_refs")):
+        helper_refs = supporting_visual_artifact_refs(assertion.get("evidence_refs"))
+        if not valid_source_refs(assertion.get("evidence_refs")) or helper_refs:
             provider_evidence_gaps.append(assertion_id)
+        if helper_refs:
+            supporting_evidence_refs.append({"id": assertion_id, "refs": helper_refs})
 
         blockers = as_string_set(assertion.get("blockers"))
         if blockers:
@@ -389,6 +399,7 @@ def validate_visual_spec_assertions(
     details["visual_spec_assertions"]["provider_evidence_gaps"] = sorted(set(provider_evidence_gaps))
     details["visual_spec_assertions"]["product_ambiguity_gaps"] = sorted(set(product_ambiguity_gaps))
     details["visual_spec_assertions"]["blocker_lint_assertions"] = sorted(set(blocker_lint_assertions))
+    details["visual_spec_assertions"]["supporting_artifact_evidence_refs"] = supporting_evidence_refs
 
     if assertion_errors or blocker_lint_assertions or non_ci_assertions or ready_ci_count == 0:
         blocker_codes.append(BLOCKERS["ASSERTION_COVERAGE_INCOMPLETE"])

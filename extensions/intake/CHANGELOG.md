@@ -1,6 +1,12 @@
 ﻿# Changelog
 
-## Unreleased
+## [0.1.5] - 2026-07-03
+
+### Added
+
+- Added `capture_figma_metadata_shards.py` to stage sharded Figma `get_metadata` captures into canonical raw metadata shards, index, and node inventory artifacts without passing large provider responses through agent context.
+- Added IA-matrix preview readiness checks that require page visual-state enumerations, page IA matrices, component visual-state enumerations, component IA matrices with interaction refs, and coverage evidence conclusions.
+- Added structured UI/visual asset source-of-truth checks that block evidence packets, preview HTML, screenshots, and visual diffs from being used as `source_refs` or `evidence_refs`.
 
 ## [0.1.4] - 2026-07-01
 

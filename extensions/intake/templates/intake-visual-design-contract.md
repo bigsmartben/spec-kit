@@ -1,8 +1,10 @@
 ﻿# Visual Design Intake Contract
 
-Required visual design intake artifacts and readiness gates. Runtime agents or external intake tools extract traceable, provider-neutral visual facts before downstream SDD workflows project evidence into requirements or visual verification criteria.
+Required visual design intake artifacts and readiness gates. Runtime agents or external intake tools extract high-confidence, traceable, provider-neutral structured UI/visual assets before downstream SDD workflows project evidence into requirements or visual verification criteria.
 
-Intake does not generate requirements. It preserves all reachable design sources, raw provider evidence, stable source refs, checksums or retrieval metadata, and schema-required visual facts that SDD `specify` can consume accurately.
+Intake does not generate requirements. The structured UI/visual asset is the source of truth for this intake: it preserves all reachable design sources, raw provider evidence, stable source refs, checksums or retrieval metadata, and schema-required visual facts that SDD `specify` can consume accurately.
+
+Evidence chain artifacts are supporting artifacts only. They support confidence and human review, but they must not create, override, replace, or act as `source_refs` for structured UI/visual asset records.
 
 The machine-readable structures in this contract are enforced by JSON Schemas under `templates/schemas/` before readiness-specific validation runs. Field lists in this document are semantic summaries; the JSON Schemas are canonical for required fields, types, and enums.
 
@@ -51,6 +53,8 @@ The intake must record `fidelity_rules_applied: true` and explain any accepted g
 ## Visual Requirements
 
 `visual-requirements.yaml` must normalize extracted visual facts into engineering input. The evidence packet may summarize the same records for human review, but readiness validation uses the standalone machine-readable file.
+
+`source_refs` must point to original design sources, provider metadata, source files, or structured intake records. They must not point to `visual-evidence-packet.md`, `figma-evidence-packet.md`, `visual-spec-evidence-packet.md`, preview HTML, screenshots, visual diffs, or other helper artifacts as source-of-truth records.
 
 Visual design intake uses a bounded inference model. Intake may preserve direct observations, rule-backed derived claims, and candidate completions, but it must not smooth missing or contradictory evidence into a confirmed requirement. Every non-observed claim must remain auditable through source refs, inference rules, confidence method, score breakdown, downstream use, and blocking conditions.
 
@@ -256,3 +260,5 @@ Record a gap instead of passing silently when source evidence is missing, summar
 - generated_at:
 
 Human-readable sections may summarize the same records, but readiness metadata is validated from the front matter when present.
+
+The evidence packet is not a source-of-truth record. It must summarize structured asset readiness and confidence only; downstream workflows must not derive requirements from the packet when the corresponding structured record is absent or blocked.

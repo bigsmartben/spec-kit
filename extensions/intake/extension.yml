@@ -3,7 +3,7 @@
 extension:
   id: intake
   name: "Intake"
-  version: "0.1.4"
+  version: "0.1.5"
   description: "Normalize PRD, visual design/spec packages, preview evidence, and test-case evidence into SDD-ready intake artifacts"
   author: "bigsmartben"
   repository: "https://github.com/bigsmartben/spec-kit-intake"
@@ -70,6 +70,7 @@ defaults:
     viewport_coverage: "viewport-coverage.yaml"
     visual_previews_known_gaps: "known-gaps.md"
     visual_previews_screenshots_dir: "screenshots"
+    figma_metadata_capture_script: "scripts/python/capture_figma_metadata_shards.py"
     visual_previews_validator: "scripts/python/validate_visual_previews.py"
     visual_spec_package: "visual-spec.yaml"
     visual_spec_assertions: "visual-spec-assertions.yaml"
@@ -128,6 +129,7 @@ defaults:
     require_visual_spec_package_provider_evidence: true
     require_visual_spec_package_ci_assertions: true
     require_visual_spec_package_provider_product_gap_separation: true
+    require_visual_preview_ia_matrix_interactions: true
     require_visual_source_refs: true
     require_fidelity_rules_applied: true
     require_visual_parity_plan: true
@@ -146,6 +148,8 @@ defaults:
     visual_requirements_file: "visual-requirements.yaml"
     test_case_intake_file: "test-case-intake.yaml"
     shard_prefix: "figma-metadata.part-"
+    metadata_capture_mode: "sharded_file_staging"
     preserve_raw_metadata: true
+    reject_truncated_metadata_shards: true
     allow_screenshot_only_intake: true
     default_screenshot_level: "L0"

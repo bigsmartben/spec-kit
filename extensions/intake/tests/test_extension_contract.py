@@ -15,6 +15,7 @@ PRD_VALIDATOR = ROOT / "scripts" / "python" / "validate_prd_intake.py"
 TEST_CASE_VALIDATOR = ROOT / "scripts" / "python" / "validate_test_cases_intake.py"
 VISUAL_PREVIEWS_VALIDATOR = ROOT / "scripts" / "python" / "validate_visual_previews.py"
 VISUAL_SPEC_PACKAGE_VALIDATOR = ROOT / "scripts" / "python" / "validate_visual_spec_package.py"
+FIGMA_METADATA_CAPTURE = ROOT / "scripts" / "python" / "capture_figma_metadata_shards.py"
 
 
 def write_visual_intake_fixture(intake: Path, source_type: str, fidelity: str, file_name: str):
@@ -135,6 +136,62 @@ def write_visual_intake_fixture(intake: Path, source_type: str, fidelity: str, f
         "generated_at: '2026-06-23T00:00:00Z'\n"
         "---\n"
         "# Visual Design Evidence Packet\n",
+        encoding="utf-8",
+    )
+
+
+def write_figma_metadata_fixture(intake: Path):
+    import hashlib
+
+    metadata = intake / "figma-metadata.part-001.xml"
+    metadata.write_text(
+        '<figma><node id="1" name="Root"><node id="2" name="Save button" /></node></figma>\n',
+        encoding="utf-8",
+    )
+    digest = hashlib.sha256(metadata.read_bytes()).hexdigest()
+    (intake / "figma-metadata.index.yaml").write_text(
+        "\n".join(
+            [
+                "file_url: https://www.figma.com/file/example",
+                "file_key: example",
+                "page_id: page-1",
+                "selected_node_ids: ['1']",
+                "captured_at: '2026-06-23T00:00:00Z'",
+                "mcp_tool: get_metadata",
+                "design_version_or_timestamp: '2026-06-23T00:00:00Z'",
+                "selected_subtree_complete: true",
+                "raw_metadata_complete: true",
+                "expected_root_node_ids: ['1']",
+                "captured_root_node_ids: ['1']",
+                "missing_root_node_ids: []",
+                "gap_count: 0",
+                "gaps: []",
+                "shards:",
+                "  - path: figma-metadata.part-001.xml",
+                f"    byte_size: {metadata.stat().st_size}",
+                f"    sha256: {digest}",
+                "    root_node_ids: ['1']",
+                "    node_count: 2",
+                "    truncated: false",
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    (intake / "figma-node-inventory.yaml").write_text(
+        "\n".join(
+            [
+                "raw_node_count: 2",
+                "inventory_node_count: 2",
+                "excluded_node_count: 0",
+                "missing_node_count: 0",
+                "duplicate_node_count: 0",
+                "truncated_raw_evidence: false",
+                "node_inventory_coverage: 100%",
+                "parity_passed: true",
+                "",
+            ]
+        ),
         encoding="utf-8",
     )
 
@@ -311,15 +368,53 @@ def write_image_visual_intake_fixture(intake: Path):
 def write_visual_previews_fixture(html_dir: Path):
     visual_intake = html_dir.parent
     write_visual_intake_fixture(visual_intake, "figma", "high", "figma-source.txt")
+    write_figma_metadata_fixture(visual_intake)
     html_dir.mkdir(parents=True, exist_ok=True)
     screenshots = html_dir / "screenshots"
     screenshots.mkdir(exist_ok=True)
     (screenshots / "home-desktop.png").write_bytes(b"fake-png")
 
     (html_dir / "component-matrix-preview.html").write_text(
-        '<main id="home-page" data-figma-node-id="1" data-spec-role="home-page">'
+        '<main data-preview-section="ia-matrix-overview">'
+        '<section id="home-page" data-preview-id="home-page" data-preview-section="page-state-enumeration" '
+        'data-figma-node-id="1" data-spec-role="home-page">'
+        '<div id="home-page-default" data-preview-id="home-page-default">Home default state</div>'
+        "</section>"
+        '<table id="home-page-ia" data-preview-id="home-page-ia" data-preview-section="page-ia-matrix">'
+        '<tr data-interaction-id="home-page-save-click">'
+        '<td data-page-ia-field="page_region">header</td>'
+        '<td data-page-ia-field="visual_state">default</td>'
+        '<td data-page-ia-field="user_event">click Save</td>'
+        '<td data-page-ia-field="precondition">button enabled</td>'
+        '<td data-page-ia-field="system_response">submit action is requested</td>'
+        '<td data-page-ia-field="state_change">default to submitted</td>'
+        '<td data-page-ia-field="transition_or_overlay">none</td>'
+        '<td data-page-ia-field="exception_branch">blocked state remains missing when unsupported</td>'
+        '<td data-page-ia-field="evidence_ref">figma://node/2</td>'
+        '<td data-page-ia-field="coverage_status">covered</td>'
+        "</tr>"
+        "</table>"
+        '<section id="button-states" data-preview-id="button-states" data-preview-section="component-state-enumeration">'
         '<button id="button-md-primary-default" data-preview-id="button-md-primary-default" '
         'data-figma-node-id="2" data-acceptance-unit="component-state">Save</button>'
+        "</section>"
+        '<table id="button-ia" data-preview-id="button-ia" data-preview-section="component-ia-matrix">'
+        '<tr data-interaction-id="button-md-primary-default-click">'
+        '<td data-component-ia-field="component_state">default</td>'
+        '<td data-component-ia-field="visible_elements">Save label</td>'
+        '<td data-component-ia-field="action_target">button</td>'
+        '<td data-component-ia-field="user_event">click</td>'
+        '<td data-component-ia-field="precondition">enabled</td>'
+        '<td data-component-ia-field="immediate_feedback">pressed visual feedback</td>'
+        '<td data-component-ia-field="state_change">default to submitted</td>'
+        '<td data-component-ia-field="affected_surface">home page</td>'
+        '<td data-component-ia-field="disabled_or_error_rule">unsupported states remain missing</td>'
+        '<td data-component-ia-field="evidence_ref">figma://node/2</td>'
+        '<td data-component-ia-field="coverage_status">covered</td>'
+        "</tr>"
+        "</table>"
+        '<section id="coverage-evidence-conclusion" data-preview-id="coverage-evidence-conclusion" '
+        'data-preview-section="coverage-evidence-conclusion">Coverage evidence conclusion</section>'
         "</main>",
         encoding="utf-8",
     )
@@ -345,6 +440,7 @@ def write_visual_previews_fixture(html_dir: Path):
                 "        source_ref: figma://node/2",
                 "        visual_spec_ref: ../visual-spec-package/visual-spec.yaml#VS-home-save-default",
                 "        preview_ref: component-matrix-preview.html#button-md-primary-default",
+                "        interaction_ref: component-matrix-preview.html#button-md-primary-default-click",
                 "        screenshot_refs:",
                 "          - screenshots/home-desktop.png",
                 "    missing: []",
@@ -378,6 +474,7 @@ def write_visual_previews_fixture(html_dir: Path):
 def write_visual_spec_package_fixture(package_dir: Path):
     visual_intake = package_dir.parent
     write_visual_intake_fixture(visual_intake, "figma", "high", "figma-source.txt")
+    write_figma_metadata_fixture(visual_intake)
     package_dir.mkdir(parents=True, exist_ok=True)
 
     (package_dir / "visual-spec.yaml").write_text(
@@ -1567,6 +1664,150 @@ def test_visual_validator_blocks_unsupported_claim_even_when_packet_says_pass():
     shutil.rmtree(work_dir)
 
 
+def test_visual_validator_blocks_helper_artifacts_as_source_refs():
+    work_dir = ROOT / ".tmp" / "test-visual-helper-artifact-source-refs"
+    if work_dir.exists():
+        shutil.rmtree(work_dir)
+    intake = work_dir / "visual-design"
+    write_visual_intake_fixture(intake, "image", "medium", "wireframe.png")
+
+    requirements = yaml.safe_load((intake / "visual-requirements.yaml").read_text(encoding="utf-8"))
+    requirements["requirements"][0]["source_refs"] = [
+        "previews/component-matrix-preview.html#home-page",
+        "source-files/wireframe.png#full",
+    ]
+    (intake / "visual-requirements.yaml").write_text(yaml.safe_dump(requirements), encoding="utf-8")
+
+    result = subprocess.run(
+        [sys.executable, str(VALIDATOR), "--json", str(intake)],
+        cwd=ROOT,
+        text=True,
+        capture_output=True,
+    )
+
+    payload = json.loads(result.stdout)
+    assert result.returncode == 1
+    assert "VISUAL_SCHEMA_INVALID" in payload["blockers"]
+    assert "VISUAL_REQUIREMENTS_UNTRACEABLE" in payload["blockers"]
+    helper_refs = payload["details"]["visual_requirements"]["supporting_artifact_source_refs"]
+    assert helper_refs[0]["refs"] == ["previews/component-matrix-preview.html#home-page"]
+
+    shutil.rmtree(work_dir)
+
+
+def test_figma_metadata_capture_stages_shards_and_passes_validator():
+    work_dir = ROOT / ".tmp" / "test-figma-metadata-capture-pass"
+    if work_dir.exists():
+        shutil.rmtree(work_dir)
+    intake = work_dir / "visual-design"
+    write_visual_intake_fixture(intake, "figma", "high", "figma-source.txt")
+    raw_dir = work_dir / "raw"
+    raw_dir.mkdir(parents=True)
+    (raw_dir / "root-1.xml").write_text(
+        '<figma><node id="1" name="Root"><node id="1:child" name="Child" /></node></figma>\n',
+        encoding="utf-8",
+    )
+    (raw_dir / "root-2.xml").write_text(
+        '<figma><node id="2" name="Second root" /></figma>\n',
+        encoding="utf-8",
+    )
+
+    capture = subprocess.run(
+        [
+            sys.executable,
+            str(FIGMA_METADATA_CAPTURE),
+            str(intake),
+            "--metadata-source",
+            str(raw_dir / "root-1.xml"),
+            "--metadata-source",
+            str(raw_dir / "root-2.xml"),
+            "--file-url",
+            "https://www.figma.com/design/example/Foo",
+            "--file-key",
+            "example",
+            "--page-id",
+            "page-1",
+            "--node-id",
+            "1",
+            "--node-id",
+            "2",
+            "--captured-at",
+            "2026-07-02T00:00:00Z",
+        ],
+        cwd=ROOT,
+        text=True,
+        capture_output=True,
+    )
+
+    assert capture.returncode == 0, capture.stdout + capture.stderr
+    assert (intake / "figma-metadata.part-001.xml").exists()
+    assert (intake / "figma-metadata.part-002.xml").exists()
+    index = yaml.safe_load((intake / "figma-metadata.index.yaml").read_text(encoding="utf-8"))
+    inventory = yaml.safe_load((intake / "figma-node-inventory.yaml").read_text(encoding="utf-8"))
+    assert index["raw_metadata_complete"] is True
+    assert index["selected_subtree_complete"] is True
+    assert index["captured_root_node_ids"] == ["1", "2"]
+    assert index["shards"][0]["sha256"]
+    assert inventory["raw_node_count"] == 3
+    assert inventory["parity_passed"] is True
+
+    result = subprocess.run(
+        [sys.executable, str(VALIDATOR), str(intake)],
+        cwd=ROOT,
+        text=True,
+        capture_output=True,
+    )
+
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "Visual design intake readiness: PASS" in result.stdout
+
+    shutil.rmtree(work_dir)
+
+
+def test_figma_metadata_capture_blocks_truncated_shard():
+    work_dir = ROOT / ".tmp" / "test-figma-metadata-capture-truncated"
+    if work_dir.exists():
+        shutil.rmtree(work_dir)
+    intake = work_dir / "visual-design"
+    intake.mkdir(parents=True)
+    raw = work_dir / "truncated.xml"
+    raw.write_text('<figma truncated="true"><node id="1" name="Root" /></figma>\n', encoding="utf-8")
+
+    capture = subprocess.run(
+        [
+            sys.executable,
+            str(FIGMA_METADATA_CAPTURE),
+            str(intake),
+            "--metadata-source",
+            str(raw),
+            "--file-url",
+            "https://www.figma.com/design/example/Foo",
+            "--file-key",
+            "example",
+            "--page-id",
+            "page-1",
+            "--node-id",
+            "1",
+            "--captured-at",
+            "2026-07-02T00:00:00Z",
+            "--json",
+        ],
+        cwd=ROOT,
+        text=True,
+        capture_output=True,
+    )
+
+    payload = json.loads(capture.stdout)
+    index = yaml.safe_load((intake / "figma-metadata.index.yaml").read_text(encoding="utf-8"))
+    assert capture.returncode == 1
+    assert payload["status"] == "BLOCKED"
+    assert "FIGMA_RAW_METADATA_TRUNCATED" in payload["blockers"]
+    assert index["raw_metadata_complete"] is False
+    assert index["shards"][0]["truncated"] is True
+
+    shutil.rmtree(work_dir)
+
+
 def test_validator_passes_complete_minimal_figma_intake():
     work_dir = ROOT / ".tmp" / "test-validator-pass"
     if work_dir.exists():
@@ -1817,10 +2058,48 @@ def test_visual_previews_validator_reports_schema_errors_in_json():
     shutil.rmtree(work_dir)
 
 
+def test_visual_previews_validator_blocks_helper_artifacts_as_source_refs():
+    work_dir = ROOT / ".tmp" / "test-visual-previews-helper-source-refs"
+    if work_dir.exists():
+        shutil.rmtree(work_dir)
+    html_dir = work_dir / "visual-design" / "previews"
+    write_visual_previews_fixture(html_dir)
+
+    component_coverage = yaml.safe_load((html_dir / "component-coverage.yaml").read_text(encoding="utf-8"))
+    component_coverage["components"][0]["source_ref"] = "component-matrix-preview.html#button-md-primary-default"
+    component_coverage["components"][0]["covered"][0]["source_ref"] = "screenshots/home-desktop.png"
+    (html_dir / "component-coverage.yaml").write_text(yaml.safe_dump(component_coverage), encoding="utf-8")
+
+    viewport_coverage = yaml.safe_load((html_dir / "viewport-coverage.yaml").read_text(encoding="utf-8"))
+    viewport_coverage["viewports"][0]["source_refs"] = [
+        "previews/component-matrix-preview.html#home-page",
+        "figma://node/1",
+    ]
+    (html_dir / "viewport-coverage.yaml").write_text(yaml.safe_dump(viewport_coverage), encoding="utf-8")
+
+    result = subprocess.run(
+        [sys.executable, str(VISUAL_PREVIEWS_VALIDATOR), "--json", str(html_dir)],
+        cwd=ROOT,
+        text=True,
+        capture_output=True,
+    )
+
+    payload = json.loads(result.stdout)
+    assert result.returncode == 1
+    assert "VISUAL_PREVIEW_SCHEMA_INVALID" in payload["blockers"]
+    assert "VISUAL_PREVIEW_ASSET_TRACEABILITY_INCOMPLETE" in payload["blockers"]
+    assert payload["details"]["component_coverage"]["supporting_artifact_source_refs"]
+    assert payload["details"]["viewport_coverage"]["supporting_artifact_source_refs"]
+
+    shutil.rmtree(work_dir)
+
+
 @pytest.mark.parametrize(
     ("edit_kind", "expected_blocker"),
     [
         ("missing_selector", "VISUAL_PREVIEW_FIGMA_NODE_COVERAGE_INCOMPLETE"),
+        ("ia_matrix", "VISUAL_PREVIEW_IA_MATRIX_INCOMPLETE"),
+        ("interaction_ref", "VISUAL_PREVIEW_IA_MATRIX_INCOMPLETE"),
         ("component_state", "VISUAL_PREVIEW_COMPONENT_STATE_COVERAGE_INCOMPLETE"),
         ("page", "VISUAL_PREVIEW_PAGE_COVERAGE_INCOMPLETE"),
         ("asset", "VISUAL_PREVIEW_ASSET_TRACEABILITY_INCOMPLETE"),
@@ -1842,6 +2121,18 @@ def test_visual_previews_validator_blocks_incomplete_coverage(edit_kind, expecte
             html.replace('id="button-md-primary-default"', "").replace(
                 'data-preview-id="button-md-primary-default"', ""
             ),
+            encoding="utf-8",
+        )
+    elif edit_kind == "ia_matrix":
+        html = (html_dir / "component-matrix-preview.html").read_text(encoding="utf-8")
+        (html_dir / "component-matrix-preview.html").write_text(
+            html.replace('data-preview-section="component-ia-matrix"', ""),
+            encoding="utf-8",
+        )
+    elif edit_kind == "interaction_ref":
+        html = (html_dir / "component-matrix-preview.html").read_text(encoding="utf-8")
+        (html_dir / "component-matrix-preview.html").write_text(
+            html.replace('data-interaction-id="button-md-primary-default-click"', ""),
             encoding="utf-8",
         )
     elif edit_kind == "component_state":
@@ -1914,6 +2205,36 @@ def test_visual_spec_package_validator_passes_complete_minimal_bundle():
     shutil.rmtree(work_dir)
 
 
+def test_visual_spec_package_validator_ignores_preview_gate_status():
+    work_dir = ROOT / ".tmp" / "test-visual-spec-package-ignores-preview-gate"
+    if work_dir.exists():
+        shutil.rmtree(work_dir)
+    package_dir = work_dir / "visual-design" / "visual-spec-package"
+    write_visual_spec_package_fixture(package_dir)
+    previews_dir = package_dir.parent / "previews"
+    previews_dir.mkdir(parents=True)
+    (previews_dir / "component-coverage.yaml").write_text(
+        "ready_gate: BLOCKED\n"
+        "blockers: [VISUAL_PREVIEW_KNOWN_GAP_UNRESOLVED]\n"
+        "components: []\n",
+        encoding="utf-8",
+    )
+
+    result = subprocess.run(
+        [sys.executable, str(VISUAL_SPEC_PACKAGE_VALIDATOR), "--json", str(package_dir)],
+        cwd=ROOT,
+        text=True,
+        capture_output=True,
+    )
+
+    payload = json.loads(result.stdout)
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert payload["status"] == "PASS"
+    assert not any(code.startswith("VISUAL_PREVIEW_") for code in payload["blockers"])
+
+    shutil.rmtree(work_dir)
+
+
 def test_visual_spec_package_validator_blocks_source_intake_blocked():
     work_dir = ROOT / ".tmp" / "test-visual-spec-package-source-blocked"
     if work_dir.exists():
@@ -1943,6 +2264,44 @@ def test_visual_spec_package_validator_blocks_source_intake_blocked():
     assert result.returncode == 1
     assert "VISUAL_SPEC_SOURCE_INTAKE_BLOCKED" in payload["blockers"]
     assert "VISUAL_SPEC_READY_WITHOUT_EVIDENCE" in payload["blockers"]
+
+    shutil.rmtree(work_dir)
+
+
+def test_visual_spec_package_validator_blocks_helper_artifacts_as_fact_refs():
+    work_dir = ROOT / ".tmp" / "test-visual-spec-package-helper-fact-refs"
+    if work_dir.exists():
+        shutil.rmtree(work_dir)
+    package_dir = work_dir / "visual-design" / "visual-spec-package"
+    write_visual_spec_package_fixture(package_dir)
+
+    package_doc = yaml.safe_load((package_dir / "visual-spec.yaml").read_text(encoding="utf-8"))
+    package_doc["items"][0]["source_refs"] = [
+        "../previews/component-matrix-preview.html#button-md-primary-default",
+        "figma://node/2",
+    ]
+    (package_dir / "visual-spec.yaml").write_text(yaml.safe_dump(package_doc), encoding="utf-8")
+
+    assertions_doc = yaml.safe_load((package_dir / "visual-spec-assertions.yaml").read_text(encoding="utf-8"))
+    assertions_doc["assertions"][0]["evidence_refs"] = [
+        "visual-spec-evidence-packet.md#summary",
+        "figma://node/2",
+    ]
+    (package_dir / "visual-spec-assertions.yaml").write_text(yaml.safe_dump(assertions_doc), encoding="utf-8")
+
+    result = subprocess.run(
+        [sys.executable, str(VISUAL_SPEC_PACKAGE_VALIDATOR), "--json", str(package_dir)],
+        cwd=ROOT,
+        text=True,
+        capture_output=True,
+    )
+
+    payload = json.loads(result.stdout)
+    assert result.returncode == 1
+    assert "VISUAL_SPEC_SCHEMA_INVALID" in payload["blockers"]
+    assert "VISUAL_SPEC_PROVIDER_EVIDENCE_MISSING" in payload["blockers"]
+    assert "VS-home-save-default" in payload["details"]["visual_spec_package"]["provider_evidence_gaps"]
+    assert "VSA-home-save-visible" in payload["details"]["visual_spec_assertions"]["provider_evidence_gaps"]
 
     shutil.rmtree(work_dir)
 

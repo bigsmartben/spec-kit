@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
-"""Validate Spec Kit Figma-derived component matrix preview bundles."""
+"""Validate Spec Kit provider-neutral IA matrix preview bundles."""
 
 from __future__ import annotations
 
 import argparse
 import json
 import re
+import subprocess
 import sys
 from pathlib import Path
 from typing import Any
@@ -15,7 +16,7 @@ try:
 except ImportError:  # pragma: no cover - exercised in user environments
     yaml = None
 
-from intake_validator_common import validate_json_schema
+from intake_validator_common import supporting_visual_artifact_refs, validate_json_schema
 
 
 BLOCKERS = {
@@ -23,12 +24,49 @@ BLOCKERS = {
     "REQUIRED_ARTIFACT_MISSING": "VISUAL_PREVIEW_REQUIRED_ARTIFACT_MISSING",
     "FIGMA_NODE_COVERAGE_INCOMPLETE": "VISUAL_PREVIEW_FIGMA_NODE_COVERAGE_INCOMPLETE",
     "COMPONENT_STATE_COVERAGE_INCOMPLETE": "VISUAL_PREVIEW_COMPONENT_STATE_COVERAGE_INCOMPLETE",
+    "IA_MATRIX_INCOMPLETE": "VISUAL_PREVIEW_IA_MATRIX_INCOMPLETE",
     "PAGE_COVERAGE_INCOMPLETE": "VISUAL_PREVIEW_PAGE_COVERAGE_INCOMPLETE",
     "ASSET_TRACEABILITY_INCOMPLETE": "VISUAL_PREVIEW_ASSET_TRACEABILITY_INCOMPLETE",
     "VIEWPORT_CAPTURE_INCOMPLETE": "VISUAL_PREVIEW_VIEWPORT_CAPTURE_INCOMPLETE",
     "VISUAL_DIFF_BLOCKED": "VISUAL_PREVIEW_VISUAL_DIFF_BLOCKED",
     "KNOWN_GAP_UNRESOLVED": "VISUAL_PREVIEW_KNOWN_GAP_UNRESOLVED",
     "SCHEMA_INVALID": "VISUAL_PREVIEW_SCHEMA_INVALID",
+}
+
+REQUIRED_PREVIEW_SECTIONS = {
+    "ia-matrix-overview",
+    "page-state-enumeration",
+    "page-ia-matrix",
+    "component-state-enumeration",
+    "component-ia-matrix",
+    "coverage-evidence-conclusion",
+}
+
+REQUIRED_PAGE_IA_FIELDS = {
+    "page_region",
+    "visual_state",
+    "user_event",
+    "precondition",
+    "system_response",
+    "state_change",
+    "transition_or_overlay",
+    "exception_branch",
+    "evidence_ref",
+    "coverage_status",
+}
+
+REQUIRED_COMPONENT_IA_FIELDS = {
+    "component_state",
+    "visible_elements",
+    "action_target",
+    "user_event",
+    "precondition",
+    "immediate_feedback",
+    "state_change",
+    "affected_surface",
+    "disabled_or_error_rule",
+    "evidence_ref",
+    "coverage_status",
 }
 
 
@@ -82,8 +120,9 @@ def main() -> int:
     if required_files["component_matrix_preview"].exists():
         html_text = required_files["component_matrix_preview"].read_text(encoding="utf-8", errors="replace")
 
+    validate_preview_html_structure(html_text, details, blocker_codes)
     validate_component_coverage(component_coverage, html_text, details, blocker_codes)
-    validate_viewport_coverage(html_dir, viewport_coverage, details, blocker_codes)
+    validate_viewport_coverage(html_dir, viewport_coverage, html_text, details, blocker_codes)
     validate_known_gaps(required_files["known_gaps"], details, blocker_codes)
 
     return emit(args.json, details, sorted(set(blocker_codes)), warnings)
@@ -95,26 +134,23 @@ def validate_source_intake(
     blocker_codes: list[str],
 ) -> None:
     upstream = html_dir.parent
-    packet = upstream / "visual-evidence-packet.md"
-    if not packet.exists():
-        details["source_intake"] = {"missing": True}
-        blocker_codes.append(BLOCKERS["SOURCE_INTAKE_BLOCKED"])
-        return
-
-    text = packet.read_text(encoding="utf-8", errors="replace").lstrip("\ufeff")
-    match = re.match(r"\A---\s*\r?\n(.*?)\r?\n---", text, re.DOTALL)
-    metadata: dict[str, Any] = {}
-    if match and yaml is not None:
-        loaded = yaml.safe_load(match.group(1)) or {}
-        metadata = loaded if isinstance(loaded, dict) else {}
-    ready_gate = str(metadata.get("ready_gate") or "").strip().upper()
-    blockers = metadata.get("blockers")
+    validator = Path(__file__).resolve().with_name("validate_visual_design_intake.py")
+    result = subprocess.run(
+        [sys.executable, str(validator), str(upstream), "--json"],
+        text=True,
+        capture_output=True,
+    )
+    try:
+        payload = json.loads(result.stdout or "{}")
+    except json.JSONDecodeError:
+        payload = {}
     details["source_intake"] = {
-        "path": str(packet),
-        "ready_gate": ready_gate,
-        "blockers": blockers,
+        "path": str(upstream),
+        "validator": str(validator),
+        "status": payload.get("status"),
+        "blockers": payload.get("blockers"),
     }
-    if ready_gate != "PASS" or (isinstance(blockers, list) and blockers):
+    if result.returncode != 0 or payload.get("status") != "PASS":
         blocker_codes.append(BLOCKERS["SOURCE_INTAKE_BLOCKED"])
 
 
@@ -158,7 +194,54 @@ def preview_ref_in_html(preview_ref: str, html_text: str) -> bool:
         or f"id='{fragment}'" in html_text
         or f'data-preview-id="{fragment}"' in html_text
         or f"data-preview-id='{fragment}'" in html_text
+        or f'data-interaction-id="{fragment}"' in html_text
+        or f"data-interaction-id='{fragment}'" in html_text
     )
+
+
+def html_attr_value_exists(html_text: str, attr: str, value: str) -> bool:
+    return (
+        f'{attr}="{value}"' in html_text
+        or f"{attr}='{value}'" in html_text
+    )
+
+
+def validate_preview_html_structure(
+    html_text: str,
+    details: dict[str, Any],
+    blocker_codes: list[str],
+) -> None:
+    if not html_text:
+        details["preview_html_structure"] = {
+            "missing_sections": sorted(REQUIRED_PREVIEW_SECTIONS),
+            "missing_page_ia_fields": sorted(REQUIRED_PAGE_IA_FIELDS),
+            "missing_component_ia_fields": sorted(REQUIRED_COMPONENT_IA_FIELDS),
+        }
+        blocker_codes.append(BLOCKERS["IA_MATRIX_INCOMPLETE"])
+        return
+
+    missing_sections = [
+        section
+        for section in sorted(REQUIRED_PREVIEW_SECTIONS)
+        if not html_attr_value_exists(html_text, "data-preview-section", section)
+    ]
+    missing_page_ia_fields = [
+        field
+        for field in sorted(REQUIRED_PAGE_IA_FIELDS)
+        if not html_attr_value_exists(html_text, "data-page-ia-field", field)
+    ]
+    missing_component_ia_fields = [
+        field
+        for field in sorted(REQUIRED_COMPONENT_IA_FIELDS)
+        if not html_attr_value_exists(html_text, "data-component-ia-field", field)
+    ]
+    details["preview_html_structure"] = {
+        "missing_sections": missing_sections,
+        "missing_page_ia_fields": missing_page_ia_fields,
+        "missing_component_ia_fields": missing_component_ia_fields,
+    }
+    if missing_sections or missing_page_ia_fields or missing_component_ia_fields:
+        blocker_codes.append(BLOCKERS["IA_MATRIX_INCOMPLETE"])
 
 
 def validate_component_coverage(
@@ -169,9 +252,11 @@ def validate_component_coverage(
 ) -> None:
     components = component_coverage.get("components", [])
     missing_preview_refs: list[str] = []
+    missing_interaction_refs: list[str] = []
     missing_visual_spec_refs: list[str] = []
     missing_records: list[str] = []
     asset_or_resource_gaps: list[str] = []
+    supporting_source_refs: list[dict[str, Any]] = []
     covered_count = 0
     missing_count = 0
 
@@ -179,6 +264,9 @@ def validate_component_coverage(
         if not isinstance(component, dict):
             continue
         component_id = str(component.get("id") or "<unknown>")
+        component_helper_ref = supporting_visual_artifact_refs([component.get("source_ref")])
+        if component_helper_ref:
+            supporting_source_refs.append({"id": component_id, "refs": component_helper_ref})
         covered = component.get("covered", [])
         missing = component.get("missing", [])
         if isinstance(covered, list):
@@ -187,11 +275,17 @@ def validate_component_coverage(
                 if not isinstance(record, dict):
                     continue
                 preview_ref = str(record.get("preview_ref") or "")
+                interaction_ref = str(record.get("interaction_ref") or "")
                 visual_spec_ref = str(record.get("visual_spec_ref") or "")
+                record_helper_refs = supporting_visual_artifact_refs([record.get("source_ref")])
+                if record_helper_refs:
+                    supporting_source_refs.append({"id": component_id, "refs": record_helper_refs})
                 if not visual_spec_ref:
                     missing_visual_spec_refs.append(component_id)
                 if not preview_ref or not preview_ref_in_html(preview_ref, html_text):
                     missing_preview_refs.append(preview_ref or component_id)
+                if not interaction_ref or not preview_ref_in_html(interaction_ref, html_text):
+                    missing_interaction_refs.append(interaction_ref or component_id)
         if isinstance(missing, list):
             missing_count += len(missing)
             for record in missing:
@@ -208,17 +302,21 @@ def validate_component_coverage(
         "covered_count": covered_count,
         "missing_count": missing_count,
         "missing_preview_refs": missing_preview_refs,
+        "missing_interaction_refs": missing_interaction_refs,
         "missing_visual_spec_refs": missing_visual_spec_refs,
         "missing_records": missing_records,
         "asset_or_resource_gaps": asset_or_resource_gaps,
+        "supporting_artifact_source_refs": supporting_source_refs,
         "ready_gate": component_coverage.get("ready_gate"),
         "blockers": blockers,
     }
     if not components or missing_preview_refs:
         blocker_codes.append(BLOCKERS["FIGMA_NODE_COVERAGE_INCOMPLETE"])
+    if missing_interaction_refs:
+        blocker_codes.append(BLOCKERS["IA_MATRIX_INCOMPLETE"])
     if missing_records or missing_visual_spec_refs:
         blocker_codes.append(BLOCKERS["COMPONENT_STATE_COVERAGE_INCOMPLETE"])
-    if asset_or_resource_gaps:
+    if asset_or_resource_gaps or supporting_source_refs:
         blocker_codes.append(BLOCKERS["ASSET_TRACEABILITY_INCOMPLETE"])
     if component_coverage.get("ready_gate") != "PASS" or (isinstance(blockers, list) and blockers):
         blocker_codes.append(BLOCKERS["KNOWN_GAP_UNRESOLVED"])
@@ -227,13 +325,16 @@ def validate_component_coverage(
 def validate_viewport_coverage(
     html_dir: Path,
     viewport_coverage: dict[str, Any],
+    html_text: str,
     details: dict[str, Any],
     blocker_codes: list[str],
 ) -> None:
     viewports = viewport_coverage.get("viewports", [])
     missing_screenshots: list[str] = []
+    missing_page_refs: list[str] = []
     uncovered_viewports: list[str] = []
     visual_diff_blocked: list[str] = []
+    supporting_source_refs: list[dict[str, Any]] = []
     page_refs = 0
 
     for viewport in viewports if isinstance(viewports, list) else []:
@@ -242,6 +343,9 @@ def validate_viewport_coverage(
         viewport_id = str(viewport.get("id") or "<unknown>")
         if viewport.get("covered") is not True:
             uncovered_viewports.append(viewport_id)
+        helper_refs = supporting_visual_artifact_refs(viewport.get("source_refs"))
+        if helper_refs:
+            supporting_source_refs.append({"id": viewport_id, "refs": helper_refs})
         refs = viewport.get("screenshot_refs", [])
         if not refs:
             missing_screenshots.append(viewport_id)
@@ -250,6 +354,10 @@ def validate_viewport_coverage(
             if ref_path and not (html_dir / ref_path).exists():
                 missing_screenshots.append(ref_path)
         page_refs += len(viewport.get("page_refs", []) or [])
+        for ref in viewport.get("page_refs", []) or []:
+            page_ref = str(ref)
+            if page_ref and not preview_ref_in_html(page_ref, html_text):
+                missing_page_refs.append(page_ref)
         if viewport.get("visual_diff_status") == "blocked":
             visual_diff_blocked.append(viewport_id)
 
@@ -260,15 +368,19 @@ def validate_viewport_coverage(
         "uncovered_viewports": uncovered_viewports,
         "visual_diff_blocked": visual_diff_blocked,
         "page_ref_count": page_refs,
+        "missing_page_refs": missing_page_refs,
+        "supporting_artifact_source_refs": supporting_source_refs,
         "ready_gate": viewport_coverage.get("ready_gate"),
         "blockers": blockers,
     }
     if not viewports or uncovered_viewports or missing_screenshots:
         blocker_codes.append(BLOCKERS["VIEWPORT_CAPTURE_INCOMPLETE"])
-    if page_refs == 0:
+    if page_refs == 0 or missing_page_refs:
         blocker_codes.append(BLOCKERS["PAGE_COVERAGE_INCOMPLETE"])
     if visual_diff_blocked:
         blocker_codes.append(BLOCKERS["VISUAL_DIFF_BLOCKED"])
+    if supporting_source_refs:
+        blocker_codes.append(BLOCKERS["ASSET_TRACEABILITY_INCOMPLETE"])
     if viewport_coverage.get("ready_gate") != "PASS" or (isinstance(blockers, list) and blockers):
         blocker_codes.append(BLOCKERS["KNOWN_GAP_UNRESOLVED"])
 

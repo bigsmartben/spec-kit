@@ -4,6 +4,8 @@ Required visual requirements/spec structured asset package artifacts and readine
 
 Visual Spec Package does not generate requirements, tasks, code component names, implementation-owned selectors, or product semantics. It preserves source-backed DOM, ARIA, token, state, relation, locator-strategy, and assertion facts that can be consumed by low-cost CI checks.
 
+`visual-spec.yaml` and `visual-spec-assertions.yaml` are the structured asset records for this package. `visual-spec-evidence-packet.md`, preview panels, screenshots, and visual diffs are supporting artifacts only; they must not create, override, replace, or serve as source-of-truth records for spec items or assertions.
+
 ## Artifact Family
 
 Default directory:
@@ -65,6 +67,8 @@ Each item must include:
 
 Locator strategies must not be implementation-owned CSS selectors, XPath, generated class names, or downstream test IDs. Candidate test IDs may be recorded only as `test-id-candidate` and must remain intake-owned guidance, not implementation ownership.
 
+`source_refs` must point to original design sources, provider metadata, upstream `visual-requirements.yaml` records, or source-backed structured asset records. Preview refs and evidence packet refs belong in helper fields such as `preview_refs`; they must not be used as `source_refs`.
+
 ## `visual-spec-assertions.yaml`
 
 The file must describe low-cost assertions over visual spec items.
@@ -90,6 +94,8 @@ Each assertion must include:
 - blockers
 
 Ready assertions should use `ci_suitability: ci_low_cost`. Manual review and blocked assertions are allowed as explicit evidence, but they cannot satisfy CI readiness.
+
+`evidence_refs` for ready assertions must point to source-backed design refs or structured visual spec records. They must not point to preview HTML, screenshots, visual diffs, or evidence packets as the only fact source.
 
 ## Readiness
 

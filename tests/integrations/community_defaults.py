@@ -9,11 +9,23 @@ from specify_cli.extensions import ExtensionManager
 from specify_cli.integrations import get_integration
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-DEFAULT_EXTENSION_IDS = ("arch", "discovery", "intake", "preview", "repository-governance")
+DEFAULT_EXTENSION_IDS = (
+    "arch",
+    "discovery",
+    "git",
+    "intake",
+    "preview",
+    "repository-governance",
+)
 DEFAULT_EXTENSION_COMMANDS = (
     "speckit.arch.generate",
     "speckit.arch.reverse",
     "speckit.discovery.contract",
+    "speckit.git.feature",
+    "speckit.git.validate",
+    "speckit.git.remote",
+    "speckit.git.initialize",
+    "speckit.git.commit",
     "speckit.intake.visual-design",
     "speckit.intake.prd",
     "speckit.intake.test-cases",

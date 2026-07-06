@@ -920,15 +920,15 @@ class TestForceExistingDirectory:
         assert "already exists" in _normalize_cli_output(result.output)
 
 
-class TestGitExtensionOptIn:
-    """Tests verifying that the git extension is opt-in (not auto-installed) during specify init."""
+class TestGitExtensionDefaultInstall:
+    """Tests verifying that the git extension is installed during specify init."""
 
-    def test_git_extension_not_auto_installed(self, tmp_path):
-        """Git extension is NOT installed automatically during init."""
+    def test_git_extension_auto_installed(self, tmp_path):
+        """Git extension is installed automatically during init."""
         from typer.testing import CliRunner
         from specify_cli import app
 
-        project = tmp_path / "git-opt-in"
+        project = tmp_path / "git-default"
         project.mkdir()
         old_cwd = os.getcwd()
         try:
@@ -943,9 +943,8 @@ class TestGitExtensionOptIn:
 
         assert result.exit_code == 0, f"init failed: {result.output}"
 
-        # Git extension directory should NOT be present after init
         ext_dir = project / ".specify" / "extensions" / "git"
-        assert not ext_dir.exists(), "git extension should not be auto-installed"
+        assert (ext_dir / "extension.yml").exists(), "git extension should be auto-installed"
 
     def test_no_git_flag_is_rejected(self, tmp_path):
         """--no-git flag has been removed; passing it should fail."""
@@ -968,12 +967,12 @@ class TestGitExtensionOptIn:
         assert result.exit_code != 0, "--no-git should be rejected as an unknown option"
         assert "No such option" in result.output or "no such option" in result.output.lower()
 
-    def test_git_extension_commands_not_registered_by_default(self, tmp_path):
-        """Git extension commands are NOT registered with the agent during default init."""
+    def test_git_extension_commands_registered_by_default(self, tmp_path):
+        """Git extension commands are registered with the agent during default init."""
         from typer.testing import CliRunner
         from specify_cli import app
 
-        project = tmp_path / "git-cmds-absent"
+        project = tmp_path / "git-cmds-present"
         project.mkdir()
         old_cwd = os.getcwd()
         try:
@@ -988,11 +987,19 @@ class TestGitExtensionOptIn:
 
         assert result.exit_code == 0, f"init failed: {result.output}"
 
-        # Git extension skill commands should NOT be present
         claude_skills = project / ".claude" / "skills"
         assert claude_skills.exists(), "Claude skills directory was not created"
-        git_skills = [f for f in claude_skills.iterdir() if f.name.startswith("speckit-git-")]
-        assert len(git_skills) == 0, "git extension commands should not be registered by default"
+        expected_git_skills = {
+            "speckit-git-feature",
+            "speckit-git-validate",
+            "speckit-git-remote",
+            "speckit-git-initialize",
+            "speckit-git-commit",
+        }
+        actual_git_skills = {
+            f.name for f in claude_skills.iterdir() if f.name.startswith("speckit-git-")
+        }
+        assert expected_git_skills <= actual_git_skills
 
     def test_community_extensions_and_workflow_preset_auto_installed(self, tmp_path):
         """specify init installs default community extensions and the workflow preset."""
@@ -1014,7 +1021,7 @@ class TestGitExtensionOptIn:
 
         assert result.exit_code == 0, f"init failed: {result.output}"
 
-        for extension_id in ("arch", "discovery", "intake", "preview", "repository-governance"):
+        for extension_id in ("arch", "discovery", "git", "intake", "preview", "repository-governance"):
             ext_dir = project / ".specify" / "extensions" / extension_id
             assert (ext_dir / "extension.yml").exists(), f"{extension_id} was not installed"
 
@@ -1023,6 +1030,7 @@ class TestGitExtensionOptIn:
         assert hooks_data["installed"] == [
             "arch",
             "discovery",
+            "git",
             "intake",
             "preview",
             "repository-governance",
@@ -1098,12 +1106,12 @@ class TestGitExtensionOptIn:
         assert "Worker Agent" in implement_text
         assert "speckit.implement.handoff.v2" in implement_text
 
-    def test_no_git_keeps_community_defaults(self, tmp_path):
-        """Bundled community defaults install without opting into git."""
+    def test_git_default_keeps_community_defaults(self, tmp_path):
+        """Bundled community defaults install alongside the default git extension."""
         from typer.testing import CliRunner
         from specify_cli import app
 
-        project = tmp_path / "no-git-community-defaults"
+        project = tmp_path / "git-community-defaults"
         project.mkdir()
         old_cwd = os.getcwd()
         try:
@@ -1117,7 +1125,7 @@ class TestGitExtensionOptIn:
             os.chdir(old_cwd)
 
         assert result.exit_code == 0, f"init failed: {result.output}"
-        assert not (project / ".specify" / "extensions" / "git").exists()
+        assert (project / ".specify" / "extensions" / "git" / "extension.yml").exists()
 
         for extension_id in ("arch", "discovery", "intake", "preview", "repository-governance"):
             ext_dir = project / ".specify" / "extensions" / extension_id

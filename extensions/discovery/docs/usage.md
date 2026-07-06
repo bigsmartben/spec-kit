@@ -4,7 +4,7 @@ Use the `discovery` extension before formal development when an interface bounda
 
 The extension provides one focused command:
 
-- `/speckit.discovery`: finds the key interface design from `uc.md`, `spec.md`, or `arch.md`, validates that design with non-persistent evidence, and produces the single artifact `interface-contract.md`.
+- `/speckit.discovery.contract`: finds the key interface design from `uc.md`, `spec.md`, or `arch.md`, validates that design with non-persistent evidence, and produces the single artifact `interface-contract.md`.
 
 ## When To Use It
 
@@ -27,7 +27,7 @@ Good candidates include:
 ## Inputs
 
 ```text
-/speckit.discovery [source docs or feature scope] [interface design focus] [constraints]
+/speckit.discovery.contract [source docs or feature scope] [interface design focus] [constraints]
 ```
 
 Source discovery order:
@@ -41,7 +41,7 @@ If several interface designs are present, the command selects the highest-impact
 ## Example
 
 ```text
-/speckit.discovery Source: features/invoice-sync/uc.md, features/invoice-sync/arch.md. Focus: invoice status update webhook. Constraints: idempotent retry handling, signed requests, p95 handler time below 200ms for synthetic payloads.
+/speckit.discovery.contract Source: features/invoice-sync/uc.md, features/invoice-sync/arch.md. Focus: invoice status update webhook. Constraints: idempotent retry handling, signed requests, p95 handler time below 200ms for synthetic payloads.
 ```
 
 Expected result:
@@ -69,6 +69,6 @@ The command must not create separate PoC files, validation directories, logs, fi
 ## Recommended Flow
 
 1. Draft or update `uc.md`, `spec.md`, or `arch.md`.
-2. Run `/speckit.discovery` for the interface boundary with the highest implementation risk.
+2. Run `/speckit.discovery.contract` for the interface boundary with the highest implementation risk.
 3. Review `interface-contract.md`.
 4. Continue to formal Spec Kit planning only when `Contract Status` is `validated` or `validated-with-risks` and remaining risks are accepted.

@@ -19,7 +19,7 @@ requires:
 
 provides:
   commands:
-    - name: "speckit.discovery"
+    - name: "speckit.discovery.contract"
       file: "commands/discovery.md"
       description: "Finds the key interface design from uc.md, spec.md, or arch.md, validates that design with non-persistent evidence, and produces the single artifact interface-contract.md."
 

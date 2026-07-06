@@ -116,7 +116,7 @@ jobs:
             speckit-preview-high-html; do
             test -f ".claude/skills/$preview_skill/SKILL.md"
           done
-          test -f .claude/skills/speckit-discovery-feasibility/SKILL.md
+          test -f .claude/skills/speckit-discovery-contract/SKILL.md
           test -f .claude/skills/speckit-intake-visual-design/SKILL.md
           test -f .claude/skills/speckit-intake-prd/SKILL.md
           test -f .claude/skills/speckit-intake-test-cases/SKILL.md
@@ -190,8 +190,8 @@ jobs:
                 done
                 ;;
               discovery)
-                test -f .claude/skills/speckit-discovery-feasibility/SKILL.md
-                grep -q "evidence-backed feasibility study" .claude/skills/speckit-discovery-feasibility/SKILL.md
+                test -f .claude/skills/speckit-discovery-contract/SKILL.md
+                grep -q "interface-contract discovery facilitator" .claude/skills/speckit-discovery-contract/SKILL.md
                 ;;
               intake)
                 test -f .claude/skills/speckit-intake-visual-design/SKILL.md
@@ -208,8 +208,7 @@ jobs:
 
           /tmp/specify-community-smoke-venv/bin/specify extension remove discovery --force
           /tmp/specify-community-smoke-venv/bin/specify extension add discovery
-          test -f .claude/skills/speckit-discovery-feasibility/SKILL.md
-          test -f .claude/skills/speckit-discovery-decision/SKILL.md
+          test -f .claude/skills/speckit-discovery-contract/SKILL.md
 
           /tmp/specify-community-smoke-venv/bin/specify preset resolve plan-template | tee resolve-plan-template.txt
           grep -q "workflow-preset" resolve-plan-template.txt

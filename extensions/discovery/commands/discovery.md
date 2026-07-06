@@ -1,5 +1,5 @@
 ---
-name: speckit.discovery
+name: speckit.discovery.contract
 description: Identify the key interface design from uc.md, spec.md, or arch.md, validate that design with non-persistent evidence, and produce the single verified interface contract artifact.
 argument-hint: "[source docs or feature scope] [interface design focus] [constraints]"
 ---

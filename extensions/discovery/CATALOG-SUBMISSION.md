@@ -17,7 +17,7 @@ Tags: discovery, interface-contract, api, event, webhook, technical-validation, 
 
 ## Key Features
 
-- Adds `/speckit.discovery` as the single public discovery command.
+- Adds `/speckit.discovery.contract` as the single public discovery command.
 - Extracts candidate interface designs from `uc.md`, `spec.md`, or `arch.md`.
 - Selects the key source-backed interface design to validate before formal development.
 - Produces one persistent artifact: `interface-contract.md`.
@@ -27,7 +27,7 @@ Tags: discovery, interface-contract, api, event, webhook, technical-validation, 
 
 - Confirmed source `commands/` contains only `discovery.md`.
 - Confirmed source `templates/` contains only `interface-contract.md`.
-- Confirmed source `extension.yml` registers `speckit.discovery` with `commands/discovery.md`.
+- Confirmed source `extension.yml` registers `speckit.discovery.contract` with `commands/discovery.md`.
 - Checked old command/template naming residuals with `rg`; no matches.
 - Ran `git diff --check`; passed.
 - Checked Markdown/YAML trailing whitespace with `rg`; no matches.

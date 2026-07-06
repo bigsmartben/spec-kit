@@ -3,7 +3,7 @@
 `spec-kit-discovery` provides a focused `discovery` extension for one pre-development job: find the key interface design implied by `uc.md`, `spec.md`, or `arch.md`, validate that design, then produce one verified interface contract artifact.
 
 ```text
-/speckit.discovery [source docs or feature scope] [interface design focus] [constraints]
+/speckit.discovery.contract [source docs or feature scope] [interface design focus] [constraints]
 ```
 
 Use it before `/speckit.specify`, `/speckit.plan`, or implementation work when the main uncertainty is an API, event, command, SDK method, webhook, batch job, or cross-system service boundary.
@@ -43,7 +43,7 @@ After installation, restart or refresh your AI coding agent if the new command d
 
 ## Command
 
-### `speckit.discovery`
+### `speckit.discovery.contract`
 
 Finds the key interface design from the input material, validates feasibility with source refs, existing commands, existing tests, read-only probes, or temporary snippets, and renders `templates/interface-contract.md`.
 
@@ -56,7 +56,7 @@ Minimum useful input:
 Example:
 
 ```text
-/speckit.discovery Source: specs/payments/spec.md and specs/payments/arch.md. Focus: Stripe webhook ingestion contract. Constraints: idempotent retries, signature verification, no duplicate invoice updates.
+/speckit.discovery.contract Source: specs/payments/spec.md and specs/payments/arch.md. Focus: Stripe webhook ingestion contract. Constraints: idempotent retries, signature verification, no duplicate invoice updates.
 ```
 
 When source docs are not passed explicitly, the command looks for `uc.md`, `spec.md`, or `arch.md` in the active feature directory or repository.

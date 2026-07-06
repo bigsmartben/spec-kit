@@ -5,7 +5,7 @@
 ### Changed
 
 - Refocused the extension on pre-development interface feasibility validation.
-- Replaced the broad six-command discovery surface with `/speckit.discovery`.
+- Replaced the broad six-command discovery surface with `/speckit.discovery.contract`.
 - Added `templates/interface-contract.md` as the core verified interface contract artifact.
 - Updated documentation and manifest metadata to describe key interface design discovery from `uc.md`, `spec.md`, or `arch.md`, selected-design validation, and non-persistent validation evidence.
 - Tightened the workflow so `interface-contract.md` is the only persistent output artifact.

@@ -3,6 +3,7 @@
   "$id": "https://spec-kit-intake.local/schemas/visual-requirements.schema.json",
   "title": "Visual Requirements Intake",
   "type": "object",
+  "propertyNames": { "$ref": "#/$defs/no_normalization_field_name" },
   "required": [
     "visual_requirements_complete",
     "visual_requirements_count",
@@ -57,6 +58,7 @@
       "minItems": 1,
       "items": {
         "type": "object",
+        "propertyNames": { "$ref": "#/$defs/no_normalization_field_name" },
         "required": [
           "id",
           "category",
@@ -240,7 +242,9 @@
         "FIGMA_SELECTED_SUBTREE_INCOMPLETE",
         "FIGMA_METADATA_INDEX_MISSING",
         "FIGMA_METADATA_PARITY_FAILED",
-        "FIGMA_READY_WITHOUT_COMPLETENESS_PROOF"
+        "FIGMA_READY_WITHOUT_COMPLETENESS_PROOF",
+        "FIGMA_NORMALIZED_TREE_MISSING",
+        "FIGMA_NORMALIZED_TREE_INCOMPLETE"
       ]
     },
     "source_ref": {
@@ -248,6 +252,11 @@
       "minLength": 1,
       "not": {
         "pattern": "(visual-evidence-packet\\.md|figma-evidence-packet\\.md|visual-spec-evidence-packet\\.md|preview\\.html|previews/|screenshots/|visual-diff|diff-output)"
+      }
+    },
+    "no_normalization_field_name": {
+      "not": {
+        "pattern": "(rename|group|sort|normaliz|layout_patch|fixup|dedupe|merge_rule|flatten|postprocess|preview_ref|visual_diff_ref)"
       }
     }
   },

@@ -59,6 +59,8 @@ BLOCKERS = {
     "METADATA_INDEX_MISSING": "FIGMA_METADATA_INDEX_MISSING",
     "METADATA_PARITY_FAILED": "FIGMA_METADATA_PARITY_FAILED",
     "READY_WITHOUT_COMPLETENESS_PROOF": "FIGMA_READY_WITHOUT_COMPLETENESS_PROOF",
+    "NORMALIZED_TREE_MISSING": "FIGMA_NORMALIZED_TREE_MISSING",
+    "NORMALIZED_TREE_INCOMPLETE": "FIGMA_NORMALIZED_TREE_INCOMPLETE",
 }
 
 
@@ -720,6 +722,92 @@ def validate_figma_provider(intake_dir: Path, details: dict[str, Any], blocker_c
             blocker_codes.append(BLOCKERS["METADATA_PARITY_FAILED"])
         if truncated_raw_evidence:
             blocker_codes.append(BLOCKERS["RAW_METADATA_TRUNCATED"])
+
+    validate_figma_layout_normalization(intake_dir, inventory, details, blocker_codes)
+
+
+def validate_figma_layout_normalization(
+    intake_dir: Path,
+    inventory: dict[str, Any],
+    details: dict[str, Any],
+    blocker_codes: list[str],
+) -> None:
+    normalized_path = intake_dir / "figma-normalized-tree.yaml"
+    if not normalized_path.exists():
+        blocker_codes.append(BLOCKERS["NORMALIZED_TREE_MISSING"])
+        details["figma_normalized_tree"] = {"missing": True}
+        return
+
+    validate_json_schema(
+        instance_path=normalized_path,
+        schema_name="figma-normalized-tree.schema.json",
+        details_key="figma_normalized_tree",
+        details=details,
+        blocker_codes=blocker_codes,
+        schema_error_code=BLOCKERS["VISUAL_SCHEMA_INVALID"],
+    )
+
+    normalized = load_yaml(normalized_path)
+    nodes = normalized.get("nodes")
+    if not isinstance(nodes, list):
+        nodes = []
+
+    raw_node_count = int(inventory.get("raw_node_count") or normalized.get("raw_node_count") or 0)
+    normalized_node_count = int(normalized.get("normalized_node_count") or 0)
+    source_node_ids: list[str] = []
+    visual_orders: list[int] = []
+    node_errors: list[dict[str, Any]] = []
+    for index, node in enumerate(nodes):
+        if not isinstance(node, dict):
+            node_errors.append({"index": index, "error": "node must be a mapping"})
+            continue
+        source_node_id = str(node.get("source_node_id") or "").strip()
+        if not source_node_id:
+            node_errors.append({"index": index, "error": "source_node_id is required"})
+        else:
+            source_node_ids.append(source_node_id)
+        if node.get("normalized_name") in (None, "") or node.get("group_key") in (None, ""):
+            node_errors.append({"index": index, "error": "normalized_name and group_key are required"})
+        source_refs = node.get("source_refs")
+        if not isinstance(source_refs, list) or not source_refs:
+            node_errors.append({"index": index, "error": "source_refs are required"})
+        try:
+            visual_orders.append(int(node.get("visual_order")))
+        except (TypeError, ValueError):
+            node_errors.append({"index": index, "error": "visual_order must be an integer"})
+
+    duplicate_source_ids = sorted({node_id for node_id in source_node_ids if source_node_ids.count(node_id) > 1})
+    duplicate_visual_orders = sorted({order for order in visual_orders if visual_orders.count(order) > 1})
+    expected_visual_orders = list(range(1, len(nodes) + 1))
+    visual_order_contiguous = sorted(visual_orders) == expected_visual_orders
+    count_matches = normalized_node_count == len(nodes) == raw_node_count
+    coverage_passed = (
+        is_truthy(normalized.get("normalization_complete"))
+        and normalized.get("node_coverage") == "100%"
+        and count_matches
+        and not duplicate_source_ids
+        and not duplicate_visual_orders
+        and visual_order_contiguous
+        and not node_errors
+        and not normalized.get("gaps")
+    )
+
+    details["figma_layout_normalization"] = {
+        "normalization_complete": normalized.get("normalization_complete"),
+        "raw_node_count": raw_node_count,
+        "normalized_node_count": normalized_node_count,
+        "actual_node_count": len(nodes),
+        "node_coverage": normalized.get("node_coverage"),
+        "count_matches_raw_nodes": count_matches,
+        "duplicate_source_node_ids": duplicate_source_ids,
+        "duplicate_visual_orders": duplicate_visual_orders,
+        "visual_order_contiguous": visual_order_contiguous,
+        "node_errors": node_errors,
+        "gaps": normalized.get("gaps"),
+    }
+
+    if not coverage_passed:
+        blocker_codes.append(BLOCKERS["NORMALIZED_TREE_INCOMPLETE"])
 
 
 def validate_evidence_packet(

@@ -5,6 +5,7 @@
 ### Added
 
 - Added `capture_figma_metadata_shards.py` to stage sharded Figma `get_metadata` captures into canonical raw metadata shards, index, and node inventory artifacts without passing large provider responses through agent context.
+- Added `normalize_figma_layout.py`, `figma-normalized-tree.yaml`, and schema-backed readiness checks for Figma rename, grouping, and visual re-sort normalization after raw metadata parity passes.
 - Added HTML mock readiness checks that require rendered mock page surfaces, page visual-state enumerations, page IA matrices, component visual-state enumerations, component IA matrices with interaction refs, and coverage evidence conclusions.
 - Added HTML mock readiness checks for adjacent visual spec package readiness, `visual-spec-package/visual-spec.yaml` refs, visualized component node kinds, and preview-local screenshot refs.
 - Added structured UI/visual asset source-of-truth checks that block evidence packets, preview HTML, screenshots, and visual diffs from being used as `source_refs` or `evidence_refs`.
@@ -12,6 +13,7 @@
 ### Changed
 
 - Repositioned `previews/preview.html` as the static HTML/CSS mock equivalent for the visual input design generated from upstream intake artifacts, with coverage YAML preserving machine-checkable traceability.
+- Kept Figma layout normalization as a derived artifact that does not rewrite raw metadata or replace `visual-requirements.yaml` source-backed facts.
 
 ## [0.1.4] - 2026-07-01
 

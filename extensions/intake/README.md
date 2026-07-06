@@ -56,6 +56,7 @@ specs/<feature>/intake/
 │   ├── figma-metadata.part-001.xml
 │   ├── figma-metadata.index.yaml
 │   ├── figma-node-inventory.yaml
+│   ├── figma-normalized-tree.yaml
 │   ├── visual-evidence-packet.md
 │   ├── previews/
 │   │   ├── preview.html
@@ -74,14 +75,15 @@ specs/<feature>/intake/
     └── evidence-packet.md
 ```
 
-Figma metadata artifacts are required for Figma visual-design sources. Image, PDF, and Markdown visual-design sources use `design-source-manifest.yaml`, source-file checksums, extracted visual requirements, and visual parity evidence instead. PRD and test-case domains use their own source manifests and normalized intake files.
+Figma metadata artifacts and `figma-normalized-tree.yaml` are required for Figma visual-design sources. Image, PDF, and Markdown visual-design sources use `design-source-manifest.yaml`, source-file checksums, extracted visual requirements, and visual parity evidence instead. PRD and test-case domains use their own source manifests and normalized intake files.
 
-Machine-readable JSON Schemas live under `templates/schemas/` and are used by the validators before readiness rules run. The HTML mock equivalent delivery contract is defined by `templates/intake-visual-previews-contract.md` and uses `component-coverage.schema.json` and `viewport-coverage.schema.json`. Visual spec packages use `visual-spec-package.schema.json` and `visual-spec-assertions.schema.json`.
+Machine-readable JSON Schemas live under `templates/schemas/` and are used by the validators before readiness rules run. Figma layout normalization uses `figma-normalized-tree.schema.json`. The HTML mock equivalent delivery contract is defined by `templates/intake-visual-previews-contract.md` and uses `component-coverage.schema.json` and `viewport-coverage.schema.json`. Visual spec packages use `visual-spec-package.schema.json` and `visual-spec-assertions.schema.json`.
 
 All intake commands provide capture instructions, evidence contracts, and readiness validation. Visual design validation additionally checks visual fidelity and Figma metadata parity.
 Visual validators reject evidence packets, preview HTML, screenshots, and visual diffs when they appear in source-of-truth fields such as `source_refs` or `evidence_refs`; use preview-specific helper refs for those supporting artifacts.
 Figma metadata capture should use bounded shards: stage raw `get_metadata` response files with `scripts/python/capture_figma_metadata_shards.py` so large provider responses are written to disk and only shard paths, hashes, completeness, and inventory parity flow into the intake index.
 Keep raw capture files outside the target `visual-design/` directory before staging, and pass one `--node-id` per selected root when a capture spans multiple roots.
+After Figma metadata parity passes, derive `figma-normalized-tree.yaml` with `scripts/python/normalize_figma_layout.py`. This derived artifact records rename, grouping, and visual re-sort results while preserving raw Figma metadata unchanged.
 HTML mock delivery validation is owned by `scripts/python/validate_visual_previews.py`, including cross-file checks for mock page refs, visualized component refs, interaction refs, visual spec refs, screenshots, component coverage, viewport coverage, and known gaps.
 Visual spec package validation is owned by `scripts/python/validate_visual_spec_package.py`, including source readiness, schema, cross-reference, locator, downstream-ownership, provider-evidence, product-ambiguity, design-source resource traceability, and CI assertion checks.
 
@@ -141,6 +143,7 @@ Visual design intake passes only when:
 - candidate completions remain reference-only and unsupported claims emit blocker codes
 - parity evidence explains how implementation output will be compared with the original design artifact
 - Figma sources also pass raw metadata completeness and node-inventory parity
+- Figma sources also pass layout normalization coverage with one normalized node per raw node
 - no blocker lint errors exist
 
 Visual design claims use these evidence types:
@@ -211,6 +214,12 @@ python scripts/python/capture_figma_metadata_shards.py specs/<feature>/intake/vi
   --page-id <figma-page-id> \
   --node-id <selected-root-node-id> \
   --overwrite
+```
+
+Derive Figma layout normalization after metadata parity passes:
+
+```bash
+python scripts/python/normalize_figma_layout.py specs/<feature>/intake/visual-design
 ```
 
 Validate HTML mock delivery artifacts:

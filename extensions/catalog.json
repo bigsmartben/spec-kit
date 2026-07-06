@@ -120,8 +120,8 @@
     "discovery": {
       "name": "Spec Kit Discovery Extension",
       "id": "discovery",
-      "version": "0.2.0",
-      "description": "Run technical discovery commands for feasibility, technology selection, scenario-specific technical decisions, legacy codebase assessment, implementation understanding, and proof-of-concept validation",
+      "version": "0.3.0",
+      "description": "Validate pre-development interface feasibility by finding the key interface design from uc.md, spec.md, or arch.md and producing one verified interface contract artifact",
       "author": "bigsmartben",
       "repository": "https://github.com/bigsmartben/spec-kit-discovery",
       "license": "MIT",
@@ -130,15 +130,17 @@
         "speckit_version": ">=0.1.0"
       },
       "provides": {
-        "commands": 6
+        "commands": 1
       },
       "tags": [
         "discovery",
-        "feasibility",
-        "selection",
-        "codebase",
-        "poc",
-        "decision"
+        "interface-contract",
+        "api",
+        "event",
+        "webhook",
+        "technical-validation",
+        "pre-development",
+        "validation"
       ]
     },
     "repository-governance": {

@@ -1,12 +1,22 @@
 # Changelog
 
+## [0.3.0] - 2026-07-06
+
+### Changed
+
+- Refocused the extension on pre-development interface feasibility validation.
+- Replaced the broad six-command discovery surface with `/speckit.discovery.contract`.
+- Added `templates/interface-contract.md` as the core verified interface contract artifact.
+- Updated documentation and manifest metadata to describe key interface design discovery from `uc.md`, `spec.md`, or `arch.md`, selected-design validation, and non-persistent validation evidence.
+- Tightened the workflow so `interface-contract.md` is the only persistent output artifact.
+
 ## [0.2.0] - 2026-06-23
 
 ### Changed
 
-- Consolidated API integration, performance, data migration, UX workflow, and compatibility discovery into `speckit.discovery.decision` with type-specific routing.
-- Updated documentation to describe the six-command public interface.
-- Replaced references to the old API integration command with `/speckit.discovery.decision type: api`.
+- Introduced an intermediate legacy decision-routing surface for API integration, performance, data migration, UX workflow, and compatibility discovery.
+- Updated documentation for the then-current multi-command public interface.
+- Replaced earlier API integration references with that legacy decision route.
 
 ## [0.1.0] - 2026-06-23
 

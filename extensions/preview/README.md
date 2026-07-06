@@ -1,104 +1,100 @@
 # Spec Kit Preview Extension
 
-Generate evidence-backed low, mid, or high fidelity previews from Spec Kit feature artifacts as Markdown or self-contained HTML.
+Generate one fidelity-specific HTML design artifact from `spec.md` and `uc.md` inputs. The command requires a `low`, `mid`, or `high` fidelity parameter.
 
 ## Overview
 
-This extension adds review artifacts between specification and implementation. It helps teams validate product flows, page/state structure, coverage evidence, layout assumptions, UI states, and interaction details before production code is planned or built.
+This extension turns Spec Kit requirements and use-case inputs into a design artifact between specification and implementation. Its only goal is to help teams produce the right design artifact for the selected fidelity: product flows, page/state structure, layout assumptions, UI states, interaction details, handoff notes, and delivery-relevant design gaps before production code is planned or built.
 
-Commands act as execution orchestrators: they resolve the active feature, load Spec Kit artifacts, apply evidence policy, and fill fixed templates under `templates/preview/`. The mid-fidelity commands can also adapt structured intake IR into the preview-owned `schemas/preview/mid-ir-adapter.schema.json` contract when enough source-backed structure is available. The templates are the source of truth for output sections, table schemas, HTML shells, and preserved-review slots. Structural validation is driven by `schemas/preview/contract.json`, validated against `schemas/preview/contract.schema.json`.
+The command acts as an execution orchestrator: it resolves the active feature, loads `spec.md`, `uc.md`, and supporting Spec Kit artifacts, applies input-to-design synthesis policy, and fills the fixed HTML template under `templates/preview/`. Evidence and coverage labels support output quality; they are not separate deliverables. The template is the source of truth for output sections, table schemas, HTML shell, and preserved design-note slots. Structural validation is driven by `schemas/preview/contract.json`, validated against `schemas/preview/contract.schema.json`.
 
-Generated HTML previews are intentionally standalone:
+Generated previews are intentionally standalone:
 
 - one HTML file
 - inline CSS
-- JavaScript only where the selected fidelity allows it
+- JavaScript only for documented interactions and template controls
 - no network dependencies
 - no build step
 - no production source changes
 
-Markdown previews are evidence-backed wireflows with requirement coverage, unknowns, and review questions.
-
-## Commands
+## Command
 
 | Command | Description |
 |---------|-------------|
-| `speckit.preview.low-md` | Generate `specs/<feature>/preview/wireflow-low.md` |
-| `speckit.preview.low-html` | Generate `specs/<feature>/preview/wireflow-low.html` |
-| `speckit.preview.mid-md` | Generate `specs/<feature>/preview/wireflow-mid.md` |
-| `speckit.preview.mid-html` | Generate `specs/<feature>/preview/wireflow-mid.html` |
-| `speckit.preview.high-md` | Generate `specs/<feature>/preview/wireflow-high.md` |
-| `speckit.preview.high-html` | Generate `specs/<feature>/preview/wireflow-high.html` |
+| `speckit.preview` | Generate `specs/<feature>/preview/wireflow.html`; first argument must be `low`, `mid`, or `high` |
 
 ## Usage
 
 ```text
-/speckit.preview.low-md
-/speckit.preview.mid-html
-/speckit.preview.high-html
+/speckit.preview low
+/speckit.preview mid admin dashboard empty and error states
+/speckit.preview high checkout confirmation flow, desktop first
 ```
 
-Optional focus examples:
+The first argument is mandatory:
 
-```text
-/speckit.preview.low-md onboarding happy path
-/speckit.preview.low-html onboarding happy path
-/speckit.preview.mid-md admin dashboard empty and error states
-/speckit.preview.mid-html admin dashboard empty and error states
-/speckit.preview.high-md checkout review flow, desktop first
-/speckit.preview.high-html checkout review flow, desktop first
-```
+- `low`: low-fidelity design artifact with actor intent, core journey, major nodes, branch points, and delivery-relevant gaps.
+- `mid`: mid-fidelity design artifact with source-defined pages, fields, controls, layout relationships, state inventory, and delivery-relevant gaps.
+- `high`: high-fidelity design artifact with documented interactions, observable state transitions, validation feedback, permissions, responsive states, and delivery-relevant gaps.
+
+Any text after the fidelity parameter is treated as optional design focus. Focus changes ordering and emphasis, but it must not hide `spec.md` or `uc.md` flows, constraints, states, or gaps that affect delivery quality.
+
+## Fidelity Outputs
+
+- `low` must include a core journey map, actor intent and trigger, abstract node list, major branch points, outcome summary, delivery-relevant gaps, and unresolved design questions.
+- `mid` must include a screen or node inventory, layout regions, visible controls, source-defined fields, representative empty/loading/success/error states, branch handling, delivery-relevant gaps, and unresolved design questions.
+- `high` must include a primary interactive surface, documented control behavior, interaction matrix, state transition matrix, validation and permission feedback, responsive mobile and desktop notes, delivery-relevant gaps, and unresolved design questions.
 
 ## Inputs
 
 The command reads the active feature under `specs/<feature>/`:
 
 - `spec.md` (required)
+- `uc.md` (required)
 - `plan.md` (optional)
 - `research.md` (optional)
 - `data-model.md` (optional)
 - `contracts/` (optional)
 - `quickstart.md` (optional)
 
-For mid-fidelity previews, the command also looks for optional structured intake artifacts:
+For `mid` fidelity, the command can also use optional structured intake artifacts as supporting evidence:
 
 - `intake/**/structured-ir.yaml`
 - `intake/**/ir-assertions.yaml`
 - `intake/**/ir-evidence-packet.md`
 
-These files are not required. When they can be mapped to `schemas/preview/mid-ir-adapter.schema.json`, the preview uses the mapped pages, regions, fields, controls, states, relations, assertions, and provenance as IR-backed evidence. When they are missing or cannot be mapped, preview generation falls back to the existing feature artifacts and records the limitation as an evidence gap.
+These files are not required. When they can be mapped to `schemas/preview/mid-ir-adapter.schema.json`, the design artifact can use the mapped pages, regions, fields, controls, states, relations, assertions, and provenance as source-grounded design inputs. When they are missing or cannot be mapped, design synthesis continues from `spec.md`, `uc.md`, and other supporting feature artifacts, and the limitation is recorded as a design question or delivery quality issue.
 
 It also reads `.specify/memory/constitution.md` when present.
 
 ## Output
 
 ```text
-specs/<feature>/preview/wireflow-low.md
-specs/<feature>/preview/wireflow-low.html
-specs/<feature>/preview/wireflow-mid.md
-specs/<feature>/preview/wireflow-mid.html
-specs/<feature>/preview/wireflow-high.md
-specs/<feature>/preview/wireflow-high.html
+specs/<feature>/preview/wireflow.html
 ```
 
-HTML files can be opened directly in a browser.
+The HTML file can be opened directly in a browser.
 
-## Fidelity
+## Input-To-Design Synthesis
 
-- Low fidelity: early feasibility review, abstract nodes, core path, branch points, and major missing scope.
-- Mid fidelity: product, UX, and engineering review with source-defined labels, optional structured IR adaptation, page/state inventory, basic layout relationships, relation checks, assertions, and state coverage.
-- High fidelity: final confirmation with interaction matrix, state matrix, validation feedback, permissions, responsive states, and clickable HTML simulation in the `.html` command.
+The command must run an Input-to-Design Synthesis Pass before composing the design artifact. This pass exists to improve the completeness, usefulness, and handoff quality of the delivered HTML design artifact:
+
+- `spec.md` inputs: user stories, acceptance scenarios, functional requirements, edge cases, constraints, success criteria, entities, data conditions, permissions, validation rules, and user-visible system responses must be considered and represented in the delivered design through screens, states, interactions, quality conclusions, or design questions.
+- `uc.md` inputs: use cases, actors, triggers, preconditions, main flows, alternate flows, exception flows, postconditions, business rules, data conditions, error conditions, and feedback requirements must be considered and represented in the delivered design through flows, states, interactions, quality conclusions, or design questions.
+- If `uc.md` is missing, the command stops before writing output because use-case input is required for high-quality design synthesis.
+
+Supporting files such as `plan.md`, `research.md`, `data-model.md`, `contracts/`, `quickstart.md`, structured intake artifacts, and `.specify/memory/constitution.md` may refine the design artifact, but they do not override `spec.md` or `uc.md`. Conflicts become design questions or delivery quality issues.
 
 ## Boundaries
 
-This extension does not modify app source code, tests, build files, specs, plans, or tasks. Previews are not production implementation and should not replace `/speckit.plan`, `/speckit.tasks`, or `/speckit.implement`.
+This extension does not modify app source code, tests, build files, specs, plans, or tasks. The preview is not production implementation and should not replace `/speckit.plan`, `/speckit.tasks`, or `/speckit.implement`.
 
 ## Installation
 
-Install from the v1.2.0 release ZIP:
+Install from the v1.3.0 release ZIP:
 
 ```bash
-specify extension add preview --from https://github.com/bigsmartben/spec-kit-preview/archive/refs/tags/v1.2.0.zip
+specify extension add preview --from https://github.com/bigsmartben/spec-kit-preview/archive/refs/tags/v1.3.0.zip
 ```
 
 For local development from this repository root:
@@ -112,8 +108,7 @@ specify extension add --dev .
 When the command runs in a Spec Kit project, it writes only:
 
 ```text
-specs/<feature>/preview/wireflow-*.md
-specs/<feature>/preview/wireflow-*.html
+specs/<feature>/preview/wireflow.html
 ```
 
 Installing the extension copies this repository into:
@@ -122,20 +117,15 @@ Installing the extension copies this repository into:
 .specify/extensions/preview/
 ```
 
-## Template Sources
+## Template Source
 
-Command prompts load one matching template per output:
+Command prompts load one output template:
 
 ```text
-templates/preview/low.md
-templates/preview/low.html
-templates/preview/mid.md
-templates/preview/mid.html
-templates/preview/high.md
-templates/preview/high.html
+templates/preview/wireflow.html
 ```
 
-The command layer owns context loading, evidence policy, and file-write boundaries. The template layer owns sections, required tables, HTML structure, and the preserved review records slot.
+The command layer owns invocation, fidelity parameter validation, context loading, evidence policy, input-to-design synthesis, and file-write boundaries. The template layer owns sections, required tables, HTML structure, and the preserved design records slot.
 
 ## Validation Contract
 
@@ -149,4 +139,4 @@ schemas/preview/mid-ir-adapter.schema.json
 
 `tests/validate-extension.py` validates the contract shape with a standard-library JSON Schema subset, then uses the contract to verify manifest command mappings, declared schema files, command/template files, required slots, forbidden legacy phrases, and documentation alignment.
 
-`schemas/preview/mid-ir-adapter.schema.json` is a preview-owned ingest boundary for mid-fidelity rendering. It validates whether a mapped payload has enough source-backed pages, regions, fields, controls, states, relations, assertions, coverage labels, and provenance for an evidence-backed preview. It is not the authoritative schema for upstream `spec-kit-intake` IR.
+`schemas/preview/mid-ir-adapter.schema.json` is a preview-owned ingest boundary for optional mid-fidelity structured intake. It validates whether a mapped payload has enough source-backed pages, regions, fields, controls, states, relations, assertions, coverage labels, and provenance to support the `mid` design artifact. It is not the authoritative schema for upstream `spec-kit-intake` IR.

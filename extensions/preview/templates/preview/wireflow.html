@@ -1,21 +1,22 @@
 <!doctype html>
-<html lang="zh-CN">
+<html lang="zh-CN" data-fidelity="{{fidelity}}">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>High-Fidelity Preview</title>
+  <title>Spec Kit Preview - Fidelity: {{fidelity}}</title>
   <style>
     :root {
       color-scheme: light;
-      --bg: #f5f6f7;
+      --bg: #f6f7f8;
       --panel: #ffffff;
       --text: #202124;
       --muted: #5f6368;
       --line: #d7dce0;
-      --accent: #7a4b19;
-      --accent-soft: #f3eadf;
-      --success: #236b45;
+      --accent: #2f6f73;
+      --accent-soft: #eaf3f2;
+      --warn: #8a5b00;
       --danger: #9b2c2c;
+      --success: #236b45;
     }
     * { box-sizing: border-box; }
     body {
@@ -40,22 +41,27 @@
     h1, h2 { margin: 0 0 12px; }
     h1 { font-size: 28px; }
     h2 { font-size: 18px; }
-    .metadata {
+    .metadata, .summary-grid {
       color: var(--muted);
       display: grid;
       gap: 6px;
     }
-    .preview-surface {
+    .design-grid {
+      display: grid;
+      grid-template-columns: minmax(280px, 420px) minmax(0, 1fr);
+      gap: 16px;
+      align-items: start;
+    }
+    .design-surface {
       border: 1px solid var(--accent);
       background: var(--accent-soft);
       border-radius: 6px;
       padding: 16px;
+      min-height: 180px;
     }
-    .frame-grid {
-      display: grid;
-      grid-template-columns: minmax(260px, 390px) minmax(0, 1fr);
-      gap: 16px;
-      align-items: start;
+    .fidelity-note {
+      color: var(--muted);
+      margin-bottom: 10px;
     }
     table {
       width: 100%;
@@ -84,16 +90,17 @@
       cursor: pointer;
     }
     button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible {
-      outline: 3px solid #d8b98f;
+      outline: 3px solid #9cc7c3;
       outline-offset: 2px;
     }
-    .status-success { color: var(--success); }
-    .status-danger { color: var(--danger); }
+    .coverage-covered { color: var(--success); }
+    .coverage-partial { color: var(--warn); }
+    .coverage-missing { color: var(--danger); }
     [hidden] { display: none !important; }
     @media (max-width: 820px) {
       main { width: min(100% - 20px, 1240px); padding-top: 16px; }
       header, section { padding: 14px; }
-      .frame-grid { grid-template-columns: 1fr; }
+      .design-grid { grid-template-columns: 1fr; }
       table { display: block; overflow-x: auto; }
     }
   </style>
@@ -101,24 +108,18 @@
 <body>
   <main>
     <header>
-      <h1>High-Fidelity Preview</h1>
-      <div class="metadata">{{metadata}}</div>
+      <h1>Spec Kit Preview</h1>
+      <div class="metadata">
+        <div>Fidelity: {{fidelity}}</div>
+        {{metadata}}
+      </div>
     </header>
 
-    <section aria-labelledby="input-sources">
-      <h2 id="input-sources">输入来源与读取范围</h2>
-      {{input_sources}}
-    </section>
-
-    <section aria-labelledby="evidence-summary">
-      <h2 id="evidence-summary">需求证据摘要</h2>
-      {{evidence_summary}}
-    </section>
-
-    <section aria-labelledby="initial-screen">
-      <h2 id="initial-screen">首屏与交互预览</h2>
-      <div class="frame-grid">
-        <div class="preview-surface">{{initial_screen}}</div>
+    <section aria-labelledby="design-surface">
+      <h2 id="design-surface">设计物预览</h2>
+      <div class="fidelity-note">{{fidelity_note}}</div>
+      <div class="design-grid">
+        <div class="design-surface">{{design_surface}}</div>
         <div>{{interaction_controls}}</div>
       </div>
     </section>
@@ -128,13 +129,23 @@
       {{wireflow}}
     </section>
 
+    <section aria-labelledby="input-sources">
+      <h2 id="input-sources">输入来源与读取范围</h2>
+      {{input_sources}}
+    </section>
+
+    <section aria-labelledby="evidence-summary">
+      <h2 id="evidence-summary">需求证据摘要</h2>
+      <div class="summary-grid">{{evidence_summary}}</div>
+    </section>
+
     <section aria-labelledby="node-inventory">
       <h2 id="node-inventory">页面/节点清单</h2>
       <table>
         <thead>
           <tr>
             <th>ID</th>
-            <th>屏幕/节点</th>
+            <th>页面/节点</th>
             <th>目的</th>
             <th>可见元素</th>
             <th>用户动作</th>
@@ -189,8 +200,41 @@
       {{branches_states_exceptions}}
     </section>
 
+    <section aria-labelledby="source-coverage">
+      <h2 id="source-coverage">输入到设计映射</h2>
+      <h3>spec.md 设计输入映射</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>来源项</th>
+            <th>类型</th>
+            <th>设计映射</th>
+            <th>覆盖标签</th>
+            <th>证据/推理</th>
+            <th>缺口或问题</th>
+          </tr>
+        </thead>
+        <tbody>{{spec_design_mapping_rows}}</tbody>
+      </table>
+
+      <h3>uc.md 设计输入映射</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>来源项</th>
+            <th>类型</th>
+            <th>设计映射</th>
+            <th>覆盖标签</th>
+            <th>证据/推理</th>
+            <th>缺口或问题</th>
+          </tr>
+        </thead>
+        <tbody>{{uc_design_mapping_rows}}</tbody>
+      </table>
+    </section>
+
     <section aria-labelledby="coverage">
-      <h2 id="coverage">覆盖度证据结论</h2>
+      <h2 id="coverage">交付质量结论</h2>
       <table>
         <thead>
           <tr>
@@ -201,24 +245,25 @@
             <th>缺口或问题</th>
           </tr>
         </thead>
-        <tbody>{{coverage_rows}}</tbody>
+        <tbody>{{quality_conclusion_rows}}</tbody>
       </table>
     </section>
 
-    <section aria-labelledby="preserved-review">
-      <h2 id="preserved-review">已保留评审记录</h2>
-      {{preserved_review_records}}
+    <section aria-labelledby="preserved-design">
+      <h2 id="preserved-design">已保留设计记录</h2>
+      {{preserved_design_records}}
     </section>
 
-    <section aria-labelledby="review-questions">
-      <h2 id="review-questions">未覆盖项、未知项与评审问题</h2>
-      {{review_questions}}
+    <section aria-labelledby="design-questions">
+      <h2 id="design-questions">未覆盖项、未知项与设计问题</h2>
+      {{design_questions}}
     </section>
   </main>
   <script>
     document.querySelectorAll('[data-preview-action]').forEach((control) => {
       control.addEventListener('click', () => {
-        const target = document.querySelector('[data-preview-status]');
+        const targetSelector = control.getAttribute('data-preview-target') || '[data-preview-status]';
+        const target = document.querySelector(targetSelector);
         if (!target) return;
         const label = control.getAttribute('data-preview-label') || control.textContent.trim();
         target.textContent = label;

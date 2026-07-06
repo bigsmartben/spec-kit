@@ -254,7 +254,7 @@ def main() -> None:
 
     actual_command_files = sorted(
         str(path.relative_to(ROOT)).replace("\\", "/")
-        for path in (ROOT / "commands").glob("speckit.preview.*.md")
+        for path in (ROOT / "commands").glob("speckit.preview*.md")
     )
     expected_command_files = sorted(item["file"] for item in command_contracts)
     if actual_command_files != expected_command_files:

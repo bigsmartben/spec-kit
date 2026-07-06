@@ -319,12 +319,13 @@ class ExtensionManifest:
                 raise ValidationError(f"Invalid command 'file' {label}: {reason}")
 
             # Validate command name format
-            if not EXTENSION_COMMAND_NAME_PATTERN.match(cmd["name"]):
+            if not self._is_canonical_command_name(cmd["name"], ext["id"]):
                 corrected = self._try_correct_command_name(cmd["name"], ext["id"])
                 if corrected:
                     self.warnings.append(
                         f"Command name '{cmd['name']}' does not follow the required pattern "
-                        f"'speckit.{{extension}}.{{command}}'. Registering as '{corrected}'. "
+                        f"'speckit.{{extension}}' or 'speckit.{{extension}}.{{command}}'. "
+                        f"Registering as '{corrected}'. "
                         f"The extension author should update the manifest to use this name."
                     )
                     rename_map[cmd["name"]] = corrected
@@ -332,7 +333,7 @@ class ExtensionManifest:
                 else:
                     raise ValidationError(
                         f"Invalid command name '{cmd['name']}': "
-                        "must follow pattern 'speckit.{extension}.{command}'"
+                        "must follow pattern 'speckit.{extension}' or 'speckit.{extension}.{command}'"
                     )
 
             # Validate alias types; no pattern enforcement on aliases — they are
@@ -380,6 +381,11 @@ class ExtensionManifest:
                         f"updated to canonical form '{final_ref}'. "
                         f"The extension author should update the manifest."
                     )
+
+    @staticmethod
+    def _is_canonical_command_name(name: str, ext_id: str) -> bool:
+        """Return true when a command uses this extension's root or subcommand namespace."""
+        return name == f"speckit.{ext_id}" or EXTENSION_COMMAND_NAME_PATTERN.match(name) is not None
 
     @staticmethod
     def _try_correct_command_name(name: str, ext_id: str) -> Optional[str]:
@@ -704,7 +710,8 @@ class ExtensionManager:
         """Collect command and alias names declared by a manifest.
 
         Performs install-time validation for extension-specific constraints:
-        - primary commands must use the canonical `speckit.{extension}.{command}` shape
+        - primary commands must use the canonical `speckit.{extension}` or
+          `speckit.{extension}.{command}` shape
         - primary commands must use this extension's namespace
         - command namespaces must not shadow core commands
         - duplicate command/alias names inside one manifest are rejected
@@ -748,14 +755,18 @@ class ExtensionManager:
                 # Enforce canonical pattern only for primary command names;
                 # aliases are free-form to preserve community extension compat.
                 if kind == "command":
-                    match = EXTENSION_COMMAND_NAME_PATTERN.match(name)
-                    if match is None:
-                        raise ValidationError(
-                            f"Invalid {kind} '{name}': "
-                            "must follow pattern 'speckit.{extension}.{command}'"
-                        )
+                    if name == f"speckit.{manifest.id}":
+                        namespace = manifest.id
+                    else:
+                        match = EXTENSION_COMMAND_NAME_PATTERN.match(name)
+                        if match is None:
+                            raise ValidationError(
+                                f"Invalid {kind} '{name}': "
+                                "must follow pattern 'speckit.{extension}' "
+                                "or 'speckit.{extension}.{command}'"
+                            )
+                        namespace = match.group(1)
 
-                    namespace = match.group(1)
                     if namespace != manifest.id:
                         raise ValidationError(
                             f"{kind.capitalize()} '{name}' must use extension namespace '{manifest.id}'"

@@ -2,6 +2,22 @@
 
 ## Unreleased
 
+- Strengthen the planning contract quality gate with required `Source / Basis` support on rule-bearing sections.
+- Add open-question planning status validation with `BLOCKS_PLAN` and `CAN_PROCEED_WITH_GUARDRAIL`.
+- Block implementation-level conclusions such as source file edits, API schemas, database schemas, task lists, runbooks, and deployment manifests from passing planning readiness.
+- Tighten the JSON working-model schema with per-section record contracts.
+
+## v2.0.0 - 2026-07-06
+
+- Change the default extension experience from generated 4+1 artifacts to a planning-focused architecture contract.
+- Register only `/speckit.arch.generate` and `/speckit.arch.reverse` as default commands.
+- Use 4+1 as an internal reasoning lens for goals, boundaries, runtime collaboration, development constraints, and physical constraints.
+- Replace the architecture synthesis template with an `Architecture Planning Contract` template for downstream `/plan` guidance.
+- Change setup helpers so default bootstrap creates only `.specify/memory/architecture.md`.
+- Remove unregistered legacy 4+1 command templates and secondary architecture artifact templates.
+- Change readiness validators to emit `planning_gate` with compatibility `ready_gate`.
+- Update schema and repository contract tests for the planning contract workflow.
+
 ## v1.2.2 - 2026-06-25
 
 - Use CLI-compatible command names such as `/speckit.arch.scenario-generate` and `/speckit.arch.scenario-reverse`.

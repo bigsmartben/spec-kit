@@ -18,10 +18,10 @@
       ]
     },
     "arch": {
-      "name": "Architecture Workflow",
+      "name": "Architecture Planning Contract",
       "id": "arch",
-      "version": "1.2.2",
-      "description": "Generate or reverse project-level 4+1 architecture views with per-view and full-workflow commands",
+      "version": "2.0.0",
+      "description": "Generate or reverse a planning-focused architecture contract that guides downstream Spec Kit plans",
       "author": "bigsmartben",
       "repository": "https://github.com/bigsmartben/spec-kit-arch",
       "license": "MIT",
@@ -30,11 +30,11 @@
         "speckit_version": ">=0.8.10.dev0"
       },
       "provides": {
-        "commands": 12
+        "commands": 2
       },
       "tags": [
         "architecture",
-        "4plus1",
+        "planning-contract",
         "workflow",
         "design"
       ]
@@ -119,8 +119,8 @@
     "discovery": {
       "name": "Spec Kit Discovery Extension",
       "id": "discovery",
-      "version": "0.2.0",
-      "description": "Run technical discovery commands for feasibility, technology selection, scenario-specific technical decisions, legacy codebase assessment, implementation understanding, and proof-of-concept validation",
+      "version": "0.3.0",
+      "description": "Validate pre-development interface feasibility by finding the key interface design from uc.md, spec.md, or arch.md and producing one verified interface contract artifact",
       "author": "bigsmartben",
       "repository": "https://github.com/bigsmartben/spec-kit-discovery",
       "license": "MIT",
@@ -129,15 +129,17 @@
         "speckit_version": ">=0.1.0"
       },
       "provides": {
-        "commands": 6
+        "commands": 1
       },
       "tags": [
         "discovery",
-        "feasibility",
-        "selection",
-        "codebase",
-        "poc",
-        "decision"
+        "interface-contract",
+        "api",
+        "event",
+        "webhook",
+        "technical-validation",
+        "pre-development",
+        "validation"
       ]
     },
     "repository-governance": {

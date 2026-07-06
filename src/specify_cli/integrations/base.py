@@ -124,10 +124,7 @@ class IntegrationBase(ABC):
     """
 
     context_file: str | None = None
-    """Agent context/instructions file managed by the agent-context extension."""
-
-    CONTEXT_MARKER_START = "<!-- SPECKIT START -->"
-    CONTEXT_MARKER_END = "<!-- SPECKIT END -->"
+    """Legacy metadata retained for compatibility; unused by setup logic."""
 
     # -- Public API -------------------------------------------------------
 
@@ -596,79 +593,12 @@ class IntegrationBase(ABC):
                 return name
         return sys.executable or "python3"
 
-    def _context_file_display(self, project_root: Path) -> str:
-        """Return the context file target to render in command templates."""
-        return self.context_file or ""
-
-    def _resolve_context_markers(self, project_root: Path) -> tuple[str, str]:
-        """Return configured agent-context markers, falling back to defaults."""
-        config_path = (
-            project_root
-            / ".specify"
-            / "extensions"
-            / "agent-context"
-            / "agent-context-config.yml"
-        )
-        try:
-            cfg = yaml.safe_load(config_path.read_text(encoding="utf-8"))
-        except (OSError, UnicodeError, ValueError, yaml.YAMLError):
-            cfg = None
-        markers = cfg.get("context_markers") if isinstance(cfg, dict) else None
-        if isinstance(markers, dict):
-            start = markers.get("start")
-            end = markers.get("end")
-            if isinstance(start, str) and start and isinstance(end, str) and end:
-                return start, end
-        return self.CONTEXT_MARKER_START, self.CONTEXT_MARKER_END
-
-    @staticmethod
-    def _upsert_context_file(
-        ctx_path: Path,
-        section: str,
-        marker_start: str,
-        marker_end: str,
-    ) -> None:
-        """Create or replace the managed Spec Kit section in *ctx_path*."""
-        ctx_path.parent.mkdir(parents=True, exist_ok=True)
-        if ctx_path.exists():
-            content = ctx_path.read_text(encoding="utf-8-sig")
-        else:
-            content = ""
-
-        start_idx = content.find(marker_start)
-        end_idx = content.find(marker_end)
-        if start_idx != -1 and end_idx != -1 and end_idx > start_idx:
-            end_idx += len(marker_end)
-            new_content = content[:start_idx].rstrip() + "\n\n" + section + content[end_idx:]
-        elif content.strip():
-            new_content = content.rstrip() + "\n\n" + section
-        else:
-            new_content = section
-        ctx_path.write_text(new_content.replace("\r\n", "\n").replace("\r", "\n"), encoding="utf-8")
-
-    def upsert_context_section(self, project_root: Path, plan_path: str = "") -> Path | None:
-        """Create or update the managed section in this integration's context file."""
-        if not self.context_file:
-            return None
-        lines = [
-            "For additional context about technologies to be used, project structure,",
-            "shell commands, and other important information, read the current plan",
-        ]
-        if plan_path:
-            lines.append(f"at {plan_path}")
-        marker_start, marker_end = self._resolve_context_markers(project_root)
-        section = f"{marker_start}\n" + "\n".join(lines) + f"\n{marker_end}\n"
-        ctx_path = project_root / self.context_file
-        self._upsert_context_file(ctx_path, section, marker_start, marker_end)
-        return ctx_path
-
     @staticmethod
     def process_template(
         content: str,
         agent_name: str,
         script_type: str,
         arg_placeholder: str = "$ARGUMENTS",
-        context_file: str = "",
         invoke_separator: str = ".",
         project_root: Path | None = None,
     ) -> str:
@@ -752,18 +682,7 @@ class IntegrationBase(ABC):
         # 5. Replace __AGENT__
         content = content.replace("__AGENT__", agent_name)
 
-        # 6. Replace context placeholders
-        content = content.replace("__CONTEXT_FILE__", context_file)
-        if context_file:
-            marker_start = IntegrationBase.CONTEXT_MARKER_START
-            marker_end = IntegrationBase.CONTEXT_MARKER_END
-        else:
-            marker_start = "the Spec Kit managed section start"
-            marker_end = "the Spec Kit managed section end"
-        content = content.replace("__CONTEXT_MARKER_START__", marker_start)
-        content = content.replace("__CONTEXT_MARKER_END__", marker_end)
-
-        # 7. Rewrite paths — delegate to the shared implementation in
+        # 6. Rewrite paths — delegate to the shared implementation in
         #    CommandRegistrar so extension-local paths are preserved and
         #    boundary rules stay consistent across the codebase.
         from specify_cli.agents import CommandRegistrar
@@ -928,13 +847,11 @@ class MarkdownIntegration(IntegrationBase):
             else "$ARGUMENTS"
         )
         created: list[Path] = []
-        context_file_display = self._context_file_display(project_root)
 
         for src_file in templates:
             raw = src_file.read_text(encoding="utf-8")
             processed = self.process_template(
                 raw, self.key, script_type, arg_placeholder,
-                context_file=context_file_display,
                 project_root=project_root,
             )
             dst_name = self.command_filename(src_file.stem)
@@ -942,8 +859,6 @@ class MarkdownIntegration(IntegrationBase):
                 processed, dest / dst_name, project_root, manifest
             )
             created.append(dst_file)
-
-        self.upsert_context_section(project_root)
 
         return created
 
@@ -1133,14 +1048,12 @@ class TomlIntegration(IntegrationBase):
             else "{{args}}"
         )
         created: list[Path] = []
-        context_file_display = self._context_file_display(project_root)
 
         for src_file in templates:
             raw = src_file.read_text(encoding="utf-8")
             description = self._extract_description(raw)
             processed = self.process_template(
                 raw, self.key, script_type, arg_placeholder,
-                context_file=context_file_display,
                 project_root=project_root,
             )
             _, body = self._split_frontmatter(processed)
@@ -1150,8 +1063,6 @@ class TomlIntegration(IntegrationBase):
                 toml_content, dest / dst_name, project_root, manifest
             )
             created.append(dst_file)
-
-        self.upsert_context_section(project_root)
 
         return created
 
@@ -1328,7 +1239,6 @@ class YamlIntegration(IntegrationBase):
             else "{{args}}"
         )
         created: list[Path] = []
-        context_file_display = self._context_file_display(project_root)
 
         for src_file in templates:
             raw = src_file.read_text(encoding="utf-8")
@@ -1344,7 +1254,6 @@ class YamlIntegration(IntegrationBase):
 
             processed = self.process_template(
                 raw, self.key, script_type, arg_placeholder,
-                context_file=context_file_display,
                 project_root=project_root,
             )
             _, body = self._split_frontmatter(processed)
@@ -1356,8 +1265,6 @@ class YamlIntegration(IntegrationBase):
                 yaml_content, dest / dst_name, project_root, manifest
             )
             created.append(dst_file)
-
-        self.upsert_context_section(project_root)
 
         return created
 
@@ -1519,7 +1426,6 @@ class SkillsIntegration(IntegrationBase):
             else "$ARGUMENTS"
         )
         created: list[Path] = []
-        context_file_display = self._context_file_display(project_root)
 
         for src_file in templates:
             raw = src_file.read_text(encoding="utf-8")
@@ -1543,7 +1449,6 @@ class SkillsIntegration(IntegrationBase):
             # Process body through the standard template pipeline
             processed_body = self.process_template(
                 raw, self.key, script_type, arg_placeholder,
-                context_file=context_file_display,
                 project_root=project_root,
                 invoke_separator=self.invoke_separator,
             )
@@ -1584,7 +1489,5 @@ class SkillsIntegration(IntegrationBase):
                 skill_content, skill_file, project_root, manifest
             )
             created.append(dst)
-
-        self.upsert_context_section(project_root)
 
         return created

@@ -1,76 +1,59 @@
-# Architecture Synthesis: [PROJECT]
+# Architecture Planning Contract: [PROJECT]
 
-**Input Views**:
-- Scenario: `.specify/memory/architecture-scenario-view.md`
-- Logical: `.specify/memory/architecture-logical-view.md`
-- Process: `.specify/memory/architecture-process-view.md`
-- Development: `.specify/memory/architecture-development-view.md`
-- Physical: `.specify/memory/architecture-physical-view.md`
+**Purpose**: Guide downstream Spec Kit `/plan` work with architecture constraints, boundaries, decisions, and review triggers.
 
-## View Index
-
-| View | File | Purpose | Current Status |
-|------|------|---------|----------------|
-| Scenario | `.specify/memory/architecture-scenario-view.md` | Use-case actor, path, branch, and acceptance semantics | NEEDS ARCH UPDATE |
-| Logical | `.specify/memory/architecture-logical-view.md` | Capability boundaries, domain objects, states, and invariants | NEEDS ARCH UPDATE |
-| Process | `.specify/memory/architecture-process-view.md` | Runtime links, handoffs, approvals, receipts, failure closure | NEEDS ARCH UPDATE |
-| Development | `.specify/memory/architecture-development-view.md` | Architecture-level components, package boundaries, contracts, dependencies, dependency matrix | NEEDS ARCH UPDATE |
-| Physical | `.specify/memory/architecture-physical-view.md` | Deployment, external systems, fact sources, observability, operations | NEEDS ARCH UPDATE |
+**Consumer**: Feature planning agents and human reviewers.
 
 ## Architecture Intent
 
-[Cross-view architecture decision, affected boundary, and input views.]
+[Project-level architecture intent that the downstream plan must preserve.]
 
-## Central Design Forces
+**Source / Basis**: NEEDS ARCH UPDATE
 
-[Primary scenario flow, authority boundary, fact-source model, collaboration model, deployment constraint, or failure-closure model that connects the five views.]
+## Planning Scope Rules
 
-## Primary Tradeoffs
-
-| Tradeoff | Chosen Direction | Consequence | Revisit When |
-|----------|------------------|-------------|--------------|
-| NEEDS ARCH UPDATE | NEEDS ARCH UPDATE | NEEDS ARCH UPDATE | NEEDS ARCH UPDATE |
-
-## Stable Boundaries
-
-| Boundary | Affected Views | Must Remain Stable Because | Forbidden Crossing |
-|----------|----------------|----------------------------|--------------------|
-| NEEDS ARCH UPDATE | NEEDS ARCH UPDATE | NEEDS ARCH UPDATE | NEEDS ARCH UPDATE |
-
-## Change Axes
-
-| Expected Change | Isolation Mechanism / Boundary Rule | Affected Views | Architecture Consequence |
-|-----------------|-------------|----------------|--------------------------|
-| NEEDS ARCH UPDATE | NEEDS ARCH UPDATE | NEEDS ARCH UPDATE | NEEDS ARCH UPDATE |
-
-## Anti-patterns
-
-| Anti-pattern | Why It Violates Intent | Affected Views |
-|--------------|------------------------|----------------|
-| NEEDS ARCH UPDATE | NEEDS ARCH UPDATE | NEEDS ARCH UPDATE |
-
-## Cross-View Architecture Model
-
-Cross-view mappings between view-specific concepts, constraints, dependencies, and guardrails.
-
-| Architecture Concept | Scenario Meaning | Logical Interpretation | Runtime Role | Development Boundary | Physical Constraint | Architecture Constraint |
-|----------------------|------------------|------------------------|--------------|----------------------|---------------------|---------------------------|
-| NEEDS ARCH UPDATE | NEEDS ARCH UPDATE | NEEDS ARCH UPDATE | NEEDS ARCH UPDATE | NEEDS ARCH UPDATE | NEEDS ARCH UPDATE | NEEDS ARCH UPDATE |
-
-## Key Architecture Conclusions
-
-| Conclusion | Affected Views | Boundary/Owner | Consequence |
-|------------|----------------|----------------|-------------|
-| NEEDS ARCH UPDATE | NEEDS ARCH UPDATE | NEEDS ARCH UPDATE | NEEDS ARCH UPDATE |
-
-## Cross-Cutting Constraints
-
-| Constraint | Source | Affected Views | Scope | Architecture Consequence |
-|------------|--------|----------------|-------|--------------------------|
+| Rule | Applies When | Plan Must Do | Plan Must Not Do | Source / Basis |
+|------|--------------|--------------|------------------|----------------|
 | NEEDS ARCH UPDATE | NEEDS ARCH UPDATE | NEEDS ARCH UPDATE | NEEDS ARCH UPDATE | NEEDS ARCH UPDATE |
 
-## Open Risks and Review Triggers
+## Capability Boundaries
 
-| Risk or Trigger | Missing Evidence / Change Condition | Affected Views | Required Architecture Review |
-|-----------------|-------------------------------------|----------------|------------------------------|
+| Capability / Boundary | Owns | Does Not Own | Planning Implication | Source / Basis |
+|-----------------------|------|--------------|----------------------|----------------|
+| NEEDS ARCH UPDATE | NEEDS ARCH UPDATE | NEEDS ARCH UPDATE | NEEDS ARCH UPDATE | NEEDS ARCH UPDATE |
+
+## Required Constraints
+
+| Constraint | Applies To | Plan Enforcement | Source / Basis |
+|------------|------------|------------------|----------------|
+| NEEDS ARCH UPDATE | NEEDS ARCH UPDATE | NEEDS ARCH UPDATE | NEEDS ARCH UPDATE |
+
+## Architecture Decisions Already Made
+
+| Decision | Plan Consequence | Revisit Trigger | Source / Basis |
+|----------|------------------|-----------------|----------------|
+| NEEDS ARCH UPDATE | NEEDS ARCH UPDATE | NEEDS ARCH UPDATE | NEEDS ARCH UPDATE |
+
+## Allowed Extension Points
+
+| Extension Point | Intended Use | Required Review If | Source / Basis |
+|-----------------|--------------|--------------------|----------------|
+| NEEDS ARCH UPDATE | NEEDS ARCH UPDATE | NEEDS ARCH UPDATE | NEEDS ARCH UPDATE |
+
+## Prohibited Plan Directions
+
+| Anti-pattern | Why Forbidden | Safer Direction | Source / Basis |
+|--------------|---------------|-----------------|----------------|
+| NEEDS ARCH UPDATE | NEEDS ARCH UPDATE | NEEDS ARCH UPDATE | NEEDS ARCH UPDATE |
+
+## Open Architecture Questions
+
+| Question | Plan Impact | Required Clarification | Planning Status | Source / Basis |
+|----------|-------------|------------------------|-----------------|----------------|
+| NEEDS ARCH UPDATE | NEEDS ARCH UPDATE | NEEDS ARCH UPDATE | NEEDS ARCH UPDATE | NEEDS ARCH UPDATE |
+
+## Plan Review Checklist
+
+| Check | Pass Criteria | Blocking Failure | Source / Basis |
+|-------|---------------|------------------|----------------|
 | NEEDS ARCH UPDATE | NEEDS ARCH UPDATE | NEEDS ARCH UPDATE | NEEDS ARCH UPDATE |

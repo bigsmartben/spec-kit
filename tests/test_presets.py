@@ -4785,11 +4785,15 @@ class TestBundledPresetLocator:
             in verify_run
         )
         assert (
-            'test -f .claude/skills/speckit-arch-scenario-generate/SKILL.md'
+            'test -f .claude/skills/speckit-arch-generate/SKILL.md'
             in verify_run
         )
         assert (
-            'test -f .claude/skills/speckit-discovery-feasibility/SKILL.md'
+            'test -f .claude/skills/speckit-arch-reverse/SKILL.md'
+            in verify_run
+        )
+        assert (
+            'test -f .claude/skills/speckit-discovery-contract/SKILL.md'
             in verify_run
         )
         assert (
@@ -4802,7 +4806,7 @@ class TestBundledPresetLocator:
         )
         assert "specify extension add discovery" in verify_run
         assert (
-            'test -f .claude/skills/speckit-discovery-decision/SKILL.md'
+            'test -f .claude/skills/speckit-discovery-contract/SKILL.md'
             in verify_run
         )
         assert (

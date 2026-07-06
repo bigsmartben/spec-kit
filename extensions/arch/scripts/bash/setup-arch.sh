@@ -2,7 +2,6 @@
 
 set -e
 
-# Parse command line arguments
 JSON_MODE=false
 
 for arg in "$@"; do
@@ -67,27 +66,14 @@ json_escape() {
     s="${s//$'\n'/\\n}"
     s="${s//$'\t'/\\t}"
     s="${s//$'\r'/\\r}"
-    s="${s//$'\b'/\\b}"
-    s="${s//$'\f'/\\f}"
-    local LC_ALL=C
-    local i char code
-    for (( i=0; i<${#s}; i++ )); do
-        char="${s:$i:1}"
-        printf -v code '%d' "'$char" 2>/dev/null || code=256
-        if (( code >= 1 && code <= 31 )); then
-            printf '\\u%04x' "$code"
-        else
-            printf '%s' "$char"
-        fi
-    done
+    printf '%s' "$s"
 }
 
 resolve_architecture_template() {
     local template_name="$1"
     local repo_root="$2"
-    local ext_templates="$repo_root/.specify/extensions/arch/templates"
     local override="$repo_root/.specify/templates/overrides/${template_name}.md"
-    local candidate="$ext_templates/${template_name}.md"
+    local candidate="$repo_root/.specify/extensions/arch/templates/${template_name}.md"
 
     [ -f "$override" ] && echo "$override" && return 0
     [ -f "$candidate" ] && echo "$candidate" && return 0
@@ -102,12 +88,6 @@ ARCH_SCHEMA_FILE="$SCHEMA_DIR/architecture-artifacts.schema.json"
 ARCH_VALIDATOR_FILE="$SCRIPT_DIR/bash/validate-arch-artifacts.sh"
 ARCH_VALIDATOR_PS_FILE="$SCRIPT_DIR/powershell/validate-arch-artifacts.ps1"
 ARCH_FILE="$ARCH_DIR/architecture.md"
-REPO_FACTS_FILE="$ARCH_DIR/architecture-repo-facts.md"
-SCENARIO_VIEW="$ARCH_DIR/architecture-scenario-view.md"
-LOGICAL_VIEW="$ARCH_DIR/architecture-logical-view.md"
-PROCESS_VIEW="$ARCH_DIR/architecture-process-view.md"
-DEVELOPMENT_VIEW="$ARCH_DIR/architecture-development-view.md"
-PHYSICAL_VIEW="$ARCH_DIR/architecture-physical-view.md"
 
 mkdir -p "$ARCH_DIR"
 
@@ -134,13 +114,7 @@ copy_template_if_missing() {
     fi
 }
 
-copy_template_if_missing "architecture-repo-facts-template" "$REPO_FACTS_FILE"
 copy_template_if_missing "architecture-template" "$ARCH_FILE"
-copy_template_if_missing "architecture-scenario-template" "$SCENARIO_VIEW"
-copy_template_if_missing "architecture-logical-template" "$LOGICAL_VIEW"
-copy_template_if_missing "architecture-process-template" "$PROCESS_VIEW"
-copy_template_if_missing "architecture-development-template" "$DEVELOPMENT_VIEW"
-copy_template_if_missing "architecture-physical-template" "$PHYSICAL_VIEW"
 
 if $JSON_MODE; then
     if has_jq; then
@@ -151,27 +125,15 @@ if $JSON_MODE; then
             --arg arch_schema_file "$ARCH_SCHEMA_FILE" \
             --arg arch_validator_file "$ARCH_VALIDATOR_FILE" \
             --arg arch_validator_ps_file "$ARCH_VALIDATOR_PS_FILE" \
-            --arg repo_facts_file "$REPO_FACTS_FILE" \
-            --arg scenario_view "$SCENARIO_VIEW" \
-            --arg logical_view "$LOGICAL_VIEW" \
-            --arg process_view "$PROCESS_VIEW" \
-            --arg development_view "$DEVELOPMENT_VIEW" \
-            --arg physical_view "$PHYSICAL_VIEW" \
-            '{ARCH_FILE:$arch_file,ARCH_DIR:$arch_dir,SCHEMA_DIR:$schema_dir,ARCH_SCHEMA_FILE:$arch_schema_file,ARCH_VALIDATOR_FILE:$arch_validator_file,ARCH_VALIDATOR_PS_FILE:$arch_validator_ps_file,REPO_FACTS_FILE:$repo_facts_file,SCENARIO_VIEW:$scenario_view,LOGICAL_VIEW:$logical_view,PROCESS_VIEW:$process_view,DEVELOPMENT_VIEW:$development_view,PHYSICAL_VIEW:$physical_view}'
+            '{ARCH_FILE:$arch_file,ARCH_DIR:$arch_dir,SCHEMA_DIR:$schema_dir,ARCH_SCHEMA_FILE:$arch_schema_file,ARCH_VALIDATOR_FILE:$arch_validator_file,ARCH_VALIDATOR_PS_FILE:$arch_validator_ps_file}'
     else
-        printf '{"ARCH_FILE":"%s","ARCH_DIR":"%s","SCHEMA_DIR":"%s","ARCH_SCHEMA_FILE":"%s","ARCH_VALIDATOR_FILE":"%s","ARCH_VALIDATOR_PS_FILE":"%s","REPO_FACTS_FILE":"%s","SCENARIO_VIEW":"%s","LOGICAL_VIEW":"%s","PROCESS_VIEW":"%s","DEVELOPMENT_VIEW":"%s","PHYSICAL_VIEW":"%s"}\n' \
+        printf '{"ARCH_FILE":"%s","ARCH_DIR":"%s","SCHEMA_DIR":"%s","ARCH_SCHEMA_FILE":"%s","ARCH_VALIDATOR_FILE":"%s","ARCH_VALIDATOR_PS_FILE":"%s"}\n' \
             "$(json_escape "$ARCH_FILE")" \
             "$(json_escape "$ARCH_DIR")" \
             "$(json_escape "$SCHEMA_DIR")" \
             "$(json_escape "$ARCH_SCHEMA_FILE")" \
             "$(json_escape "$ARCH_VALIDATOR_FILE")" \
-            "$(json_escape "$ARCH_VALIDATOR_PS_FILE")" \
-            "$(json_escape "$REPO_FACTS_FILE")" \
-            "$(json_escape "$SCENARIO_VIEW")" \
-            "$(json_escape "$LOGICAL_VIEW")" \
-            "$(json_escape "$PROCESS_VIEW")" \
-            "$(json_escape "$DEVELOPMENT_VIEW")" \
-            "$(json_escape "$PHYSICAL_VIEW")"
+            "$(json_escape "$ARCH_VALIDATOR_PS_FILE")"
     fi
 else
     echo "ARCH_FILE: $ARCH_FILE"
@@ -180,10 +142,4 @@ else
     echo "ARCH_SCHEMA_FILE: $ARCH_SCHEMA_FILE"
     echo "ARCH_VALIDATOR_FILE: $ARCH_VALIDATOR_FILE"
     echo "ARCH_VALIDATOR_PS_FILE: $ARCH_VALIDATOR_PS_FILE"
-    echo "REPO_FACTS_FILE: $REPO_FACTS_FILE"
-    echo "SCENARIO_VIEW: $SCENARIO_VIEW"
-    echo "LOGICAL_VIEW: $LOGICAL_VIEW"
-    echo "PROCESS_VIEW: $PROCESS_VIEW"
-    echo "DEVELOPMENT_VIEW: $DEVELOPMENT_VIEW"
-    echo "PHYSICAL_VIEW: $PHYSICAL_VIEW"
 fi

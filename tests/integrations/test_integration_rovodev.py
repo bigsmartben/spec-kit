@@ -13,6 +13,7 @@ from typer.testing import CliRunner
 from specify_cli import app
 from specify_cli.integrations import get_integration
 from specify_cli.integrations.manifest import IntegrationManifest
+from tests.integrations.community_defaults import DEFAULT_EXTENSION_COMMANDS
 
 
 def _run_init(project, *flags: str) -> Result:
@@ -218,8 +219,13 @@ class TestRovodevIntegration:
         # Prompts: exactly the core template set.
         assert prompt_stems == core_skill_names
 
-        # Skills: exactly the core template set (no extension auto-install).
-        assert skill_names == core_skill_names
+        extension_skill_names = {
+            command.replace(".", "-")
+            for command in DEFAULT_EXTENSION_COMMANDS
+        }
+
+        # Skills: core templates plus default bundled extension commands.
+        assert skill_names == core_skill_names | extension_skill_names
 
         # prompts.yml mirrors the prompt files exactly.
         prompts_manifest = project / ".rovodev" / "prompts.yml"

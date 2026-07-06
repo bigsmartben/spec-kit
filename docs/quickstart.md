@@ -1,6 +1,6 @@
 # 快速开始
 
-这份指南面向本仓库分发版的 Spec Kit。它保留核心 Spec-Driven Development 流程，同时默认带上架构 SSOT、仓库治理、BDD/UIF 行为契约、HTML 预览、实现期 handoff 和最终 code review receipt。
+这份指南面向本仓库分发版的 Spec Kit。它保留核心 Spec-Driven Development 流程，同时默认带上架构规划契约、仓库治理、BDD/UIF 行为契约、HTML 预览、实现期 handoff 和最终 code review receipt。
 
 > [!NOTE]
 > 自动化脚本同时提供 Bash (`.sh`) 和 PowerShell (`.ps1`) 版本。`specify` CLI 会按系统自动选择，也可以通过 `--script sh|ps` 显式指定。
@@ -14,11 +14,7 @@
 
 ```text
 /speckit.constitution
-/speckit.arch.scenario-generate
-/speckit.arch.logical-generate
-/speckit.arch.process-generate
-/speckit.arch.development-generate
-/speckit.arch.physical-generate
+/speckit.arch.generate
 /speckit.repository-governance.generate
 /speckit.specify
 /speckit.clarify
@@ -33,7 +29,7 @@
 
 `/speckit.clarify` 用来在规划前降低需求歧义；`/speckit.checklist` 在计划形成后生成质量检查清单；`/speckit.analyze` 在实现前检查 spec、plan 和 tasks 的一致性；`/speckit.converge` 在实现后对照 feature artifacts 检查剩余缺口。如果 converge 追加了新任务，继续运行 `/speckit.implement` 并再次 converge，直到功能收敛。
 
-接手旧仓库时，把五个 `/speckit.arch.*-generate` 换成对应的 `/speckit.arch.*-reverse`，先从仓库事实反向生成架构 SSOT。
+接手旧仓库时，把 `/speckit.arch.generate` 换成 `/speckit.arch.reverse`，先从仓库证据反向生成架构规划契约。
 
 小实验可以安装 `lean` 预设后走轻量路径：
 
@@ -127,41 +123,27 @@ specify integration list
 
 它用于约束 SSOT 读取顺序、目录责任、agent 平台适配和仓库事实证据。
 
-## 4. 生成 ARCH SSOT
+## 4. 生成架构规划契约
 
 新项目或架构正在重塑时：
 
 ```text
-/speckit.arch.scenario-generate
-/speckit.arch.logical-generate
-/speckit.arch.process-generate
-/speckit.arch.development-generate
-/speckit.arch.physical-generate
+/speckit.arch.generate
 ```
 
 接手已有仓库时：
 
 ```text
-/speckit.arch.scenario-reverse
-/speckit.arch.logical-reverse
-/speckit.arch.process-reverse
-/speckit.arch.development-reverse
-/speckit.arch.physical-reverse
+/speckit.arch.reverse
 ```
 
 主要产物：
 
 ```text
 .specify/memory/architecture.md
-.specify/memory/architecture-scenario-view.md
-.specify/memory/architecture-logical-view.md
-.specify/memory/architecture-process-view.md
-.specify/memory/architecture-development-view.md
-.specify/memory/architecture-physical-view.md
-.specify/memory/architecture-repo-facts.md   # reverse 额外使用
 ```
 
-后续 `/speckit.plan` 会基于这些架构边界、约束、反模式和未解缺口进行规划。
+后续 `/speckit.plan` 会基于这份唯一架构文件中的边界、约束、反模式、开放问题和 review checklist 进行规划。
 
 ## 5. 创建并澄清规格
 

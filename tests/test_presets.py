@@ -4785,7 +4785,11 @@ class TestBundledPresetLocator:
             in verify_run
         )
         assert (
-            'test -f .claude/skills/speckit-arch-scenario-generate/SKILL.md'
+            'test -f .claude/skills/speckit-arch-generate/SKILL.md'
+            in verify_run
+        )
+        assert (
+            'test -f .claude/skills/speckit-arch-reverse/SKILL.md'
             in verify_run
         )
         assert (

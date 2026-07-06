@@ -1,4 +1,5 @@
-"""Quality guards for 4+1 architecture templates and command."""
+"""Quality guards for the bundled architecture planning contract extension."""
+
 from pathlib import Path
 
 
@@ -12,22 +13,12 @@ def _read_template(name: str) -> str:
     return (TEMPLATES / name).read_text(encoding="utf-8")
 
 
-def test_arch_commands_are_split_by_view_and_bootstrap_setup():
+def test_arch_commands_are_single_planning_contract_surface():
     command_files = sorted(COMMANDS.glob("speckit.arch.*.md"))
 
     assert [path.name for path in command_files] == [
-        "speckit.arch.development-generate.md",
-        "speckit.arch.development-reverse.md",
-        "speckit.arch.full-generate.md",
-        "speckit.arch.full-reverse.md",
-        "speckit.arch.logical-generate.md",
-        "speckit.arch.logical-reverse.md",
-        "speckit.arch.physical-generate.md",
-        "speckit.arch.physical-reverse.md",
-        "speckit.arch.process-generate.md",
-        "speckit.arch.process-reverse.md",
-        "speckit.arch.scenario-generate.md",
-        "speckit.arch.scenario-reverse.md",
+        "speckit.arch.generate.md",
+        "speckit.arch.reverse.md",
     ]
 
     for command_file in command_files:
@@ -37,51 +28,49 @@ def test_arch_commands_are_split_by_view_and_bootstrap_setup():
         assert ".specify/extensions/arch/scripts/powershell/setup-arch.ps1 -Json" in content
         assert "ARCH_SCHEMA_FILE" in content
         assert "ARCH_VALIDATOR_FILE" in content
-        assert "Synthesis Readiness" in content
+        assert "planning_gate" in content
         assert "ready_gate" in content
         assert "BLOCKER" in content
+        assert "Write only `ARCH_FILE`" in content
+        assert "Do not create, update, or require separate 4+1 view files" in content
         assert ".specify/memory/architecture/" not in content
         assert "__SPECKIT_COMMAND_UC__" not in content
 
 
-def test_arch_generate_and_reverse_commands_keep_distinct_evidence_boundaries():
-    for command_file in COMMANDS.glob("speckit.arch.*-generate.md"):
-        content = command_file.read_text(encoding="utf-8")
-        assert "Do not read, populate, or update `REPO_FACTS_FILE`" in content
-        assert "record" in content
-        assert "instead of inventing" in content
+def test_arch_generate_and_reverse_keep_evidence_inside_single_artifact():
+    generate = (COMMANDS / "speckit.arch.generate.md").read_text(encoding="utf-8")
+    reverse = (COMMANDS / "speckit.arch.reverse.md").read_text(encoding="utf-8")
 
-    for command_file in COMMANDS.glob("speckit.arch.*-reverse.md"):
-        content = command_file.read_text(encoding="utf-8")
-        assert "observable repository" in content
-        assert "REPO_FACTS_FILE" in content
-        assert "Every non-placeholder fact must name an evidence source" in content
-        assert "Architecture conclusions must trace to repo facts" in content
+    assert "Source / Basis" in generate
+    assert "Open Architecture Questions" in generate
+    assert "instead of inventing planning rules" in generate
+
+    assert "observable repository evidence" in reverse
+    assert "Source / Basis" in reverse
+    assert "not in a secondary evidence file" in reverse
+    assert "Do not create, update, or require `.specify/memory/architecture-repo-facts.md`" in reverse
 
 
-def test_architecture_synthesis_references_five_view_files():
+def test_architecture_template_defines_planning_contract_sections():
     content = _read_template("architecture-template.md")
 
-    for filename in [
-        "architecture-scenario-view.md",
-        "architecture-logical-view.md",
-        "architecture-process-view.md",
-        "architecture-development-view.md",
-        "architecture-physical-view.md",
-    ]:
-        assert f".specify/memory/{filename}" in content
-    assert "Cross-View Architecture Model" in content
-    assert "Cross-view mappings between view-specific concepts" in content
-    assert "Key Architecture Conclusions" in content
     for section in [
         "Architecture Intent",
-        "Central Design Forces",
-        "Primary Tradeoffs",
-        "Stable Boundaries",
-        "Change Axes",
-        "Anti-patterns",
+        "Planning Scope Rules",
+        "Capability Boundaries",
+        "Required Constraints",
+        "Architecture Decisions Already Made",
+        "Allowed Extension Points",
+        "Prohibited Plan Directions",
+        "Open Architecture Questions",
+        "Plan Review Checklist",
     ]:
-        assert section in content
+        assert f"## {section}" in content
+
+    assert content.count("Source / Basis") == 9
+    assert "Planning Status" in content
+    assert ".specify/memory/architecture-scenario-view.md" not in content
+    assert ".specify/memory/architecture-repo-facts.md" not in content
     assert ".specify/memory/architecture/" not in content
 
 
@@ -95,51 +84,27 @@ def test_init_next_steps_do_not_list_arch_as_core_workflow():
     assert "specify extension add arch" not in init_source
 
 
-def test_view_templates_define_inputs_and_reject_implementation_detail():
-    scenario = _read_template("architecture-scenario-template.md")
-    logical = _read_template("architecture-logical-template.md")
-    process = _read_template("architecture-process-template.md")
-    development = _read_template("architecture-development-template.md")
-    physical = _read_template("architecture-physical-template.md")
-
-    assert "Use-case semantics for the architecture workflow" in scenario
-    assert "Actors and Participants" in scenario
-    assert "Acceptance Semantics" in scenario
-    assert "**Input**: `.specify/memory/architecture-scenario-view.md`" in logical
-    assert "Capability Boundaries" in logical
-    assert "Domain Objects and Relationships" in logical
-    assert "**Input**: `.specify/memory/architecture-scenario-view.md`, `.specify/memory/architecture-logical-view.md`" in process
-    assert "Main Runtime Links" in process
-    assert "Failure, Degradation, and Closure" in process
-    assert "**Input**: `.specify/memory/architecture-logical-view.md`, `.specify/memory/architecture-process-view.md`" in development
-    assert "Architecture-Level Components" in development
-    assert "Dependency Rules" in development
-    assert "**Input**: `.specify/memory/architecture-process-view.md`, `.specify/memory/architecture-development-view.md`" in physical
-    assert "Deployment and Hosting Boundaries" in physical
-    assert "Operations and Release Boundaries" in physical
-
-    for content in [scenario, logical, process, development, physical]:
-        for section in [
-            "Architecture Intent",
-            "Core Tensions",
-            "Stable Boundaries",
-            "Change Axes",
-            "Invariants",
-            "Non-goals / Anti-patterns",
-        ]:
-            assert section in content
-
-
-def test_view_templates_keep_notations_out_of_reasoning_contracts():
-    view_contents = [
-        _read_template("architecture-scenario-template.md"),
-        _read_template("architecture-logical-template.md"),
-        _read_template("architecture-process-template.md"),
-        _read_template("architecture-development-template.md"),
-        _read_template("architecture-physical-template.md"),
+def test_removed_legacy_view_templates_are_not_bundled():
+    assert sorted(path.name for path in TEMPLATES.glob("architecture-*.md")) == [
+        "architecture-template.md"
     ]
 
-    notation_terms = ["C4", "UML", "Mermaid", "PlantUML", "notation-specific"]
-    for content in view_contents:
-        for term in notation_terms:
-            assert term not in content
+
+def test_schema_and_validator_enforce_planning_quality_gate():
+    schema = (ARCHITECTURE_EXTENSION / "schemas" / "architecture-artifacts.schema.json").read_text(
+        encoding="utf-8"
+    )
+    bash_validator = (
+        ARCHITECTURE_EXTENSION / "scripts" / "bash" / "validate-arch-artifacts.sh"
+    ).read_text(encoding="utf-8")
+    ps_validator = (
+        ARCHITECTURE_EXTENSION / "scripts" / "powershell" / "validate-arch-artifacts.ps1"
+    ).read_text(encoding="utf-8")
+
+    for content in [schema, bash_validator, ps_validator]:
+        assert "ARCH_SOURCE_MISSING" in content
+        assert "ARCH_UNSUPPORTED_CONCLUSION" in content
+        assert "ARCH_OPEN_QUESTION_STATUS_INVALID" in content
+
+    assert "planningScopeRuleRecord" in schema
+    assert "openArchitectureQuestionRecord" in schema

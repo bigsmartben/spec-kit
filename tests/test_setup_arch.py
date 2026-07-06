@@ -20,12 +20,6 @@ SETUP_ARCH_PS = ARCHITECTURE_EXTENSION / "scripts" / "powershell" / "setup-arch.
 VALIDATE_ARCH_PS = ARCHITECTURE_EXTENSION / "scripts" / "powershell" / "validate-arch-artifacts.ps1"
 ARCH_TEMPLATES = [
     "architecture-template.md",
-    "architecture-repo-facts-template.md",
-    "architecture-scenario-template.md",
-    "architecture-logical-template.md",
-    "architecture-process-template.md",
-    "architecture-development-template.md",
-    "architecture-physical-template.md",
 ]
 ARCH_SCHEMAS = [
     "architecture-artifacts.schema.json",
@@ -129,12 +123,6 @@ def _assert_arch_json(repo: Path, data: dict[str, str], *, exact_paths: bool = T
         "ARCH_SCHEMA_FILE": repo / ".specify" / "extensions" / "arch" / "schemas" / "architecture-artifacts.schema.json",
         "ARCH_VALIDATOR_FILE": repo / ".specify" / "extensions" / "arch" / "scripts" / "bash" / "validate-arch-artifacts.sh",
         "ARCH_VALIDATOR_PS_FILE": repo / ".specify" / "extensions" / "arch" / "scripts" / "powershell" / "validate-arch-artifacts.ps1",
-        "REPO_FACTS_FILE": repo / ".specify" / "memory" / "architecture-repo-facts.md",
-        "SCENARIO_VIEW": repo / ".specify" / "memory" / "architecture-scenario-view.md",
-        "LOGICAL_VIEW": repo / ".specify" / "memory" / "architecture-logical-view.md",
-        "PROCESS_VIEW": repo / ".specify" / "memory" / "architecture-process-view.md",
-        "DEVELOPMENT_VIEW": repo / ".specify" / "memory" / "architecture-development-view.md",
-        "PHYSICAL_VIEW": repo / ".specify" / "memory" / "architecture-physical-view.md",
     }
     assert set(data) == set(expected)
     for key, path in expected.items():
@@ -147,7 +135,7 @@ def _assert_arch_json(repo: Path, data: dict[str, str], *, exact_paths: bool = T
 
 
 @requires_bash
-def test_setup_arch_bash_creates_all_artifacts_and_json(arch_repo: Path) -> None:
+def test_setup_arch_bash_creates_single_artifact_and_json(arch_repo: Path) -> None:
     script = arch_repo / ".specify" / "extensions" / "arch" / "scripts" / "bash" / "setup-arch.sh"
     result = subprocess.run(
         ["bash", str(script), "--json"],
@@ -161,14 +149,16 @@ def test_setup_arch_bash_creates_all_artifacts_and_json(arch_repo: Path) -> None
     assert result.returncode == 0, result.stderr + result.stdout
     data = _json_from_output(result.stdout)
     _assert_arch_json(arch_repo, data)
-    assert "Scenario View" in (arch_repo / ".specify" / "memory" / "architecture-scenario-view.md").read_text(encoding="utf-8")
+    memory_files = sorted(path.name for path in (arch_repo / ".specify" / "memory").glob("*.md"))
+    assert memory_files == ["architecture.md"]
+    assert "Architecture Planning Contract" in (arch_repo / ".specify" / "memory" / "architecture.md").read_text(encoding="utf-8")
 
 
 @requires_bash
 def test_setup_arch_bash_preserves_existing_files(arch_repo: Path) -> None:
-    existing = arch_repo / ".specify" / "memory" / "architecture-scenario-view.md"
+    existing = arch_repo / ".specify" / "memory" / "architecture.md"
     existing.parent.mkdir(parents=True)
-    existing.write_text("# Custom Scenario\n", encoding="utf-8")
+    existing.write_text("# Custom Architecture\n", encoding="utf-8")
 
     script = arch_repo / ".specify" / "extensions" / "arch" / "scripts" / "bash" / "setup-arch.sh"
     result = subprocess.run(
@@ -181,11 +171,11 @@ def test_setup_arch_bash_preserves_existing_files(arch_repo: Path) -> None:
     )
 
     assert result.returncode == 0, result.stderr + result.stdout
-    assert existing.read_text(encoding="utf-8") == "# Custom Scenario\n"
+    assert existing.read_text(encoding="utf-8") == "# Custom Architecture\n"
 
 
 @pytest.mark.skipif(not (HAS_PWSH or _POWERSHELL), reason="no PowerShell available")
-def test_setup_arch_powershell_creates_all_artifacts_and_json(arch_repo: Path) -> None:
+def test_setup_arch_powershell_creates_single_artifact_and_json(arch_repo: Path) -> None:
     script = arch_repo / ".specify" / "extensions" / "arch" / "scripts" / "powershell" / "setup-arch.ps1"
     exe = "pwsh" if HAS_PWSH else _POWERSHELL
     result = _run_powershell(
@@ -196,3 +186,5 @@ def test_setup_arch_powershell_creates_all_artifacts_and_json(arch_repo: Path) -
     assert result.returncode == 0, result.stderr + result.stdout
     data = _json_from_output(result.stdout)
     _assert_arch_json(arch_repo, data, exact_paths=False)
+    memory_files = sorted(path.name for path in (arch_repo / ".specify" / "memory").glob("*.md"))
+    assert memory_files == ["architecture.md"]

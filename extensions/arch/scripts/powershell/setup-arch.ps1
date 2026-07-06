@@ -1,5 +1,5 @@
 #!/usr/bin/env pwsh
-# Setup project-level 4+1 architecture artifacts
+# Setup project-level architecture planning contract artifacts
 
 [CmdletBinding()]
 param(
@@ -88,12 +88,6 @@ $archSchemaFile = Join-Path $schemaDir "architecture-artifacts.schema.json"
 $archValidatorFile = Join-Path $scriptDir "bash/validate-arch-artifacts.sh"
 $archValidatorPsFile = Join-Path $scriptDir "powershell/validate-arch-artifacts.ps1"
 $archFile = Join-Path $archDir "architecture.md"
-$repoFactsFile = Join-Path $archDir "architecture-repo-facts.md"
-$scenarioView = Join-Path $archDir "architecture-scenario-view.md"
-$logicalView = Join-Path $archDir "architecture-logical-view.md"
-$processView = Join-Path $archDir "architecture-process-view.md"
-$developmentView = Join-Path $archDir "architecture-development-view.md"
-$physicalView = Join-Path $archDir "architecture-physical-view.md"
 
 New-Item -ItemType Directory -Path $archDir -Force | Out-Null
 
@@ -121,13 +115,7 @@ function Copy-TemplateIfMissing {
     }
 }
 
-Copy-TemplateIfMissing -TemplateName "architecture-repo-facts-template" -Destination $repoFactsFile
 Copy-TemplateIfMissing -TemplateName "architecture-template" -Destination $archFile
-Copy-TemplateIfMissing -TemplateName "architecture-scenario-template" -Destination $scenarioView
-Copy-TemplateIfMissing -TemplateName "architecture-logical-template" -Destination $logicalView
-Copy-TemplateIfMissing -TemplateName "architecture-process-template" -Destination $processView
-Copy-TemplateIfMissing -TemplateName "architecture-development-template" -Destination $developmentView
-Copy-TemplateIfMissing -TemplateName "architecture-physical-template" -Destination $physicalView
 
 if ($Json) {
     [PSCustomObject]@{
@@ -137,12 +125,6 @@ if ($Json) {
         ARCH_SCHEMA_FILE = $archSchemaFile
         ARCH_VALIDATOR_FILE = $archValidatorFile
         ARCH_VALIDATOR_PS_FILE = $archValidatorPsFile
-        REPO_FACTS_FILE = $repoFactsFile
-        SCENARIO_VIEW = $scenarioView
-        LOGICAL_VIEW = $logicalView
-        PROCESS_VIEW = $processView
-        DEVELOPMENT_VIEW = $developmentView
-        PHYSICAL_VIEW = $physicalView
     } | ConvertTo-Json -Compress
 } else {
     Write-Output "ARCH_FILE: $archFile"
@@ -151,10 +133,4 @@ if ($Json) {
     Write-Output "ARCH_SCHEMA_FILE: $archSchemaFile"
     Write-Output "ARCH_VALIDATOR_FILE: $archValidatorFile"
     Write-Output "ARCH_VALIDATOR_PS_FILE: $archValidatorPsFile"
-    Write-Output "REPO_FACTS_FILE: $repoFactsFile"
-    Write-Output "SCENARIO_VIEW: $scenarioView"
-    Write-Output "LOGICAL_VIEW: $logicalView"
-    Write-Output "PROCESS_VIEW: $processView"
-    Write-Output "DEVELOPMENT_VIEW: $developmentView"
-    Write-Output "PHYSICAL_VIEW: $physicalView"
 }

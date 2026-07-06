@@ -366,14 +366,12 @@ class CopilotIntegration(IntegrationBase):
 
         script_type = opts.get("script_type", "sh")
         arg_placeholder = self.registrar_config.get("args", "$ARGUMENTS")
-        context_file_display = self._context_file_display(project_root)
 
         # 1. Process and write command files as .agent.md
         for src_file in templates:
             raw = src_file.read_text(encoding="utf-8")
             processed = self.process_template(
                 raw, self.key, script_type, arg_placeholder,
-                context_file=context_file_display,
                 project_root=project_root,
             )
             dst_name = self.command_filename(src_file.stem)
@@ -408,8 +406,6 @@ class CopilotIntegration(IntegrationBase):
                 shutil.copy2(settings_src, dst_settings)
                 self.record_file_in_manifest(dst_settings, project_root, manifest)
                 created.append(dst_settings)
-
-        self.upsert_context_section(project_root)
 
         return created
 

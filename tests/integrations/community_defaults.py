@@ -11,18 +11,8 @@ from specify_cli.integrations import get_integration
 REPO_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_EXTENSION_IDS = ("arch", "discovery", "intake", "preview", "repository-governance")
 DEFAULT_EXTENSION_COMMANDS = (
-    "speckit.arch.scenario-generate",
-    "speckit.arch.logical-generate",
-    "speckit.arch.process-generate",
-    "speckit.arch.development-generate",
-    "speckit.arch.physical-generate",
-    "speckit.arch.full-generate",
-    "speckit.arch.full-reverse",
-    "speckit.arch.scenario-reverse",
-    "speckit.arch.logical-reverse",
-    "speckit.arch.process-reverse",
-    "speckit.arch.development-reverse",
-    "speckit.arch.physical-reverse",
+    "speckit.arch.generate",
+    "speckit.arch.reverse",
     "speckit.discovery.contract",
     "speckit.intake.visual-design",
     "speckit.intake.prd",

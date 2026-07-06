@@ -119,13 +119,11 @@ class GenericIntegration(MarkdownIntegration):
         script_type = opts.get("script_type", "sh")
         arg_placeholder = "$ARGUMENTS"
         created: list[Path] = []
-        context_file_display = self._context_file_display(project_root)
 
         for src_file in templates:
             raw = src_file.read_text(encoding="utf-8")
             processed = self.process_template(
                 raw, self.key, script_type, arg_placeholder,
-                context_file=context_file_display,
                 project_root=project_root,
             )
             dst_name = self.command_filename(src_file.stem)
@@ -133,7 +131,5 @@ class GenericIntegration(MarkdownIntegration):
                 processed, dest / dst_name, project_root, manifest
             )
             created.append(dst_file)
-
-        self.upsert_context_section(project_root)
 
         return created

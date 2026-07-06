@@ -10,7 +10,7 @@ $ErrorActionPreference = 'Stop'
 
 if ($Help) {
     Write-Output "Usage: ./validate-arch-artifacts.ps1 [-Json] [-Help]"
-    Write-Output "  -Json     Output readiness result as JSON"
+    Write-Output "  -Json     Output planning readiness result as JSON"
     Write-Output "  -Help     Show this help message"
     exit 0
 }
@@ -117,109 +117,234 @@ function Test-SectionHasContent {
     return $false
 }
 
-$repoRoot = Convert-ToPlainPath (Get-RepoRoot)
-$archDir = Join-Path $repoRoot ".specify/memory"
-$blockers = @()
+function Test-InvalidSourceValue {
+    param([AllowEmptyString()][string]$Value)
 
-$files = [ordered]@{
-    "architecture-synthesis" = Join-Path $archDir "architecture.md"
-    "scenario-view" = Join-Path $archDir "architecture-scenario-view.md"
-    "logical-view" = Join-Path $archDir "architecture-logical-view.md"
-    "process-view" = Join-Path $archDir "architecture-process-view.md"
-    "development-view" = Join-Path $archDir "architecture-development-view.md"
-    "physical-view" = Join-Path $archDir "architecture-physical-view.md"
+    $normalized = ($Value -replace '`', '').Trim()
+    return [string]::IsNullOrWhiteSpace($normalized) -or $normalized -match '^(tbd|n/a|na|none|unknown|guess|guessed|todo|needs arch update|needs repo facts update)$'
 }
 
-$sectionHeadings = @{
-    "view-index" = "View Index"
-    "architecture-intent" = "Architecture Intent"
-    "central-design-forces" = "Central Design Forces"
-    "primary-tradeoffs" = "Primary Tradeoffs"
-    "stable-boundaries" = "Stable Boundaries"
-    "change-axes" = "Change Axes"
-    "anti-patterns" = "Anti-patterns"
-    "cross-view-architecture-model" = "Cross-View Architecture Model"
-    "key-architecture-conclusions" = "Key Architecture Conclusions"
-    "cross-cutting-constraints" = "Cross-Cutting Constraints"
-    "open-risks-and-review-triggers" = "Open Risks and Review Triggers"
-    "core-tensions" = "Core Tensions"
-    "invariants" = "Invariants"
-    "non-goals-anti-patterns" = "Non-goals / Anti-patterns"
-    "actors-and-participants" = "Actors and Participants"
-    "use-cases" = "Use Cases"
-    "scenario-paths" = "Scenario Paths"
-    "acceptance-semantics" = "Acceptance Semantics"
-    "source-traceability" = "Source Traceability"
-    "scenario-gaps" = "Scenario Gaps"
-    "capability-boundaries" = "Capability Boundaries"
-    "domain-objects-and-relationships" = "Domain Objects and Relationships"
-    "state-and-lifecycle" = "State and Lifecycle"
-    "logical-decisions" = "Logical Decisions"
-    "logical-gaps" = "Logical Gaps"
-    "main-runtime-links" = "Main Runtime Links"
-    "handoffs-and-approvals" = "Handoffs and Approvals"
-    "receipts-and-user-participation" = "Receipts and User Participation"
-    "failure-degradation-and-closure" = "Failure, Degradation, and Closure"
-    "process-gaps" = "Process Gaps"
-    "architecture-level-components" = "Architecture-Level Components"
-    "package-boundary-intent" = "Package Boundary Intent"
-    "contracts-and-artifacts" = "Contracts and Artifacts"
-    "dependency-rules" = "Dependency Rules"
-    "dependency-matrix" = "Dependency Matrix"
-    "development-view-gaps" = "Development View Gaps"
-    "deployment-and-hosting-boundaries" = "Deployment and Hosting Boundaries"
-    "external-system-collaboration" = "External System Collaboration"
-    "fact-sources-and-observability" = "Fact Sources and Observability"
-    "operations-and-release-boundaries" = "Operations and Release Boundaries"
-    "physical-view-gaps" = "Physical View Gaps"
-}
+function Test-SectionHasMissingSource {
+    param(
+        [AllowEmptyCollection()][AllowEmptyString()][string[]]$Lines,
+        [Parameter(Mandatory = $true)][string]$Heading
+    )
 
-$requiredSections = @{
-    "architecture-synthesis" = @("view-index", "architecture-intent", "central-design-forces", "primary-tradeoffs", "stable-boundaries", "change-axes", "anti-patterns", "cross-view-architecture-model", "key-architecture-conclusions", "cross-cutting-constraints", "open-risks-and-review-triggers")
-    "scenario-view" = @("architecture-intent", "core-tensions", "stable-boundaries", "change-axes", "invariants", "non-goals-anti-patterns", "actors-and-participants", "use-cases", "scenario-paths", "acceptance-semantics", "source-traceability", "scenario-gaps")
-    "logical-view" = @("architecture-intent", "core-tensions", "stable-boundaries", "change-axes", "invariants", "non-goals-anti-patterns", "capability-boundaries", "domain-objects-and-relationships", "state-and-lifecycle", "logical-decisions", "source-traceability", "logical-gaps")
-    "process-view" = @("architecture-intent", "core-tensions", "stable-boundaries", "change-axes", "invariants", "non-goals-anti-patterns", "main-runtime-links", "handoffs-and-approvals", "receipts-and-user-participation", "failure-degradation-and-closure", "source-traceability", "process-gaps")
-    "development-view" = @("architecture-intent", "core-tensions", "stable-boundaries", "change-axes", "invariants", "non-goals-anti-patterns", "architecture-level-components", "package-boundary-intent", "contracts-and-artifacts", "dependency-rules", "dependency-matrix", "source-traceability", "development-view-gaps")
-    "physical-view" = @("architecture-intent", "core-tensions", "stable-boundaries", "change-axes", "invariants", "non-goals-anti-patterns", "deployment-and-hosting-boundaries", "external-system-collaboration", "fact-sources-and-observability", "operations-and-release-boundaries", "source-traceability", "physical-view-gaps")
-}
-
-foreach ($artifact in $files.Keys) {
-    $file = $files[$artifact]
-    if (-not (Test-Path -LiteralPath $file -PathType Leaf)) {
-        Add-Blocker -Code "ARCH_ARTIFACT_MISSING" -Artifact $artifact -Message "Required architecture artifact is missing: $file"
-        continue
-    }
-
-    $lines = Get-Content -LiteralPath $file
-    $content = $lines -join "`n"
-    if ($content -match 'NEEDS ARCH UPDATE|NEEDS REPO FACTS UPDATE') {
-        Add-Blocker -Code "ARCH_PLACEHOLDER_PRESENT" -Artifact $artifact -Message "Artifact still contains placeholder update markers."
-    }
-
-    foreach ($section in $requiredSections[$artifact]) {
-        $heading = $sectionHeadings[$section]
-        if (-not (Test-SectionExists -Lines $lines -Heading $heading)) {
-            if ($section -eq "dependency-matrix") {
-                Add-Blocker -Code "ARCH_DEPENDENCY_MATRIX_MISSING" -Artifact $artifact -SectionId $section -Message "Development View must include Dependency Matrix."
-            } else {
-                Add-Blocker -Code "ARCH_REQUIRED_SECTION_MISSING" -Artifact $artifact -SectionId $section -Message "Required section is missing."
-            }
+    $pattern = '^##\s+' + [regex]::Escape($Heading) + '\s*$'
+    $inSection = $false
+    foreach ($line in $Lines) {
+        if ($line -match $pattern) {
+            $inSection = $true
             continue
         }
+        if ($inSection -and $line -match '^##\s+') {
+            break
+        }
+        if (-not $inSection) {
+            continue
+        }
+
+        $trimmed = $line.Trim()
+        if ($trimmed -notmatch '^\|.*\|$') { continue }
+        if ($trimmed -match '\|\s*[-:]+\s*\|') { continue }
+        if ($trimmed -match 'Source\s*/\s*Basis') { continue }
+
+        $cells = $trimmed -split '\|'
+        if ($cells.Count -lt 3) { return $true }
+        $source = $cells[$cells.Count - 2]
+        if (Test-InvalidSourceValue -Value $source) { return $true }
+    }
+
+    return $false
+}
+
+function Test-IntentHasMissingSource {
+    param([AllowEmptyCollection()][AllowEmptyString()][string[]]$Lines)
+
+    $inSection = $false
+    foreach ($line in $Lines) {
+        if ($line -match '^##\s+Architecture Intent\s*$') {
+            $inSection = $true
+            continue
+        }
+        if ($inSection -and $line -match '^##\s+') {
+            break
+        }
+        if (-not $inSection) {
+            continue
+        }
+        if ($line -match '^\*\*Source\s*/\s*Basis\*\*:') {
+            $value = $line -replace '^\*\*Source\s*/\s*Basis\*\*:\s*', ''
+            return (Test-InvalidSourceValue -Value $value)
+        }
+    }
+
+    return $true
+}
+
+function Test-OpenQuestionsHaveInvalidStatus {
+    param(
+        [AllowEmptyCollection()][AllowEmptyString()][string[]]$Lines,
+        [Parameter(Mandatory = $true)][string]$Heading
+    )
+
+    $pattern = '^##\s+' + [regex]::Escape($Heading) + '\s*$'
+    $inSection = $false
+    foreach ($line in $Lines) {
+        if ($line -match $pattern) {
+            $inSection = $true
+            continue
+        }
+        if ($inSection -and $line -match '^##\s+') {
+            break
+        }
+        if (-not $inSection) {
+            continue
+        }
+
+        $trimmed = $line.Trim()
+        if ($trimmed -notmatch '^\|.*\|$') { continue }
+        if ($trimmed -match '\|\s*[-:]+\s*\|') { continue }
+        if ($trimmed -match 'Planning Status') { continue }
+
+        $cells = $trimmed -split '\|'
+        if ($cells.Count -lt 4) { return $true }
+        $status = $cells[$cells.Count - 3].Trim()
+        if ($status -ne "BLOCKS_PLAN" -and $status -ne "CAN_PROCEED_WITH_GUARDRAIL") {
+            return $true
+        }
+    }
+
+    return $false
+}
+
+function Test-UnsupportedConclusion {
+    param([Parameter(Mandatory = $true)][string]$Content)
+
+    if ($Content -match '(^|[^A-Za-z0-9_])(src|app|lib|packages|cmd|internal)/[A-Za-z0-9_./-]+\.[A-Za-z0-9]+([^A-Za-z0-9_]|$)') {
+        return $true
+    }
+    if ($Content -match '\b[A-Za-z_][A-Za-z0-9_]*(Controller|Service|Repository|Manager)\b') {
+        return $true
+    }
+    if ($Content -match '\b(add|create|edit|modify|write|implement|generate)\b.*\b(endpoint|endpoints|api schema|openapi|database schema|db table|db tables|migration|migrations|task list|tasks|test strategy|runbook|deployment manifest)\b') {
+        return $true
+    }
+
+    return $false
+}
+
+$repoRoot = Convert-ToPlainPath (Get-RepoRoot)
+$archFile = Join-Path $repoRoot ".specify/memory/architecture.md"
+$artifact = "architecture-planning-contract"
+$blockers = @()
+
+$sectionHeadings = @{
+    "architecture-intent" = "Architecture Intent"
+    "planning-scope-rules" = "Planning Scope Rules"
+    "capability-boundaries" = "Capability Boundaries"
+    "required-constraints" = "Required Constraints"
+    "architecture-decisions-already-made" = "Architecture Decisions Already Made"
+    "allowed-extension-points" = "Allowed Extension Points"
+    "prohibited-plan-directions" = "Prohibited Plan Directions"
+    "open-architecture-questions" = "Open Architecture Questions"
+    "plan-review-checklist" = "Plan Review Checklist"
+}
+
+$requiredSections = @(
+    "architecture-intent",
+    "planning-scope-rules",
+    "capability-boundaries",
+    "required-constraints",
+    "architecture-decisions-already-made",
+    "allowed-extension-points",
+    "prohibited-plan-directions",
+    "open-architecture-questions",
+    "plan-review-checklist"
+)
+
+if (-not (Test-Path -LiteralPath $archFile -PathType Leaf)) {
+    Add-Blocker -Code "ARCH_ARTIFACT_MISSING" -Artifact $artifact -Message "Required architecture planning contract is missing: $archFile"
+} else {
+    $lines = Get-Content -LiteralPath $archFile
+    $content = $lines -join "`n"
+    if ($content -match 'NEEDS ARCH UPDATE|NEEDS REPO FACTS UPDATE') {
+        Add-Blocker -Code "ARCH_PLACEHOLDER_PRESENT" -Artifact $artifact -Message "Planning contract still contains placeholder update markers."
+    }
+
+    if (Test-UnsupportedConclusion -Content $content) {
+        Add-Blocker -Code "ARCH_UNSUPPORTED_CONCLUSION" -Artifact $artifact -Message "Planning contract contains implementation-level conclusions that belong to downstream planning or implementation."
+    }
+
+    foreach ($section in $requiredSections) {
+        $heading = $sectionHeadings[$section]
+        if (-not (Test-SectionExists -Lines $lines -Heading $heading)) {
+            Add-Blocker -Code "ARCH_REQUIRED_SECTION_MISSING" -Artifact $artifact -SectionId $section -Message "Required planning contract section is missing."
+            continue
+        }
+
         if (-not (Test-SectionHasContent -Lines $lines -Heading $heading)) {
-            if ($section -eq "dependency-matrix") {
-                Add-Blocker -Code "ARCH_DEPENDENCY_MATRIX_EMPTY" -Artifact $artifact -SectionId $section -Message "Dependency Matrix has no supported records."
-            } elseif ($section -eq "source-traceability") {
-                Add-Blocker -Code "ARCH_TRACEABILITY_MISSING" -Artifact $artifact -SectionId $section -Message "Source Traceability has no supported records."
+            if ($section -eq "planning-scope-rules") {
+                Add-Blocker -Code "ARCH_PLANNING_SCOPE_RULES_MISSING" -Artifact $artifact -SectionId $section -Message "Planning Scope Rules has no supported records."
+            } elseif ($section -eq "capability-boundaries") {
+                Add-Blocker -Code "ARCH_CAPABILITY_BOUNDARIES_MISSING" -Artifact $artifact -SectionId $section -Message "Capability Boundaries has no supported records."
+            } elseif ($section -eq "plan-review-checklist") {
+                Add-Blocker -Code "ARCH_PLAN_REVIEW_CHECKLIST_MISSING" -Artifact $artifact -SectionId $section -Message "Plan Review Checklist has no supported records."
             } else {
-                Add-Blocker -Code "ARCH_REQUIRED_SECTION_EMPTY" -Artifact $artifact -SectionId $section -Message "Required section has no supported records."
+                Add-Blocker -Code "ARCH_REQUIRED_SECTION_EMPTY" -Artifact $artifact -SectionId $section -Message "Required planning contract section has no supported records."
             }
         }
     }
+
+    if (
+        (Test-SectionExists -Lines $lines -Heading $sectionHeadings["architecture-intent"]) -and
+        (Test-IntentHasMissingSource -Lines $lines)
+    ) {
+        Add-Blocker -Code "ARCH_SOURCE_MISSING" -Artifact $artifact -SectionId "architecture-intent" -Message "Architecture Intent is missing Source / Basis."
+    }
+
+    $sourceSections = @(
+        "planning-scope-rules",
+        "capability-boundaries",
+        "required-constraints",
+        "architecture-decisions-already-made",
+        "allowed-extension-points",
+        "prohibited-plan-directions",
+        "open-architecture-questions",
+        "plan-review-checklist"
+    )
+
+    foreach ($section in $sourceSections) {
+        $heading = $sectionHeadings[$section]
+        if (
+            (Test-SectionExists -Lines $lines -Heading $heading) -and
+            (Test-SectionHasMissingSource -Lines $lines -Heading $heading)
+        ) {
+            Add-Blocker -Code "ARCH_SOURCE_MISSING" -Artifact $artifact -SectionId $section -Message "Rule-bearing section has a row without supported Source / Basis."
+        }
+    }
+
+    if (
+        (Test-SectionExists -Lines $lines -Heading $sectionHeadings["open-architecture-questions"]) -and
+        (Test-OpenQuestionsHaveInvalidStatus -Lines $lines -Heading $sectionHeadings["open-architecture-questions"])
+    ) {
+        Add-Blocker -Code "ARCH_OPEN_QUESTION_STATUS_INVALID" -Artifact $artifact -SectionId "open-architecture-questions" -Message "Open Architecture Questions must use BLOCKS_PLAN or CAN_PROCEED_WITH_GUARDRAIL."
+    }
+
+    if (
+        (Test-SectionExists -Lines $lines -Heading $sectionHeadings["required-constraints"]) -and
+        (Test-SectionExists -Lines $lines -Heading $sectionHeadings["architecture-decisions-already-made"]) -and
+        -not (Test-SectionHasContent -Lines $lines -Heading $sectionHeadings["required-constraints"]) -and
+        -not (Test-SectionHasContent -Lines $lines -Heading $sectionHeadings["architecture-decisions-already-made"])
+    ) {
+        Add-Blocker -Code "ARCH_CONSTRAINTS_OR_DECISIONS_MISSING" -Artifact $artifact -SectionId "required-constraints" -Message "Required Constraints and Architecture Decisions Already Made are both empty."
+    }
 }
 
+$planningGate = if ($blockers.Count -eq 0) { "USABLE" } else { "BLOCKED" }
 $readyGate = if ($blockers.Count -eq 0) { "PASS" } else { "BLOCKED" }
 $result = [PSCustomObject]@{
+    planning_gate = $planningGate
     ready_gate = $readyGate
     blockers = $blockers
 }
@@ -227,6 +352,7 @@ $result = [PSCustomObject]@{
 if ($Json) {
     $result | ConvertTo-Json -Compress -Depth 5
 } else {
+    Write-Output "planning_gate: $planningGate"
     Write-Output "ready_gate: $readyGate"
     foreach ($blocker in $blockers) {
         Write-Output ($blocker | ConvertTo-Json -Compress)

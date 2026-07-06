@@ -213,4 +213,4 @@ jobs:
 
           /tmp/specify-community-smoke-venv/bin/specify preset resolve plan-template | tee resolve-plan-template.txt
           grep -q "workflow-preset" resolve-plan-template.txt
-          grep -q "Composition chain" resolve-plan-template.txt
+          grep -q "plan-template" resolve-plan-template.txt

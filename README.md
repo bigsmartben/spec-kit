@@ -64,7 +64,7 @@ specify init my-project --integration codex --ignore-agent-tools
 | 类型 | ID | 来源目录 | 作用 |
 | --- | --- | --- | --- |
 | 自动扩展 | `agent-context` | `extensions/agent-context` | 维护 AGENTS、CLAUDE、Copilot 等 agent context 文件里的 Spec Kit 受管段。 |
-| 默认扩展 | `arch` | `extensions/arch` | 生成或反向生成项目级 4+1 架构视图，形成架构 SSOT。 |
+| 默认扩展 | `arch` | `extensions/arch` | 生成或反向生成面向 `/speckit.plan` 的架构规划契约。 |
 | 默认扩展 | `discovery` | `extensions/discovery` | 在正式计划前做可行性、技术选型、旧代码评估、接口理解、PoC 和场景化技术决策。 |
 | 默认扩展 | `intake` | `extensions/intake` | 把 PRD、设计稿、Figma、视觉规格资产包、preview 覆盖证据、测试用例等来源归一化为 SDD 可消费的证据包。 |
 | 默认扩展 | `preview` | `extensions/preview` | 从规格和计划生成低、中、高保真 Markdown 或自包含 HTML 预览。 |
@@ -77,40 +77,26 @@ specify init my-project --integration codex --ignore-agent-tools
 
 ### `arch`
 
-`arch` 给项目补一层架构记忆。它不是 feature 计划，也不是实现设计；它负责把项目级边界、运行时职责、部署假设、约束和架构缺口写成稳定 SSOT。
+`arch` 给项目补一层架构记忆。它不是 feature 计划，也不是实现设计；它负责把项目级边界、约束、已定决策、禁止方向、开放问题和 plan review checklist 写成唯一的规划契约。
 
 常用命令：
 
 ```text
-/speckit.arch.scenario-generate
-/speckit.arch.logical-generate
-/speckit.arch.process-generate
-/speckit.arch.development-generate
-/speckit.arch.physical-generate
-/speckit.arch.scenario-reverse
-/speckit.arch.logical-reverse
-/speckit.arch.process-reverse
-/speckit.arch.development-reverse
-/speckit.arch.physical-reverse
+/speckit.arch.generate
+/speckit.arch.reverse
 ```
 
 主要产物：
 
 ```text
 .specify/memory/architecture.md
-.specify/memory/architecture-scenario-view.md
-.specify/memory/architecture-logical-view.md
-.specify/memory/architecture-process-view.md
-.specify/memory/architecture-development-view.md
-.specify/memory/architecture-physical-view.md
-.specify/memory/architecture-repo-facts.md
 ```
 
 使用建议：
 
-- 新项目先跑 `*-generate`，把目标架构讲清楚。
-- 旧仓库先跑 `*-reverse`，从真实文件、入口、配置、测试和部署线索反推架构事实。
-- 五个视图都足够具体后，再让 `architecture.md` 成为后续规划的架构摘要。
+- 新项目跑 `/speckit.arch.generate`，把目标架构约束整理成下游 plan 可消费的契约。
+- 旧仓库跑 `/speckit.arch.reverse`，从真实文件、入口、配置、测试和部署线索反推可证据支撑的规划规则。
+- 每条规则都应带 `Source / Basis`；开放问题用 `BLOCKS_PLAN` 或 `CAN_PROCEED_WITH_GUARDRAIL` 标明对规划的影响。
 
 ### `discovery`
 
@@ -369,28 +355,6 @@ specify extension add git
 specify preset add lean
 ```
 
-### `arch-governance`
-
-`arch-governance` 位于：
-
-```text
-extensions/arch/presets/arch-governance/
-```
-
-它包装 `/speckit.plan`，让规划阶段显式读取 `arch` 扩展产出的架构 SSOT。适合已经用 `arch` 维护架构记忆，并希望每次 feature plan 都检查架构边界的项目。
-
-从本地目录安装：
-
-```bash
-specify preset add --dev .specify/extensions/arch/presets/arch-governance
-```
-
-如果是在这个仓库源码中测试，可使用源码路径：
-
-```bash
-specify preset add --dev extensions/arch/presets/arch-governance
-```
-
 ## 开发和测试用本地包
 
 这些目录主要服务扩展/预设作者或测试，不建议作为普通项目主流程：
@@ -445,11 +409,7 @@ specify bundle build --path ./my-bundle
 
 ```text
 /speckit.constitution
-/speckit.arch.scenario-generate
-/speckit.arch.logical-generate
-/speckit.arch.process-generate
-/speckit.arch.development-generate
-/speckit.arch.physical-generate
+/speckit.arch.generate
 /speckit.specify
 /speckit.clarify
 /speckit.discovery.feasibility
@@ -465,11 +425,7 @@ specify bundle build --path ./my-bundle
 ```text
 /speckit.constitution
 /speckit.discovery.codebase
-/speckit.arch.scenario-reverse
-/speckit.arch.logical-reverse
-/speckit.arch.process-reverse
-/speckit.arch.development-reverse
-/speckit.arch.physical-reverse
+/speckit.arch.reverse
 /speckit.repository-governance.generate
 /speckit.specify
 /speckit.plan
@@ -543,8 +499,7 @@ specify extension add bug
 
 | 目录或文件 | 来源 | 含义 |
 | --- | --- | --- |
-| `.specify/memory/architecture*.md` | `arch` | 4+1 架构视图和综合架构 SSOT。 |
-| `.specify/memory/architecture-repo-facts.md` | `arch` reverse 命令 | 从既有仓库提取的架构事实。 |
+| `.specify/memory/architecture.md` | `arch` | 面向 `/speckit.plan` 的架构规划契约。 |
 | `.specify/memory/repository-governance.md` | `repository-governance` | 内部仓库治理 SSOT。 |
 | `specs/<feature>/intake/` | `intake` | PRD、视觉设计、测试用例的结构化证据包。 |
 | `specs/<feature>/preview/` | `preview` | Markdown wireflow 和自包含 HTML 预览。 |

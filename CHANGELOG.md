@@ -2,6 +2,23 @@
 
 <!-- insert new changelog below this comment -->
 
+## [0.12.6] - 2026-07-06
+
+### Changed
+
+- Use canonical preview wireflow command
+- Align Cline inventory with opt-in agent context
+- Use canonical discovery command name
+- Remove default agent-context CLI management
+- Integrate discovery interface contract extension
+- Update skills integration context expectations
+- Align arch smoke checks with v2 commands
+- Fix arch integration smoke checks
+- Integrate arch planning contract v2
+- Integrate preview extension v1.3.0
+- Update intake layout normalization gate
+- chore: begin 0.12.6.dev0 development
+
 ## [0.12.5] - 2026-07-03
 
 ### Changed

@@ -33,6 +33,8 @@ Normative authority:
 - `templates/schemas/*.json` defines machine-readable structure, required fields, types, and enums.
 - `scripts/python/validate_visual_design_intake.py` defines readiness evaluation and blocker emission for the core structured UI/visual asset.
 - `scripts/python/capture_figma_metadata_shards.py` stages already-sharded Figma metadata captures into raw shard, index, and inventory artifacts.
+- `scripts/python/normalize_figma_layout.py` derives `figma-normalized-tree.yaml` from verified raw Figma metadata using rename, grouper, and re-sort rules without mutating raw provider evidence.
+- `templates/schemas/figma-normalized-tree.schema.json` defines the machine-readable Figma layout normalization artifact.
 - `scripts/python/validate_visual_spec_package.py` defines downstream structured visual spec package readiness after the core asset passes.
 - `scripts/python/validate_visual_previews.py` defines readiness for the generated HTML mock equivalent page and its coverage artifacts.
 - `templates/intake-visual-design-contract.md` defines semantic extraction policy, fidelity policy, and provider evidence policy.
@@ -55,6 +57,8 @@ Normative authority:
 - Use stable provider-neutral evidence IDs and source refs. Do not invent downstream-owned item IDs, requirement IDs, schema fields, code component names, or product semantics.
 - Do not mark intake ready unless source integrity, source refs, fidelity rules, bounded inference checks, and intake parity plan pass the validator readiness gates.
 - Preserve raw Figma metadata exactly in `figma-metadata.part-*.xml` for Figma sources.
+- Treat `figma-normalized-tree.yaml` as the only Figma layout normalization output. It may record derived `normalized_name`, `group_key`, `parent_group_key`, `sort_key`, and `visual_order` values, but it must not rewrite raw Figma metadata or define downstream requirement IDs, implementation tasks, selectors, or code component names.
+- Do not place rename maps, grouping strategies, sort indexes, layout fixups, or normalization notes in `visual-requirements.yaml`; use `figma-normalized-tree.yaml` for those derived layout records.
 - Do not request complete metadata for a broad Figma page, canvas, or board in one MCP response. Split large Figma scopes into smaller frame/component/node captures and stage them with `capture_figma_metadata_shards.py`.
 - Do not modify application source, tests, package manifests, feature implementation files, or existing Spec Kit core templates.
 - If required tooling is unavailable, create a blocked evidence packet that records the missing tool and stop before claiming readiness.
@@ -116,6 +120,14 @@ python .specify/extensions/intake/scripts/python/capture_figma_metadata_shards.p
    - build `figma-metadata.index.yaml`
    - build `figma-node-inventory.yaml`
    - validate metadata and inventory parity before deriving visual requirements
+   - derive a provider-neutral normalized Figma layout tree after metadata parity passes:
+
+```bash
+python .specify/extensions/intake/scripts/python/normalize_figma_layout.py <visual-design-intake-dir>
+```
+
+   - write `figma-normalized-tree.yaml` as the derived rename/grouper/re-sort artifact
+   - keep `source_node_id`, `original_name`, and `source_refs` traceable to raw metadata for every normalized node
    - if any shard is truncated or lacks detectable node ids, keep the intake `BLOCKED` and retry with a smaller node scope or a direct file-based provider export
 5. Extract source-specific evidence:
    - image: dimensions, regions, OCR status, visual hierarchy, assets, and region coverage
@@ -191,10 +203,11 @@ Use this precedence when sources disagree:
 
 1. JSON Schemas are canonical for structural validity in all modes.
 2. `validate_visual_design_intake.py` is canonical for core structured UI/visual asset readiness status and blocker codes.
-3. `validate_visual_spec_package.py` is canonical only for downstream visual spec package readiness status and blocker codes.
-4. `validate_visual_previews.py` is canonical only for HTML mock delivery readiness status and blocker codes.
-5. `templates/intake-visual-design-contract.md` is canonical for semantic extraction, fidelity, and provider evidence policy.
-6. `templates/intake-visual-spec-package-contract.md` and `templates/intake-visual-previews-contract.md` are canonical for their artifact families.
+3. `figma-normalized-tree.yaml` is canonical only for Figma layout normalization records consumed before deriving visual requirements.
+4. `validate_visual_spec_package.py` is canonical only for downstream visual spec package readiness status and blocker codes.
+5. `validate_visual_previews.py` is canonical only for HTML mock delivery readiness status and blocker codes.
+6. `templates/intake-visual-design-contract.md` is canonical for semantic extraction, fidelity, provider evidence policy, and Figma layout normalization policy.
+7. `templates/intake-visual-spec-package-contract.md` and `templates/intake-visual-previews-contract.md` are canonical for their artifact families.
 
 Do not restate, reinterpret, or override blocker codes in this command.
 
@@ -212,6 +225,7 @@ Return:
 - visual spec package assertion count and CI-low-cost assertion count when built or validated
 - HTML mock page count, component/state coverage count, viewport mock coverage count, and visual parity evidence when built or validated
 - Figma-backed resource traceability result when source is Figma
+- Figma layout normalization result when source is Figma: normalized node count, coverage, duplicate source node ids, duplicate visual orders, and blocker code when incomplete
 - readiness result
 - blocker lint errors
 - next corrective action when blocked

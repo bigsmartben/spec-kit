@@ -194,6 +194,60 @@ Required parity rules:
 - truncated_raw_evidence == false
 - parity_passed equals count balance, no duplicates, no missing nodes, and no truncation
 
+## Figma Layout Normalization
+
+After raw Figma metadata and node inventory parity pass, Figma sources must derive `figma-normalized-tree.yaml` before extracting `visual-requirements.yaml`.
+
+The normalized tree is a derived provider-neutral view of Figma layout structure. It exists to make downstream layout extraction deterministic and visually ordered. It must not modify `figma-metadata.part-*.xml`, replace `figma-metadata.index.yaml`, replace `figma-node-inventory.yaml`, or become a source-of-truth substitute for raw provider evidence.
+
+Allowed normalization operations:
+
+- `rename`: write `normalized_name` while preserving `source_node_id` and `original_name`.
+- `grouper`: write `group_key` and `parent_group_key` to express provider-neutral containment or visual grouping.
+- `re-sort`: write `sort_key` and `visual_order` using stable visual ordering rules.
+
+Required normalization fields:
+
+- normalization_complete:
+- source_metadata_refs:
+- source_index_ref:
+- source_inventory_ref:
+- normalization_rules_applied:
+- rename_rule:
+- group_rule:
+- sort_rule:
+- raw_node_count:
+- normalized_node_count:
+- node_coverage:
+- gaps:
+- nodes:
+
+Each normalized node must include:
+
+- source_node_id:
+- original_name:
+- normalized_name:
+- node_type:
+- role_hint:
+- group_key:
+- parent_group_key:
+- sort_key:
+- visual_order:
+- source_refs:
+
+Required normalization rules:
+
+- `source_node_id` must remain unchanged from raw Figma metadata.
+- `original_name` must preserve the provider node name as captured.
+- `normalized_name` must not overwrite raw node names.
+- `source_refs` must point to raw Figma metadata shards or canonical Figma intake artifacts, not previews, screenshots, visual diffs, evidence packets, implementation files, or downstream artifacts.
+- `visual_order` must be unique and contiguous across normalized nodes.
+- `normalized_node_count` must equal `raw_node_count`.
+- `node_coverage` must be `100%`.
+- `normalization_complete` must be true only when every raw node appears exactly once in the normalized tree and no normalization gaps remain.
+
+Do not place rename maps, grouping strategy, sort indexes, layout patches, fixup reasons, dedupe rules, merge rules, flattening decisions, postprocess notes, preview refs, or visual-diff refs in `visual-requirements.yaml`. Keep normalization records in `figma-normalized-tree.yaml`.
+
 ## Evidence Readiness Gate
 
 Visual design intake is ready only when all conditions pass:
@@ -209,6 +263,7 @@ Visual design intake is ready only when all conditions pass:
 - unsupported claims emit blocker codes and block readiness
 - visual_parity_plan_complete: true and required parity plan fields are present
 - Figma sources also pass raw_metadata_complete, selected_subtree_complete, node_inventory_coverage, and parity_passed
+- Figma sources also pass layout normalization with `figma-normalized-tree.yaml`, `normalization_complete: true`, `node_coverage: 100%`, unique contiguous `visual_order`, and one normalized node per raw node
 - No blocker lint errors
 
 ## Blocker Lint Errors
@@ -244,10 +299,12 @@ Visual design intake is ready only when all conditions pass:
 - FIGMA_METADATA_INDEX_MISSING
 - FIGMA_METADATA_PARITY_FAILED
 - FIGMA_READY_WITHOUT_COMPLETENESS_PROOF
+- FIGMA_NORMALIZED_TREE_MISSING
+- FIGMA_NORMALIZED_TREE_INCOMPLETE
 
 ## Gap Rules
 
-Record a gap instead of passing silently when source evidence is missing, summarized, truncated, incomplete, untraceable, missing fidelity proof, missing visual requirements, missing comparison proof, missing Figma parity proof, missing nodes, duplicate nodes, or marked ready without completeness proof. For dirty Figma sources, use blocker codes for hidden-layer pollution, render/node mismatch, non-instance pseudo-components, missing prototype metadata, unsupported state inference, interaction conflicts, and missing responsive evidence.
+Record a gap instead of passing silently when source evidence is missing, summarized, truncated, incomplete, untraceable, missing fidelity proof, missing visual requirements, missing comparison proof, missing Figma parity proof, missing Figma layout normalization proof, missing nodes, duplicate nodes, duplicate visual order, incomplete normalized coverage, or marked ready without completeness proof. For dirty Figma sources, use blocker codes for hidden-layer pollution, render/node mismatch, non-instance pseudo-components, missing prototype metadata, unsupported state inference, interaction conflicts, and missing responsive evidence.
 
 ## Evidence Packet Metadata
 

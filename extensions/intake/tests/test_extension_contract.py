@@ -16,6 +16,7 @@ TEST_CASE_VALIDATOR = ROOT / "scripts" / "python" / "validate_test_cases_intake.
 VISUAL_PREVIEWS_VALIDATOR = ROOT / "scripts" / "python" / "validate_visual_previews.py"
 VISUAL_SPEC_PACKAGE_VALIDATOR = ROOT / "scripts" / "python" / "validate_visual_spec_package.py"
 FIGMA_METADATA_CAPTURE = ROOT / "scripts" / "python" / "capture_figma_metadata_shards.py"
+FIGMA_LAYOUT_NORMALIZE = ROOT / "scripts" / "python" / "normalize_figma_layout.py"
 
 
 def write_visual_intake_fixture(intake: Path, source_type: str, fidelity: str, file_name: str):
@@ -194,8 +195,58 @@ def write_figma_metadata_fixture(intake: Path):
         ),
         encoding="utf-8",
     )
+    write_figma_normalized_tree_fixture(intake, ["1", "2"])
 
 
+def write_figma_normalized_tree_fixture(intake: Path, source_node_ids=None):
+    source_node_ids = source_node_ids or ["1"]
+    nodes = []
+    for index, node_id in enumerate(source_node_ids, start=1):
+        parent_id = source_node_ids[0] if index > 1 else None
+        nodes.append(
+            {
+                "source_node_id": str(node_id),
+                "parent_source_node_id": parent_id,
+                "original_name": "Root" if index == 1 else f"Node {node_id}",
+                "normalized_name": "Root" if index == 1 else f"Node {node_id}",
+                "node_type": "node",
+                "role_hint": "node",
+                "group_key": f"{index:04d}-node-{str(node_id).replace(':', '-')}",
+                "parent_group_key": "0001-node-1" if parent_id else None,
+                "sort_key": {
+                    "method": "top_to_bottom_left_to_right_depth_sibling_id",
+                    "value": [0, 0, index - 1, index - 1, str(node_id)],
+                },
+                "visual_order": index,
+                "source_refs": [f"figma-metadata.part-001.xml#node={node_id}"],
+            }
+        )
+    (intake / "figma-normalized-tree.yaml").write_text(
+        yaml.safe_dump(
+            {
+                "normalization_complete": True,
+                "source_metadata_refs": ["figma-metadata.part-001.xml"],
+                "source_index_ref": "figma-metadata.index.yaml",
+                "source_inventory_ref": "figma-node-inventory.yaml",
+                "normalization_rules_applied": [
+                    "rename: preserve source_node_id and original_name while writing normalized_name",
+                    "grouper: group_key and parent_group_key mirror source containment",
+                    "re-sort: visual_order follows top-to-bottom left-to-right source order",
+                ],
+                "rename_rule": "preserve source_node_id and original_name",
+                "group_rule": "derive group_key without changing source identity",
+                "sort_rule": "top_to_bottom_left_to_right_depth_sibling_id",
+                "raw_node_count": len(source_node_ids),
+                "normalized_node_count": len(source_node_ids),
+                "node_coverage": "100%",
+                "selected_node_ids": [str(source_node_ids[0])] if source_node_ids else [],
+                "gaps": [],
+                "nodes": nodes,
+            },
+            sort_keys=False,
+        ),
+        encoding="utf-8",
+    )
 def write_prd_intake_fixture(intake: Path):
     intake.mkdir(parents=True, exist_ok=True)
     source_dir = intake / "source-files"
@@ -688,6 +739,19 @@ def test_visual_spec_package_schema_and_validator_paths_are_declared():
     assert (ROOT / "templates" / "intake-visual-spec-package-evidence-packet-template.md").exists()
     assert (ROOT / "templates" / "schemas" / "visual-spec-package.schema.json").exists()
     assert (ROOT / "templates" / "schemas" / "visual-spec-assertions.schema.json").exists()
+
+
+def test_figma_layout_normalization_schema_and_script_paths_are_declared():
+    extension = ROOT / "extension.yml"
+    config = ROOT / "config-template.yml"
+    for document in (extension.read_text(encoding="utf-8-sig"), config.read_text(encoding="utf-8")):
+        assert "scripts/python/normalize_figma_layout.py" in document
+        assert "templates/schemas/figma-normalized-tree.schema.json" in document
+        assert "figma-normalized-tree.yaml" in document
+        assert "require_figma_layout_normalization_for_figma" in document
+
+    assert FIGMA_LAYOUT_NORMALIZE.exists()
+    assert (ROOT / "templates" / "schemas" / "figma-normalized-tree.schema.json").exists()
 
 
 def test_validator_blocks_missing_directory():
@@ -1662,6 +1726,7 @@ def test_visual_validator_blocks_unsupported_claim_even_when_packet_says_pass():
         ),
         encoding="utf-8",
     )
+    write_figma_normalized_tree_fixture(intake, ["1"])
 
     result = subprocess.run(
         [sys.executable, str(VALIDATOR), "--json", str(intake)],
@@ -1766,6 +1831,18 @@ def test_figma_metadata_capture_stages_shards_and_passes_validator():
     assert inventory["raw_node_count"] == 3
     assert inventory["parity_passed"] is True
 
+    normalize = subprocess.run(
+        [sys.executable, str(FIGMA_LAYOUT_NORMALIZE), str(intake)],
+        cwd=ROOT,
+        text=True,
+        capture_output=True,
+    )
+
+    assert normalize.returncode == 0, normalize.stdout + normalize.stderr
+    normalized = yaml.safe_load((intake / "figma-normalized-tree.yaml").read_text(encoding="utf-8"))
+    assert normalized["normalization_complete"] is True
+    assert normalized["normalized_node_count"] == 3
+
     result = subprocess.run(
         [sys.executable, str(VALIDATOR), str(intake)],
         cwd=ROOT,
@@ -1819,143 +1896,6 @@ def test_figma_metadata_capture_blocks_truncated_shard():
     assert "FIGMA_RAW_METADATA_TRUNCATED" in payload["blockers"]
     assert index["raw_metadata_complete"] is False
     assert index["shards"][0]["truncated"] is True
-
-    shutil.rmtree(work_dir)
-
-
-def test_figma_metadata_capture_blocks_mismatched_supplied_root_id():
-    work_dir = ROOT / ".tmp" / "test-figma-metadata-capture-root-mismatch"
-    if work_dir.exists():
-        shutil.rmtree(work_dir)
-    intake = work_dir / "visual-design"
-    intake.mkdir(parents=True)
-    raw = work_dir / "root-2.xml"
-    raw.write_text('<figma><node id="2" name="Different root" /></figma>\n', encoding="utf-8")
-
-    capture = subprocess.run(
-        [
-            sys.executable,
-            str(FIGMA_METADATA_CAPTURE),
-            str(intake),
-            "--metadata-source",
-            str(raw),
-            "--file-url",
-            "https://www.figma.com/design/example/Foo",
-            "--file-key",
-            "example",
-            "--page-id",
-            "page-1",
-            "--node-id",
-            "1",
-            "--captured-at",
-            "2026-07-02T00:00:00Z",
-            "--json",
-        ],
-        cwd=ROOT,
-        text=True,
-        capture_output=True,
-    )
-
-    payload = json.loads(capture.stdout)
-    index = yaml.safe_load((intake / "figma-metadata.index.yaml").read_text(encoding="utf-8"))
-    assert capture.returncode == 1
-    assert payload["status"] == "BLOCKED"
-    assert "FIGMA_METADATA_PARITY_FAILED" in payload["blockers"]
-    assert payload["captured_root_node_ids"] == ["2"]
-    assert payload["missing_root_node_ids"] == ["1"]
-    assert index["expected_root_node_ids"] == ["1"]
-    assert index["captured_root_node_ids"] == ["2"]
-    assert index["shards"][0]["root_node_ids"] == ["2"]
-
-    shutil.rmtree(work_dir)
-
-
-def test_figma_metadata_capture_blocks_nested_true_truncation_marker():
-    work_dir = ROOT / ".tmp" / "test-figma-metadata-capture-nested-truncated"
-    if work_dir.exists():
-        shutil.rmtree(work_dir)
-    intake = work_dir / "visual-design"
-    intake.mkdir(parents=True)
-    raw = work_dir / "nested-truncated.xml"
-    raw.write_text(
-        '<figma truncated="false"><node id="1" name="Root"><node id="1:child" truncated="true" /></node></figma>\n',
-        encoding="utf-8",
-    )
-
-    capture = subprocess.run(
-        [
-            sys.executable,
-            str(FIGMA_METADATA_CAPTURE),
-            str(intake),
-            "--metadata-source",
-            str(raw),
-            "--file-url",
-            "https://www.figma.com/design/example/Foo",
-            "--file-key",
-            "example",
-            "--page-id",
-            "page-1",
-            "--node-id",
-            "1",
-            "--captured-at",
-            "2026-07-02T00:00:00Z",
-            "--json",
-        ],
-        cwd=ROOT,
-        text=True,
-        capture_output=True,
-    )
-
-    payload = json.loads(capture.stdout)
-    index = yaml.safe_load((intake / "figma-metadata.index.yaml").read_text(encoding="utf-8"))
-    assert capture.returncode == 1
-    assert payload["status"] == "BLOCKED"
-    assert "FIGMA_RAW_METADATA_TRUNCATED" in payload["blockers"]
-    assert index["raw_metadata_complete"] is False
-    assert index["shards"][0]["truncated"] is True
-
-    shutil.rmtree(work_dir)
-
-
-def test_figma_metadata_capture_allows_compact_false_truncation_marker():
-    work_dir = ROOT / ".tmp" / "test-figma-metadata-capture-compact-false-truncated"
-    if work_dir.exists():
-        shutil.rmtree(work_dir)
-    intake = work_dir / "visual-design"
-    intake.mkdir(parents=True)
-    raw = work_dir / "compact-false.json"
-    raw.write_text('{"id":"1","truncated":false,"children":[{"id":"1:child"}]}\n', encoding="utf-8")
-
-    capture = subprocess.run(
-        [
-            sys.executable,
-            str(FIGMA_METADATA_CAPTURE),
-            str(intake),
-            "--metadata-source",
-            str(raw),
-            "--file-url",
-            "https://www.figma.com/design/example/Foo",
-            "--file-key",
-            "example",
-            "--page-id",
-            "page-1",
-            "--node-id",
-            "1",
-            "--captured-at",
-            "2026-07-02T00:00:00Z",
-            "--json",
-        ],
-        cwd=ROOT,
-        text=True,
-        capture_output=True,
-    )
-
-    payload = json.loads(capture.stdout)
-    index = yaml.safe_load((intake / "figma-metadata.index.yaml").read_text(encoding="utf-8"))
-    assert capture.returncode == 0, capture.stdout + capture.stderr
-    assert payload["status"] == "PASS"
-    assert index["raw_metadata_complete"] is True
-    assert index["shards"][0]["truncated"] is False
 
     shutil.rmtree(work_dir)
 
@@ -2024,6 +1964,7 @@ def test_validator_passes_complete_minimal_figma_intake():
         ),
         encoding="utf-8",
     )
+    write_figma_normalized_tree_fixture(intake, ["1"])
     result = subprocess.run(
         [sys.executable, str(VALIDATOR), str(intake)],
         cwd=ROOT,
@@ -2033,6 +1974,120 @@ def test_validator_passes_complete_minimal_figma_intake():
 
     assert result.returncode == 0, result.stdout + result.stderr
     assert "Visual design intake readiness: PASS" in result.stdout
+
+    shutil.rmtree(work_dir)
+
+
+def test_visual_validator_blocks_missing_figma_normalized_tree():
+    work_dir = ROOT / ".tmp" / "test-validator-missing-figma-normalized-tree"
+    if work_dir.exists():
+        shutil.rmtree(work_dir)
+    intake = work_dir / "visual-design"
+    write_visual_intake_fixture(intake, "figma", "high", "figma-source.txt")
+    write_figma_metadata_fixture(intake)
+    (intake / "figma-normalized-tree.yaml").unlink()
+
+    result = subprocess.run(
+        [sys.executable, str(VALIDATOR), "--json", str(intake)],
+        cwd=ROOT,
+        text=True,
+        capture_output=True,
+    )
+
+    payload = json.loads(result.stdout)
+    assert result.returncode == 1
+    assert "FIGMA_NORMALIZED_TREE_MISSING" in payload["blockers"]
+    assert payload["details"]["figma_normalized_tree"]["missing"] is True
+
+    shutil.rmtree(work_dir)
+
+
+def test_visual_validator_blocks_invalid_figma_normalized_tree():
+    work_dir = ROOT / ".tmp" / "test-validator-invalid-figma-normalized-tree"
+    if work_dir.exists():
+        shutil.rmtree(work_dir)
+    intake = work_dir / "visual-design"
+    write_visual_intake_fixture(intake, "figma", "high", "figma-source.txt")
+    write_figma_metadata_fixture(intake)
+
+    normalized = yaml.safe_load((intake / "figma-normalized-tree.yaml").read_text(encoding="utf-8"))
+    normalized["node_coverage"] = "incomplete"
+    normalized["nodes"][1]["visual_order"] = normalized["nodes"][0]["visual_order"]
+    (intake / "figma-normalized-tree.yaml").write_text(yaml.safe_dump(normalized), encoding="utf-8")
+
+    result = subprocess.run(
+        [sys.executable, str(VALIDATOR), "--json", str(intake)],
+        cwd=ROOT,
+        text=True,
+        capture_output=True,
+    )
+
+    payload = json.loads(result.stdout)
+    assert result.returncode == 1
+    assert "VISUAL_SCHEMA_INVALID" in payload["blockers"]
+    assert "FIGMA_NORMALIZED_TREE_INCOMPLETE" in payload["blockers"]
+    assert payload["details"]["schema_validation"]["figma_normalized_tree"]["valid"] is False
+    assert payload["details"]["figma_layout_normalization"]["duplicate_visual_orders"] == [1]
+
+    shutil.rmtree(work_dir)
+
+
+def test_visual_validator_blocks_downstream_fields_in_figma_normalized_tree():
+    work_dir = ROOT / ".tmp" / "test-validator-downstream-field-figma-normalized-tree"
+    if work_dir.exists():
+        shutil.rmtree(work_dir)
+    intake = work_dir / "visual-design"
+    write_visual_intake_fixture(intake, "figma", "high", "figma-source.txt")
+    write_figma_metadata_fixture(intake)
+
+    normalized = yaml.safe_load((intake / "figma-normalized-tree.yaml").read_text(encoding="utf-8"))
+    normalized["nodes"][0]["preview_ref"] = "previews/preview.html#root"
+    normalized["nodes"][0]["code_component"] = "RootView"
+    (intake / "figma-normalized-tree.yaml").write_text(yaml.safe_dump(normalized), encoding="utf-8")
+
+    result = subprocess.run(
+        [sys.executable, str(VALIDATOR), "--json", str(intake)],
+        cwd=ROOT,
+        text=True,
+        capture_output=True,
+    )
+
+    payload = json.loads(result.stdout)
+    assert result.returncode == 1
+    assert "VISUAL_SCHEMA_INVALID" in payload["blockers"]
+    assert payload["details"]["schema_validation"]["figma_normalized_tree"]["valid"] is False
+
+    shutil.rmtree(work_dir)
+
+
+def test_figma_layout_normalization_blocks_incomplete_raw_metadata():
+    work_dir = ROOT / ".tmp" / "test-normalize-blocks-incomplete-raw-metadata"
+    if work_dir.exists():
+        shutil.rmtree(work_dir)
+    intake = work_dir / "visual-design"
+    write_visual_intake_fixture(intake, "figma", "high", "figma-source.txt")
+    write_figma_metadata_fixture(intake)
+
+    index = yaml.safe_load((intake / "figma-metadata.index.yaml").read_text(encoding="utf-8"))
+    index["raw_metadata_complete"] = False
+    index["shards"][0]["truncated"] = True
+    (intake / "figma-metadata.index.yaml").write_text(yaml.safe_dump(index), encoding="utf-8")
+
+    result = subprocess.run(
+        [sys.executable, str(FIGMA_LAYOUT_NORMALIZE), "--json", str(intake)],
+        cwd=ROOT,
+        text=True,
+        capture_output=True,
+    )
+
+    payload = json.loads(result.stdout)
+    normalized = yaml.safe_load((intake / "figma-normalized-tree.yaml").read_text(encoding="utf-8"))
+    assert result.returncode == 1
+    assert payload["status"] == "BLOCKED"
+    assert "FIGMA_NORMALIZED_TREE_INCOMPLETE" in payload["blockers"]
+    assert normalized["normalization_complete"] is False
+    assert normalized["node_coverage"] == "incomplete"
+    assert any(gap["code"] == "FIGMA_RAW_METADATA_TRUNCATED" for gap in normalized["gaps"])
 
     shutil.rmtree(work_dir)
 

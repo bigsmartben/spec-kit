@@ -1480,7 +1480,7 @@
       "description": "Normalize PRD, visual design/spec packages, preview evidence, and test-case evidence into SDD-ready intake artifacts",
       "author": "bigsmartben",
       "version": "0.1.5",
-      "download_url": "https://github.com/bigsmartben/spec-kit-intake/archive/refs/tags/v0.1.5.zip",
+      "download_url": "https://github.com/bigsmartben/spec-kit-intake/archive/cc3c90731b1d4366d1fa34e47d8713e5478d0599.zip",
       "repository": "https://github.com/bigsmartben/spec-kit-intake",
       "homepage": "https://github.com/bigsmartben/spec-kit-intake",
       "documentation": "https://github.com/bigsmartben/spec-kit-intake/blob/main/README.md",
@@ -1512,7 +1512,7 @@
       "downloads": 0,
       "stars": 0,
       "created_at": "2026-06-23T00:00:00Z",
-      "updated_at": "2026-07-03T00:00:00Z"
+      "updated_at": "2026-07-06T00:00:00Z"
     },
     "issue": {
       "name": "GitHub Issues Integration 2",

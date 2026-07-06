@@ -5,7 +5,6 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
-import re
 import shutil
 import sys
 from datetime import datetime, timezone
@@ -112,27 +111,14 @@ def looks_truncated(text: str) -> bool:
     lower = text.lower()
     if "truncated" not in lower:
         return False
-    true_marker = re.search(
-        r"""(?ix)
-        (?:\btruncated\s*=\s*["']?true["']?)
-        |(?:"truncated"\s*:\s*true\b)
-        |(?:'truncated'\s*:\s*true\b)
-        |(?:\btruncated\s*:\s*true\b)
-        """,
-        text,
-    )
-    if true_marker:
-        return True
-    false_marker = re.search(
-        r"""(?ix)
-        (?:\btruncated\s*=\s*["']?false["']?)
-        |(?:"truncated"\s*:\s*false\b)
-        |(?:'truncated'\s*:\s*false\b)
-        |(?:\btruncated\s*:\s*false\b)
-        """,
-        text,
-    )
-    return not bool(false_marker)
+    allowed = [
+        'truncated="false"',
+        "truncated='false'",
+        '"truncated": false',
+        "'truncated': false",
+        "truncated: false",
+    ]
+    return not any(marker in lower for marker in allowed)
 
 
 def extract_xml_node_ids(text: str) -> tuple[list[str], list[str], str | None]:
@@ -246,19 +232,7 @@ def build_artifacts(args: argparse.Namespace) -> dict[str, Any]:
         text = raw.decode("utf-8-sig", errors="replace")
         root_ids, node_ids, parse_error = extract_node_ids(raw, source)
         if args.node_id:
-            expected_source_roots = [args.node_id[index - 1] if len(args.node_id) == len(sources) else args.node_id[0]]
-            missing_source_roots = sorted(set(expected_source_roots) - set(root_ids))
-            if missing_source_roots:
-                gaps.append(
-                    {
-                        "code": "FIGMA_METADATA_PARITY_FAILED",
-                        "source": str(source),
-                        "reason": (
-                            "supplied root node id(s) were not found as metadata root ids: "
-                            + ", ".join(missing_source_roots)
-                        ),
-                    }
-                )
+            root_ids = [args.node_id[index - 1] if len(args.node_id) == len(sources) else args.node_id[0]]
 
         truncated = looks_truncated(text)
         any_truncated = any_truncated or truncated

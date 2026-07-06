@@ -19,7 +19,12 @@ artifacts:
   viewport_coverage: "viewport-coverage.yaml"
   visual_previews_known_gaps: "known-gaps.md"
   visual_previews_screenshots_dir: "screenshots"
+  intake_validator_common: "scripts/python/intake_validator_common.py"
+  prd_validator: "scripts/python/validate_prd_intake.py"
+  test_cases_validator: "scripts/python/validate_test_cases_intake.py"
+  visual_design_validator: "scripts/python/validate_visual_design_intake.py"
   figma_metadata_capture_script: "scripts/python/capture_figma_metadata_shards.py"
+  figma_layout_normalization_script: "scripts/python/normalize_figma_layout.py"
   visual_previews_validator: "scripts/python/validate_visual_previews.py"
   visual_spec_package: "visual-spec.yaml"
   visual_spec_assertions: "visual-spec-assertions.yaml"
@@ -43,6 +48,7 @@ artifacts:
   test_case_intake_schema: "templates/schemas/test-case-intake.schema.json"
   figma_metadata_index_schema: "templates/schemas/figma-metadata-index.schema.json"
   figma_node_inventory_schema: "templates/schemas/figma-node-inventory.schema.json"
+  figma_normalized_tree_schema: "templates/schemas/figma-normalized-tree.schema.json"
   component_coverage_schema: "templates/schemas/component-coverage.schema.json"
   viewport_coverage_schema: "templates/schemas/viewport-coverage.schema.json"
   visual_spec_package_schema: "templates/schemas/visual-spec-package.schema.json"
@@ -50,6 +56,7 @@ artifacts:
   metadata_glob: "figma-metadata.part-*.xml"
   metadata_index: "figma-metadata.index.yaml"
   node_inventory: "figma-node-inventory.yaml"
+  figma_normalized_tree: "figma-normalized-tree.yaml"
   prd_evidence_packet: "evidence-packet.md"
   visual_design_evidence_packet: "visual-evidence-packet.md"
   test_cases_evidence_packet: "evidence-packet.md"
@@ -87,6 +94,8 @@ readiness:
   require_selected_subtree_complete_for_figma: true
   require_node_inventory_coverage_for_figma: "100%"
   require_parity_passed_for_figma: true
+  require_figma_layout_normalization_for_figma: true
+  require_figma_layout_normalization_node_coverage_for_figma: "100%"
   require_bounded_inference_for_visual_claims: true
   fail_on_unbounded_inference_for_figma: true
   fail_on_unsupported_visual_claims: true
@@ -100,6 +109,7 @@ capture:
   test_case_intake_file: "test-case-intake.yaml"
   shard_prefix: "figma-metadata.part-"
   metadata_capture_mode: "sharded_file_staging"
+  figma_layout_normalization_mode: "derived_from_verified_metadata"
   preserve_raw_metadata: true
   reject_truncated_metadata_shards: true
   allow_screenshot_only_intake: true

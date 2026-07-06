@@ -1041,10 +1041,10 @@
     "discovery": {
       "name": "Spec Kit Discovery Extension",
       "id": "discovery",
-      "description": "Run technical discovery commands for feasibility, technology selection, scenario-specific technical decisions, legacy codebase assessment, implementation understanding, and proof-of-concept validation.",
+      "description": "Validate pre-development interface feasibility by finding the key interface design from uc.md, spec.md, or arch.md and producing one verified interface contract artifact.",
       "author": "bigsmartben",
-      "version": "0.2.0",
-      "download_url": "https://github.com/bigsmartben/spec-kit-discovery/archive/refs/tags/v0.2.0.zip",
+      "version": "0.3.0",
+      "download_url": "https://github.com/bigsmartben/spec-kit-discovery/archive/38f660c815f3ef95d80f143dac6c6411b12a9f04.zip",
       "repository": "https://github.com/bigsmartben/spec-kit-discovery",
       "homepage": "https://github.com/bigsmartben/spec-kit-discovery",
       "documentation": "https://github.com/bigsmartben/spec-kit-discovery/blob/main/docs/usage.md",
@@ -1056,21 +1056,24 @@
         "speckit_version": ">=0.1.0"
       },
       "provides": {
-        "commands": 6,
+        "commands": 1,
         "hooks": 0
       },
       "tags": [
         "discovery",
-        "workflow",
-        "validation",
-        "feasibility",
-        "decision"
+        "interface-contract",
+        "api",
+        "event",
+        "webhook",
+        "technical-validation",
+        "pre-development",
+        "validation"
       ],
       "verified": false,
       "downloads": 0,
       "stars": 0,
       "created_at": "2026-06-23T00:00:00Z",
-      "updated_at": "2026-06-23T00:00:00Z"
+      "updated_at": "2026-07-06T00:00:00Z"
     },
     "docguard": {
       "name": "DocGuard — CDD Enforcement",

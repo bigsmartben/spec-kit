@@ -13,12 +13,7 @@ DEFAULT_EXTENSION_IDS = ("arch", "discovery", "intake", "preview", "repository-g
 DEFAULT_EXTENSION_COMMANDS = (
     "speckit.arch.generate",
     "speckit.arch.reverse",
-    "speckit.discovery.feasibility",
-    "speckit.discovery.techselect",
-    "speckit.discovery.codebase",
-    "speckit.discovery.codebase-api-imp",
-    "speckit.discovery.poc",
-    "speckit.discovery.decision",
+    "speckit.discovery.contract",
     "speckit.intake.visual-design",
     "speckit.intake.prd",
     "speckit.intake.test-cases",

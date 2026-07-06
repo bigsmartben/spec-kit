@@ -2,31 +2,32 @@
 
 Extension ID: discovery
 Name: Spec Kit Discovery Extension
-Version: 0.2.0
-Description: Run technical discovery commands for feasibility, technology selection, scenario-specific technical decisions, legacy codebase assessment, implementation understanding, and proof-of-concept validation.
+Version: 0.3.0
+Description: Validate pre-development interface feasibility by finding the key interface design from uc.md, spec.md, or arch.md, validating that design with non-persistent evidence, and producing one verified interface contract artifact.
 Author: bigsmartben
 Repository URL: https://github.com/bigsmartben/spec-kit-discovery
-Download URL: https://github.com/bigsmartben/spec-kit-discovery/archive/refs/tags/v0.2.0.zip
+Source commit SHA: 38f660c815f3ef95d80f143dac6c6411b12a9f04
+Download URL: https://github.com/bigsmartben/spec-kit-discovery/archive/38f660c815f3ef95d80f143dac6c6411b12a9f04.zip
 Documentation URL: https://github.com/bigsmartben/spec-kit-discovery#readme
 License: MIT
 Required Spec Kit version: >=0.1.0
-Commands count: 6
+Commands count: 1
 Hooks count: 0
-Tags: discovery, feasibility, selection, codebase, poc, decision
+Tags: discovery, interface-contract, api, event, webhook, technical-validation, pre-development, validation
 
 ## Key Features
 
-- Adds `speckit.discovery.feasibility`, `speckit.discovery.techselect`, and `speckit.discovery.codebase`.
-- Adds `speckit.discovery.codebase-api-imp` for source-backed implementation overviews.
-- Adds `speckit.discovery.poc` for bounded proof-of-concept planning and validation.
-- Adds `speckit.discovery.decision` with `type: api|performance|migration|ux|compatibility` routing.
-- Keeps outputs focused on evidence, assumptions, unknowns, planning decisions, and validation scope before formal implementation planning.
+- Adds `/speckit.discovery` as the single public discovery command.
+- Extracts candidate interface designs from `uc.md`, `spec.md`, or `arch.md`.
+- Selects the key source-backed interface design to validate before formal development.
+- Produces one persistent artifact: `interface-contract.md`.
+- Keeps validation evidence non-persistent and embedded in the contract.
 
 ## Testing Performed
 
-- Validated the bundled manifest with `ExtensionManifest`.
-- Ran `uv run pytest tests/integrations/test_cli.py -k "community_extensions_and_workflow_preset_auto_installed or no_git_keeps_community_defaults"`.
-- Ran `uv run pytest tests/test_arch_templates.py tests/test_presets.py -k "community_smoke_checks_wheel_assets_and_extension_dev_reinstall or init_next_steps_do_not_list_arch_as_core_workflow"`.
-- Built the CLI wheel with `uv build --wheel` and verified `specify_cli/core_pack/extensions/discovery/extension.yml` and representative command/template files were included.
-- Smoke-tested `specify init`, `specify extension remove discovery --force`, and `specify extension add discovery` in a temporary project.
-- Verified release `v0.2.0` installs with `Commands: 6`.
+- Confirmed source `commands/` contains only `discovery.md`.
+- Confirmed source `templates/` contains only `interface-contract.md`.
+- Confirmed source `extension.yml` registers `speckit.discovery` with `commands/discovery.md`.
+- Checked old command/template naming residuals with `rg`; no matches.
+- Ran `git diff --check`; passed.
+- Checked Markdown/YAML trailing whitespace with `rg`; no matches.

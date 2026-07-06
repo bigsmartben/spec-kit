@@ -97,15 +97,7 @@ jobs:
             speckit-arch-reverse; do
             test -f ".claude/skills/$arch_skill/SKILL.md"
           done
-          for preview_skill in \
-            speckit-preview-low-md \
-            speckit-preview-low-html \
-            speckit-preview-mid-md \
-            speckit-preview-mid-html \
-            speckit-preview-high-md \
-            speckit-preview-high-html; do
-            test -f ".claude/skills/$preview_skill/SKILL.md"
-          done
+          test -f .claude/skills/speckit-preview-wireflow/SKILL.md
           test -f .claude/skills/speckit-discovery-contract/SKILL.md
           test -f .claude/skills/speckit-intake-visual-design/SKILL.md
           test -f .claude/skills/speckit-intake-prd/SKILL.md
@@ -135,15 +127,7 @@ jobs:
                 test "$(find .claude/skills -maxdepth 1 -type d -name 'speckit-arch-*' | wc -l)" -eq 0
                 ;;
               preview)
-                for preview_skill in \
-                  speckit-preview-low-md \
-                  speckit-preview-low-html \
-                  speckit-preview-mid-md \
-                  speckit-preview-mid-html \
-                  speckit-preview-high-md \
-                  speckit-preview-high-html; do
-                  test ! -d ".claude/skills/$preview_skill"
-                done
+                test ! -d .claude/skills/speckit-preview-wireflow
                 ;;
               discovery)
                 test "$(find .claude/skills -maxdepth 1 -type d -name 'speckit-discovery-*' | wc -l)" -eq 0
@@ -166,16 +150,8 @@ jobs:
                 grep -q "architecture planning contract" .claude/skills/speckit-arch-generate/SKILL.md
                 ;;
               preview)
-                for preview_skill in \
-                  speckit-preview-low-md \
-                  speckit-preview-low-html \
-                  speckit-preview-mid-md \
-                  speckit-preview-mid-html \
-                  speckit-preview-high-md \
-                  speckit-preview-high-html; do
-                  test -f ".claude/skills/$preview_skill/SKILL.md"
-                  grep -q "evidence-backed" ".claude/skills/$preview_skill/SKILL.md"
-                done
+                test -f .claude/skills/speckit-preview-wireflow/SKILL.md
+                grep -q "Input-to-Design Synthesis Pass" .claude/skills/speckit-preview-wireflow/SKILL.md
                 ;;
               discovery)
                 test -f .claude/skills/speckit-discovery-contract/SKILL.md

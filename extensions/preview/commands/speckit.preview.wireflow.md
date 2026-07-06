@@ -21,7 +21,7 @@ The first token is required and must be exactly one of `low|mid|high`:
 If the first token is missing or is not exactly `low`, `mid`, or `high`, stop and do not write output. Report this usage:
 
 ```text
-/speckit.preview <low|mid|high> [design focus]
+/speckit.preview.wireflow <low|mid|high> [design focus]
 ```
 
 Treat all remaining tokens as optional design focus, audience, device, flow, interaction, or output constraint. If `$ARGUMENTS` requests a page, role, device, state, interaction, validation rule, permission, or business rule that is not supported by the loaded artifacts, do not invent it. Mark it as `输入未说明`, or use `推理补齐` only when a minimal traceable inference is required to preserve design artifact coherence.

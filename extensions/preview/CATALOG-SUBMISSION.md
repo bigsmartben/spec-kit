@@ -16,7 +16,7 @@ Tags: preview, prototype, html, wireflow, ux
 
 ## Key Features
 
-- Adds `speckit.preview` as the single preview command.
+- Adds `speckit.preview.wireflow` as the single preview command.
 - Requires `low`, `mid`, or `high` as the first command argument.
 - Generates one HTML design artifact at `specs/<feature>/preview/wireflow.html`.
 - Requires `spec.md` and `uc.md` as first-class source inputs for design synthesis.
@@ -32,10 +32,10 @@ Tags: preview, prototype, html, wireflow, ux
 
 - `python -m py_compile tests/validate-extension.py`
 - `python tests/validate-extension.py`
-- Validator verified the manifest registers one `speckit.preview` command.
-- Validator verified the command/template file set contains only `commands/speckit.preview.md` and `templates/preview/wireflow.html`.
+- Validator verified the manifest registers one `speckit.preview.wireflow` command.
+- Validator verified the command/template file set contains only `commands/speckit.preview.wireflow.md` and `templates/preview/wireflow.html`.
 - Validator verified declared schema files, including `schemas/preview/mid-ir-adapter.schema.json`.
-- Validator verified documentation alignment for `speckit.preview` and `wireflow.html`.
+- Validator verified documentation alignment for `speckit.preview.wireflow` and `wireflow.html`.
 
 ## Release Checklist
 

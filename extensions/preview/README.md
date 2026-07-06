@@ -21,14 +21,14 @@ Generated previews are intentionally standalone:
 
 | Command | Description |
 |---------|-------------|
-| `speckit.preview` | Generate `specs/<feature>/preview/wireflow.html`; first argument must be `low`, `mid`, or `high` |
+| `speckit.preview.wireflow` | Generate `specs/<feature>/preview/wireflow.html`; first argument must be `low`, `mid`, or `high` |
 
 ## Usage
 
 ```text
-/speckit.preview low
-/speckit.preview mid admin dashboard empty and error states
-/speckit.preview high checkout confirmation flow, desktop first
+/speckit.preview.wireflow low
+/speckit.preview.wireflow mid admin dashboard empty and error states
+/speckit.preview.wireflow high checkout confirmation flow, desktop first
 ```
 
 The first argument is mandatory:

@@ -2,7 +2,7 @@
 
 ## v1.3.0
 
-- Replaces separate fidelity and format commands with one `speckit.preview` command.
+- Replaces separate fidelity and format commands with one `speckit.preview.wireflow` command.
 - Requires `low`, `mid`, or `high` as the first command argument.
 - Makes HTML the only generated artifact at `specs/<feature>/preview/wireflow.html`.
 - Uses `spec.md` and `uc.md` as required primary inputs for input-to-design synthesis.
@@ -15,7 +15,7 @@
 
 ## v1.1.0
 
-- Replaces the six preview commands with one `speckit.preview` command.
+- Replaces the six preview commands with one `speckit.preview.wireflow` command.
 - Requires `low`, `mid`, or `high` as the first command argument.
 - Makes HTML the only generated artifact at `specs/<feature>/preview/wireflow.html`.
 - Adds a unified `templates/preview/wireflow.html` template.

@@ -40,8 +40,8 @@
   ],
   "commands": [
     {
-      "name": "speckit.preview",
-      "file": "commands/speckit.preview.md",
+      "name": "speckit.preview.wireflow",
+      "file": "commands/speckit.preview.wireflow.md",
       "target": "specs/<feature>/preview/wireflow.html",
       "format": "html",
       "fidelityParameter": "required",

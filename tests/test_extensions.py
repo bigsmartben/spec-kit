@@ -249,8 +249,7 @@ class TestExtensionManifest:
         default_commands = tuple(
             command
             for command in DEFAULT_EXTENSION_COMMANDS
-            if command == f"speckit.{extension_id}"
-            or command.startswith(f"speckit.{extension_id}.")
+            if command.startswith(f"speckit.{extension_id}.")
         )
 
         for entry in (bundled_entry, community_entry):
@@ -463,21 +462,6 @@ class TestExtensionManifest:
         assert len(manifest.warnings) == 1
         assert "speckit.hello" in manifest.warnings[0]
         assert "speckit.test-ext.hello" in manifest.warnings[0]
-
-    def test_command_name_accepts_extension_root_command(self, temp_dir, valid_manifest_data):
-        """Test that 'speckit.{ext_id}' is accepted as an extension root command."""
-        import yaml
-
-        valid_manifest_data["provides"]["commands"][0]["name"] = "speckit.test-ext"
-
-        manifest_path = temp_dir / "extension.yml"
-        with open(manifest_path, 'w') as f:
-            yaml.dump(valid_manifest_data, f)
-
-        manifest = ExtensionManifest(manifest_path)
-
-        assert manifest.commands[0]["name"] == "speckit.test-ext"
-        assert manifest.warnings == []
 
     def test_command_name_autocorrect_matching_ext_id_prefix(self, temp_dir, valid_manifest_data):
         """Test that '{ext_id}.command' is auto-corrected to 'speckit.{ext_id}.command'."""

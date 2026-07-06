@@ -15,8 +15,8 @@ requires:
 
 provides:
   commands:
-    - name: speckit.preview
-      file: commands/speckit.preview.md
+    - name: speckit.preview.wireflow
+      file: commands/speckit.preview.wireflow.md
       description: "Generate a single fidelity-specific HTML design artifact; first argument must be low, mid, or high"
 
 tags:

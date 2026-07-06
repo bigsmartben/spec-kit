@@ -17,7 +17,7 @@ DEFAULT_EXTENSION_COMMANDS = (
     "speckit.intake.visual-design",
     "speckit.intake.prd",
     "speckit.intake.test-cases",
-    "speckit.preview",
+    "speckit.preview.wireflow",
     "speckit.repository-governance.generate",
 )
 DEFAULT_PRESET_ID = "workflow-preset"

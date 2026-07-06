@@ -2,7 +2,7 @@
   "schemaVersion": "1.0.0",
   "extension": {
     "id": "preview",
-    "version": "1.2.0",
+    "version": "1.3.0",
     "repository": "https://github.com/bigsmartben/spec-kit-preview"
   },
   "schemas": [
@@ -40,160 +40,40 @@
   ],
   "commands": [
     {
-      "name": "speckit.preview.low-md",
-      "file": "commands/speckit.preview.low-md.md",
-      "target": "specs/<feature>/preview/wireflow-low.md",
-      "format": "md",
-      "fidelity": "low",
-      "template": "templates/preview/low.md",
-      "requiredPhrases": [
-        "Low-Fidelity Extraction Policy",
-        "Core actor, trigger",
-        "Do not create HTML"
-      ],
-      "forbiddenPhrases": [
-        "Do not create Markdown"
-      ]
-    },
-    {
-      "name": "speckit.preview.low-html",
-      "file": "commands/speckit.preview.low-html.md",
-      "target": "specs/<feature>/preview/wireflow-low.html",
+      "name": "speckit.preview.wireflow",
+      "file": "commands/speckit.preview.wireflow.md",
+      "target": "specs/<feature>/preview/wireflow.html",
       "format": "html",
-      "fidelity": "low",
-      "template": "templates/preview/low.html",
+      "fidelityParameter": "required",
+      "template": "templates/preview/wireflow.html",
       "requiredPhrases": [
-        "Low-Fidelity Extraction Policy",
-        "Core actor, trigger",
+        "Fidelity Parameter",
+        "low|mid|high",
+        "Input-to-Design Synthesis Pass",
+        "spec.md Design Inputs",
+        "uc.md Design Inputs",
         "Do not create Markdown",
         "self-contained",
         "network-free",
         "Escape user-provided content and source excerpts",
         "Use embedded CSS only",
-        "do not use external fonts"
-      ],
-      "forbiddenPhrases": [
-        "Do not create HTML"
-      ]
-    },
-    {
-      "name": "speckit.preview.mid-md",
-      "file": "commands/speckit.preview.mid-md.md",
-      "target": "specs/<feature>/preview/wireflow-mid.md",
-      "format": "md",
-      "fidelity": "mid",
-      "template": "templates/preview/mid.md",
-      "requiredPhrases": [
-        "Mid-Fidelity Extraction Policy",
-        "Structured IR Adapter Input",
-        "schemas/preview/mid-ir-adapter.schema.json",
-        "structured-ir.yaml",
-        "ir-assertions.yaml",
-        "ir-evidence-packet.md",
-        "evidence gap",
-        "Validate the mapped adapter payload against",
-        "passes adapter schema validation",
-        "cannot be validated",
-        "IR_MISSING",
-        "IR_UNMAPPABLE",
-        "IR_PARTIAL",
-        "Source-defined page, field, button",
-        "primary alternate flow state",
-        "Do not create HTML"
-      ],
-      "forbiddenPhrases": [
-        "Do not create Markdown"
-      ]
-    },
-    {
-      "name": "speckit.preview.mid-html",
-      "file": "commands/speckit.preview.mid-html.md",
-      "target": "specs/<feature>/preview/wireflow-mid.html",
-      "format": "html",
-      "fidelity": "mid",
-      "template": "templates/preview/mid.html",
-      "requiredPhrases": [
-        "Mid-Fidelity Extraction Policy",
-        "Structured IR Adapter Input",
-        "schemas/preview/mid-ir-adapter.schema.json",
-        "structured-ir.yaml",
-        "ir-assertions.yaml",
-        "ir-evidence-packet.md",
-        "evidence gap",
-        "Validate the mapped adapter payload against",
-        "passes adapter schema validation",
-        "cannot be validated",
-        "IR_MISSING",
-        "IR_UNMAPPABLE",
-        "IR_PARTIAL",
-        "Source-defined page, field, button",
-        "primary alternate flow state",
-        "Do not create Markdown",
-        "self-contained",
-        "network-free",
-        "Escape user-provided content and source excerpts",
-        "minimal JavaScript",
-        "do not create an end-to-end interactive prototype",
-        "Do not simulate undocumented navigation"
-      ],
-      "forbiddenPhrases": [
-        "Do not create HTML"
-      ]
-    },
-    {
-      "name": "speckit.preview.high-md",
-      "file": "commands/speckit.preview.high-md.md",
-      "target": "specs/<feature>/preview/wireflow-high.md",
-      "format": "md",
-      "fidelity": "high",
-      "template": "templates/preview/high.md",
-      "requiredPhrases": [
-        "High-Fidelity Extraction Policy",
-        "Interaction matrix content",
-        "State matrix content",
-        "covered interactions",
-        "primary alternate flow state",
-        "Do not create HTML"
-      ],
-      "forbiddenPhrases": [
-        "Do not create Markdown"
-      ]
-    },
-    {
-      "name": "speckit.preview.high-html",
-      "file": "commands/speckit.preview.high-html.md",
-      "target": "specs/<feature>/preview/wireflow-high.html",
-      "format": "html",
-      "fidelity": "high",
-      "template": "templates/preview/high.html",
-      "requiredPhrases": [
-        "High-Fidelity Extraction Policy",
-        "Interaction matrix content",
-        "State matrix content",
-        "covered interactions",
-        "primary alternate flow state",
-        "Do not create Markdown",
-        "self-contained",
-        "network-free",
-        "Escape user-provided content and source excerpts",
-        "inline CSS and JavaScript",
         "documented interactions",
-        "source evidence",
-        "review question instead of making it clickable",
-        "observable state transitions",
-        "Responsive mobile and desktop review states",
+        "open design question instead of making it clickable",
         "Do not claim that HTML is production-ready"
       ],
       "forbiddenPhrases": [
-        "Do not create HTML"
+        "wireflow-low",
+        "wireflow-mid",
+        "wireflow-high"
       ]
     }
   ],
   "sharedCommandRequiredPhrases": [
     "Command Responsibilities",
     "Evidence Policy",
-    "Extraction Policy",
+    "Design Artifact Policy",
     "specs/<feature>/spec.md",
+    "specs/<feature>/uc.md",
     "Do not modify source code",
     "推理补齐",
     "已覆盖",
@@ -211,7 +91,8 @@
     "source of truth",
     "template slots",
     "already exists, read it before writing",
-    "Preserve user-authored review notes",
+    "Preserve user-authored design notes",
+    "Source Priority",
     "UPDATED",
     "SUPERSEDED",
     "Prefer `SPECIFY_FEATURE` when set.",
@@ -235,76 +116,29 @@
   ],
   "templates": [
     {
-      "path": "templates/preview/low.md",
-      "format": "md",
-      "requiredPhrases": [
-        "# Low-Fidelity Preview",
-        "## 已保留评审记录",
-        "| ID | 节点 | 目的 | 用户动作 | 系统响应 | 覆盖标签 | 证据/推理 |",
-        "| 需求/场景 | 预览位置 | 覆盖标签 | 证据/推理 | 缺口或问题 |",
-        "{{preserved_review_records}}"
-      ]
-    },
-    {
-      "path": "templates/preview/mid.md",
-      "format": "md",
-      "requiredPhrases": [
-        "# Mid-Fidelity Preview",
-        "## 状态清单",
-        "## 已保留评审记录",
-        "| ID | 页面/节点 | 目的 | 可见元素 | 用户动作 | 系统响应 | 状态 | 覆盖标签 | 证据/推理 |",
-        "| 状态 | 触发条件 | 用户可见反馈 | 恢复/下一步 | 覆盖标签 | 证据/推理 |"
-      ]
-    },
-    {
-      "path": "templates/preview/high.md",
-      "format": "md",
-      "requiredPhrases": [
-        "# High-Fidelity Preview",
-        "## 交互矩阵",
-        "## 状态矩阵",
-        "## 已保留评审记录",
-        "| 事件 | 目标 | 前置条件 | 反馈 | 状态变化 | 错误处理 | 覆盖标签 | 证据/推理 |",
-        "| 状态 | 触发条件 | 用户可见反馈 | 恢复/下一步 | 覆盖标签 | 证据/推理 |"
-      ]
-    },
-    {
-      "path": "templates/preview/low.html",
+      "path": "templates/preview/wireflow.html",
       "format": "html",
       "requiredPhrases": [
         "<!doctype html>",
-        "Low-Fidelity Preview",
-        "已保留评审记录",
-        "{{node_inventory_rows}}",
-        "{{coverage_rows}}",
-        "<style>"
-      ]
-    },
-    {
-      "path": "templates/preview/mid.html",
-      "format": "html",
-      "requiredPhrases": [
-        "<!doctype html>",
-        "Mid-Fidelity Preview",
-        "状态清单",
-        "已保留评审记录",
-        "data-toggle",
-        "{{state_inventory_rows}}"
-      ]
-    },
-    {
-      "path": "templates/preview/high.html",
-      "format": "html",
-      "requiredPhrases": [
-        "<!doctype html>",
-        "High-Fidelity Preview",
-        "首屏与交互预览",
+        "Spec Kit Preview",
+        "Fidelity: {{fidelity}}",
+        "输入到设计映射",
+        "spec.md 设计输入映射",
+        "uc.md 设计输入映射",
+        "交付质量结论",
         "交互矩阵",
         "状态矩阵",
-        "已保留评审记录",
+        "已保留设计记录",
+        "data-fidelity",
         "data-preview-action",
+        "{{node_inventory_rows}}",
         "{{interaction_matrix_rows}}",
-        "{{state_matrix_rows}}"
+        "{{state_matrix_rows}}",
+        "{{spec_design_mapping_rows}}",
+        "{{uc_design_mapping_rows}}",
+        "{{quality_conclusion_rows}}",
+        "{{preserved_design_records}}",
+        "{{design_questions}}"
       ]
     }
   ],
@@ -315,7 +149,16 @@
     ],
     "forbiddenPhrases": [
       "speckit.preview.html",
-      "preview/index.html",
+      "speckit.preview.low-md",
+      "speckit.preview.low-html",
+      "speckit.preview.mid-md",
+      "speckit.preview.mid-html",
+      "speckit.preview.high-md",
+      "speckit.preview.high-html",
+      "wireflow-low",
+      "wireflow-mid",
+      "wireflow-high",
+      "wireflow-*.md",
       "refs/tags/v1.0.0.zip"
     ]
   },

@@ -91,7 +91,7 @@
         "file",
         "target",
         "format",
-        "fidelity",
+        "fidelityParameter",
         "template",
         "requiredPhrases",
         "forbiddenPhrases"
@@ -100,8 +100,8 @@
         "name": { "type": "string" },
         "file": { "type": "string" },
         "target": { "type": "string" },
-        "format": { "enum": ["md", "html"] },
-        "fidelity": { "enum": ["low", "mid", "high"] },
+        "format": { "enum": ["html"] },
+        "fidelityParameter": { "enum": ["required"] },
         "template": { "type": "string" },
         "requiredPhrases": { "$ref": "#/$defs/stringList" },
         "forbiddenPhrases": { "$ref": "#/$defs/stringList" }
@@ -113,7 +113,7 @@
       "required": ["path", "format", "requiredPhrases"],
       "properties": {
         "path": { "type": "string" },
-        "format": { "enum": ["md", "html"] },
+        "format": { "enum": ["html"] },
         "requiredPhrases": { "$ref": "#/$defs/stringList" }
       }
     },

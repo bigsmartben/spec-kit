@@ -3,8 +3,8 @@ schema_version: "1.0"
 extension:
   id: preview
   name: "Spec Kit Preview"
-  version: "1.2.0"
-  description: "Generate evidence-backed low, mid, or high fidelity previews from Spec Kit artifacts as Markdown or self-contained HTML"
+  version: "1.3.0"
+  description: "Generate one fidelity-specific HTML design artifact from spec.md and uc.md inputs with required low, mid, or high fidelity"
   author: bigsmartben
   repository: https://github.com/bigsmartben/spec-kit-preview
   homepage: https://github.com/bigsmartben/spec-kit-preview
@@ -15,30 +15,13 @@ requires:
 
 provides:
   commands:
-    - name: speckit.preview.low-md
-      file: commands/speckit.preview.low-md.md
-      description: "Generate a low-fidelity evidence-backed Markdown wireflow preview"
-    - name: speckit.preview.low-html
-      file: commands/speckit.preview.low-html.md
-      description: "Generate a low-fidelity evidence-backed static HTML wireflow preview"
-    - name: speckit.preview.mid-md
-      file: commands/speckit.preview.mid-md.md
-      description: "Generate a mid-fidelity evidence-backed Markdown wireflow preview with optional structured IR adaptation"
-    - name: speckit.preview.mid-html
-      file: commands/speckit.preview.mid-html.md
-      description: "Generate a mid-fidelity evidence-backed static HTML wireflow preview with optional structured IR adaptation"
-    - name: speckit.preview.high-md
-      file: commands/speckit.preview.high-md.md
-      description: "Generate a high-fidelity evidence-backed Markdown interaction preview"
-    - name: speckit.preview.high-html
-      file: commands/speckit.preview.high-html.md
-      description: "Generate a high-fidelity evidence-backed interactive HTML preview"
+    - name: speckit.preview.wireflow
+      file: commands/speckit.preview.wireflow.md
+      description: "Generate a single fidelity-specific HTML design artifact; first argument must be low, mid, or high"
 
 tags:
   - "preview"
   - "prototype"
   - "html"
-  - "markdown"
   - "wireflow"
   - "ux"
-

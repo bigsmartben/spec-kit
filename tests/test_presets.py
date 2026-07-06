@@ -4764,18 +4764,13 @@ class TestBundledPresetLocator:
         assert "find .claude/skills -maxdepth 1 -type d -name 'speckit-arch-*'" in verify_run
         assert "find .claude/skills -maxdepth 1 -type d -name 'speckit-discovery-*'" in verify_run
         assert "find .claude/skills -maxdepth 1 -type d -name 'speckit-intake-*'" in verify_run
-        for preview_skill in (
-            "speckit-preview-low-md",
-            "speckit-preview-low-html",
-            "speckit-preview-mid-md",
-            "speckit-preview-mid-html",
-            "speckit-preview-high-md",
-            "speckit-preview-high-html",
-        ):
-            assert preview_skill in verify_run
-            assert f'test ! -d ".claude/skills/$preview_skill"' in verify_run
-            assert f'test -f ".claude/skills/$preview_skill/SKILL.md"' in verify_run
-        assert 'grep -q "evidence-backed" ".claude/skills/$preview_skill/SKILL.md"' in verify_run
+        assert "speckit-preview-wireflow" in verify_run
+        assert "test ! -d .claude/skills/speckit-preview-wireflow" in verify_run
+        assert "test -f .claude/skills/speckit-preview-wireflow/SKILL.md" in verify_run
+        assert (
+            'grep -q "Input-to-Design Synthesis Pass" .claude/skills/speckit-preview-wireflow/SKILL.md'
+            in verify_run
+        )
         assert (
             "test ! -d .claude/skills/speckit-repository-governance-generate"
             in verify_run

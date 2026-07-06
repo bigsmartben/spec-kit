@@ -113,7 +113,6 @@ class HermesIntegration(SkillsIntegration):
         global_skills_dir.mkdir(parents=True, exist_ok=True)
 
         created: list[Path] = []
-        context_file_display = self._context_file_display(project_root)
 
         for src_file in templates:
             raw = src_file.read_text(encoding="utf-8")
@@ -140,7 +139,6 @@ class HermesIntegration(SkillsIntegration):
                 self.key,
                 script_type,
                 arg_placeholder,
-                context_file=context_file_display,
                 invoke_separator=self.invoke_separator,
                 project_root=project_root,
             )
@@ -188,8 +186,6 @@ class HermesIntegration(SkillsIntegration):
         # (e.g. git) can detect Hermes as an active integration.
         # Hermes itself ignores this directory — skills live globally.
         (project_root / ".hermes" / "skills").mkdir(parents=True, exist_ok=True)
-        self.upsert_context_section(project_root)
-
         return created
 
     # -- Uninstall ---------------------------------------------------------

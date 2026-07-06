@@ -995,7 +995,7 @@ class TestGitExtensionOptIn:
         assert len(git_skills) == 0, "git extension commands should not be registered by default"
 
     def test_community_extensions_and_workflow_preset_auto_installed(self, tmp_path):
-        """specify init installs bundled community extensions and the workflow preset."""
+        """specify init installs default community extensions and the workflow preset."""
         from typer.testing import CliRunner
         from specify_cli import app
 
@@ -1021,7 +1021,6 @@ class TestGitExtensionOptIn:
         extensions_yml = project / ".specify" / "extensions.yml"
         hooks_data = yaml.safe_load(extensions_yml.read_text(encoding="utf-8"))
         assert hooks_data["installed"] == [
-            "agent-context",
             "arch",
             "discovery",
             "intake",

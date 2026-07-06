@@ -80,49 +80,6 @@ def ensure_constitution_from_template(
             )
 
 
-def _update_agent_context_config_file(
-    project_path: Path,
-    context_file: str,
-    *,
-    preserve_markers: bool = True,
-) -> None:
-    """Write the active integration context file into agent-context config."""
-    import yaml
-
-    config_path = (
-        project_path
-        / ".specify"
-        / "extensions"
-        / "agent-context"
-        / "agent-context-config.yml"
-    )
-    data: dict[str, Any] = {}
-    if config_path.exists():
-        loaded = yaml.safe_load(config_path.read_text(encoding="utf-8"))
-        if isinstance(loaded, dict):
-            data = loaded
-
-    markers = data.get("context_markers") if preserve_markers else None
-    data["context_file"] = context_file
-    data.setdefault("context_files", [])
-    if preserve_markers and isinstance(markers, dict):
-        data["context_markers"] = markers
-    else:
-        data.setdefault(
-            "context_markers",
-            {
-                "start": "<!-- SPECKIT START -->",
-                "end": "<!-- SPECKIT END -->",
-            },
-        )
-
-    config_path.parent.mkdir(parents=True, exist_ok=True)
-    config_path.write_text(
-        yaml.safe_dump(data, sort_keys=False, allow_unicode=True),
-        encoding="utf-8",
-    )
-
-
 def register(app: typer.Typer) -> None:
     @app.command()
     def init(
@@ -428,7 +385,6 @@ def register(app: typer.Typer) -> None:
             ("chmod", "Ensure scripts executable"),
             ("constitution", "Constitution setup"),
             ("workflow", "Install bundled workflow"),
-            ("agent-context", "Install agent-context extension"),
             ("default-extensions", "Install default extensions"),
             ("default-presets", "Install default presets"),
             ("final", "Finalize"),
@@ -560,47 +516,6 @@ def register(app: typer.Typer) -> None:
                 ):
                     init_opts["ai_skills"] = True
                 save_init_options(project_path, init_opts)
-
-                # --- agent-context extension (bundled, auto-installed) ---
-                # Installed after init-options.json is written so that skill
-                # registration can read ai_skills + integration key.
-                try:
-                    from ..extensions import ExtensionManager as _ExtMgr
-
-                    bundled_ac = _locate_bundled_extension("agent-context")
-                    if bundled_ac:
-                        ac_mgr = _ExtMgr(project_path)
-                        if ac_mgr.registry.is_installed("agent-context"):
-                            tracker.complete("agent-context", "already installed")
-                        else:
-                            ac_mgr.install_from_directory(
-                                bundled_ac, get_speckit_version()
-                            )
-                            tracker.complete("agent-context", "extension installed")
-                    else:
-                        from ..extensions import REINSTALL_COMMAND as _ac_reinstall
-
-                        tracker.error(
-                            "agent-context",
-                            f"bundled extension not found — installation may be "
-                            f"incomplete. Run: {_ac_reinstall}",
-                        )
-                except Exception as ac_err:
-                    sanitized_ac = str(ac_err).replace("\n", " ").strip()
-                    tracker.error(
-                        "agent-context",
-                        f"extension install failed: {sanitized_ac[:120]}",
-                    )
-
-                # Write context_file to the agent-context extension config
-                # AFTER the extension install (which copies the template config
-                # with an empty context_file).
-                if resolved_integration.context_file:
-                    _update_agent_context_config_file(
-                        project_path,
-                        resolved_integration.context_file,
-                        preserve_markers=True,
-                    )
 
                 try:
                     from ..extensions import ExtensionManager as _ExtMgr

@@ -359,8 +359,7 @@ class SkillsIntegrationTests:
         assert skills_dir.is_dir(), f"Skills directory {skills_dir} not created"
 
     def test_init_options_includes_context_file(self, tmp_path):
-        """agent-context config preserves explicit context files or self-seeds."""
-        import yaml
+        """specify init must not install or configure agent-context implicitly."""
         from typer.testing import CliRunner
         from specify_cli import app
 
@@ -377,12 +376,7 @@ class SkillsIntegrationTests:
             os.chdir(old_cwd)
         assert result.exit_code == 0
         ext_cfg_path = project / ".specify" / "extensions" / "agent-context" / "agent-context-config.yml"
-        ext_cfg = yaml.safe_load(ext_cfg_path.read_text(encoding="utf-8")) if ext_cfg_path.exists() else {}
-        i = get_integration(self.KEY)
-        expected_context_file = i.context_file or ""
-        assert ext_cfg.get("context_file") == expected_context_file, (
-            f"Expected context_file={expected_context_file!r}, got {ext_cfg.get('context_file')!r}"
-        )
+        assert not ext_cfg_path.exists()
 
     # -- IntegrationOption ------------------------------------------------
 
@@ -409,8 +403,6 @@ class SkillsIntegrationTests:
         # Skill files (core commands)
         for cmd in self._SKILL_COMMANDS:
             files.append(f"{skills_prefix}/speckit-{cmd}/SKILL.md")
-        # Extension-installed skill (agent-context)
-        files.append(f"{skills_prefix}/speckit-agent-context-update/SKILL.md")
         # Integration metadata
         files += [
             ".specify/init-options.json",
@@ -449,16 +441,8 @@ class SkillsIntegrationTests:
             ".specify/workflows/speckit/workflow.yml",
             ".specify/workflows/workflow-registry.json",
         ]
-        # Bundled agent-context extension
         files.append(".specify/extensions.yml")
         files.append(".specify/extensions/.registry")
-        files.append(".specify/extensions/agent-context/README.md")
-        files.append(".specify/extensions/agent-context/agent-context-defaults.json")
-        files.append(".specify/extensions/agent-context/agent-context-config.yml")
-        files.append(".specify/extensions/agent-context/commands/speckit.agent-context.update.md")
-        files.append(".specify/extensions/agent-context/extension.yml")
-        files.append(".specify/extensions/agent-context/scripts/bash/update-agent-context.sh")
-        files.append(".specify/extensions/agent-context/scripts/powershell/update-agent-context.ps1")
         # Agent context file (if set)
         if i.context_file:
             files.append(i.context_file)

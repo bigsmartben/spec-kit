@@ -2,6 +2,13 @@
 
 <!-- insert new changelog below this comment -->
 
+## [0.12.5] - 2026-07-03
+
+### Changed
+
+- fix(integrations): cursor-agent honors executable/extra-args env overrides (#3265)
+- chore: sync fork with upstream main through 0.12.5 release baseline
+
 ## [0.12.4] - 2026-07-02
 
 ### Changed

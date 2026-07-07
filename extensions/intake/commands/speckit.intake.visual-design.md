@@ -1,5 +1,5 @@
 ---
-description: Orchestrate visual intake into a source-backed static HTML delivery for the active Spec Kit feature.
+description: Orchestrate visual design intake into a source-backed static HTML delivery for the active Spec Kit feature.
 ---
 
 ## User Input

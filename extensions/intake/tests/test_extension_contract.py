@@ -2306,5 +2306,3 @@ def test_static_html_delivery_validator_blocks_incomplete_delivery(edit_kind, ex
     assert expected_blocker in payload["blockers"]
 
     shutil.rmtree(work_dir)
-
-

@@ -4754,7 +4754,7 @@ class TestBundledPresetLocator:
             "speckit.implement.receipt.v1.schema.json"
         ) in verify_run
         assert (
-            'for extension_id in arch discovery intake preview repository-governance; do'
+            'for extension_id in arch discovery inception intake preview repository-governance; do'
             in verify_run
         )
         assert (
@@ -4763,6 +4763,7 @@ class TestBundledPresetLocator:
         )
         assert "find .claude/skills -maxdepth 1 -type d -name 'speckit-arch-*'" in verify_run
         assert "find .claude/skills -maxdepth 1 -type d -name 'speckit-discovery-*'" in verify_run
+        assert "find .claude/skills -maxdepth 1 -type d -name 'speckit-inception-*'" in verify_run
         assert "find .claude/skills -maxdepth 1 -type d -name 'speckit-intake-*'" in verify_run
         assert "speckit-preview-wireflow" in verify_run
         assert "test ! -d .claude/skills/speckit-preview-wireflow" in verify_run
@@ -4789,6 +4790,18 @@ class TestBundledPresetLocator:
         )
         assert (
             'test -f .claude/skills/speckit-discovery-contract/SKILL.md'
+            in verify_run
+        )
+        assert (
+            'test -f .claude/skills/speckit-inception-product/SKILL.md'
+            in verify_run
+        )
+        assert (
+            'test -f .claude/skills/speckit-inception-arch/SKILL.md'
+            in verify_run
+        )
+        assert (
+            'grep -q "API POC Workflow" .claude/skills/speckit-inception-arch/SKILL.md'
             in verify_run
         )
         assert (

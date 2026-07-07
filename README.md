@@ -24,7 +24,7 @@
 
 如果你只是想知道这个仓库相比基础流程多了什么，可以先看这三件事：
 
-- 默认扩展：`arch`、`discovery`、`intake`、`preview`、`repository-governance`。
+- 默认扩展：`arch`、`discovery`、`inception`、`intake`、`preview`、`repository-governance`。
 - 默认预设：`workflow-preset`。
 - 自动上下文扩展：`agent-context`。
 
@@ -66,6 +66,7 @@ specify init my-project --integration codex --ignore-agent-tools
 | 自动扩展 | `agent-context` | `extensions/agent-context` | 维护 AGENTS、CLAUDE、Copilot 等 agent context 文件里的 Spec Kit 受管段。 |
 | 默认扩展 | `arch` | `extensions/arch` | 生成或反向生成面向 `/speckit.plan` 的架构规划契约。 |
 | 默认扩展 | `discovery` | `extensions/discovery` | 在正式计划前做可行性、技术选型、旧代码评估、接口理解、PoC 和场景化技术决策。 |
+| 默认扩展 | `inception` | `extensions/inception` | 在正式 SDD 前通过对话收敛产品 UC、wireflow、架构边界和真实 API POC 证据。 |
 | 默认扩展 | `intake` | `extensions/intake` | 把 PRD、设计稿、Figma、最终静态 HTML 交付、测试用例等来源归一化为 SDD 可消费的证据包。 |
 | 默认扩展 | `preview` | `extensions/preview` | 从规格和计划生成低、中、高保真 Markdown 或自包含 HTML 预览。 |
 | 默认扩展 | `repository-governance` | `extensions/repository-governance` | 生成仓库治理 SSOT，帮助 agent 明确目录责任、读取顺序和事实证据。 |
@@ -74,6 +75,38 @@ specify init my-project --integration codex --ignore-agent-tools
 默认扩展列表在 `src/specify_cli/commands/init.py` 的 `DEFAULT_BUNDLED_EXTENSIONS` 中维护。默认预设列表在同文件的 `DEFAULT_BUNDLED_PRESETS` 中维护。
 
 ## 默认扩展
+
+### `inception`
+
+`inception` 是正式规格化和工程迭代之前的启动设计阶段。它通过对话确认推进，不新增 workflow 命名层；命令会引导用户确认产品和架构前置材料，并用模板生成 `/inception/` 下的产物。
+
+常用命令：
+
+```text
+/speckit.inception.product
+/speckit.inception.arch
+```
+
+主要产物：
+
+```text
+inception/product/uc.md
+inception/product/wireflow-medium.html
+inception/product/wireflow-high.html
+inception/arch/api-capability.md
+inception/arch/api-poc.md
+inception/arch/system-boundary.md
+inception/arch/domain-model.md
+inception/arch/arch.md
+inception/arch/api-poc-runs/
+```
+
+使用建议：
+
+- 先跑 `/speckit.inception.product`，把产品想法收敛成 UC 和 medium/high wireflow。
+- 再跑 `/speckit.inception.arch`，只从 UC 出发做能力、边界、领域和架构前置设计。
+- API POC 不是伪代码；运行前必须确认目标能力、验证假设、环境、依赖、配置、样例输入、外部访问、允许副作用和停止条件，运行资产只写入 `inception/arch/api-poc-runs/`。
+- `inception` 不生成 `spec.md`、`plan.md`、`tasks.md`、OpenAPI、数据库 schema、生产代码或测试套件变更。
 
 ### `arch`
 
@@ -157,35 +190,25 @@ specs/<feature>/intake/test-cases/
 
 ### `preview`
 
-`preview` 在实现前生成评审产物。它不改应用源码，不替代实现；它用当前 feature 的规格、计划和契约生成可以讨论的 wireflow 或 HTML 预览。
+`preview` 在实现前生成评审产物。它不改应用源码，不替代实现；它用当前 feature 的规格、计划和契约生成可以讨论的自包含 HTML wireflow。
 
 常用命令：
 
 ```text
-/speckit.preview.low-md
-/speckit.preview.low-html
-/speckit.preview.mid-md
-/speckit.preview.mid-html
-/speckit.preview.high-md
-/speckit.preview.high-html
+/speckit.preview.wireflow <low|mid|high> [design focus]
 ```
 
 主要产物：
 
 ```text
-specs/<feature>/preview/wireflow-low.md
-specs/<feature>/preview/wireflow-low.html
-specs/<feature>/preview/wireflow-mid.md
-specs/<feature>/preview/wireflow-mid.html
-specs/<feature>/preview/wireflow-high.md
-specs/<feature>/preview/wireflow-high.html
+specs/<feature>/preview/wireflow.html
 ```
 
 使用建议：
 
-- 需求还早期：用 `low-md` 或 `low-html` 看主路径和分支。
-- 产品、设计和工程需要一起评审：用 `mid-md` 或 `mid-html`。
-- 交互、状态、权限、响应式和错误反馈要确认：用 `high-md` 或 `high-html`。
+- 需求还早期：用 `low` 看主路径和分支。
+- 产品、设计和工程需要一起评审：用 `mid`。
+- 交互、状态、权限、响应式和错误反馈要确认：用 `high`。
 
 ### `repository-governance`
 
@@ -409,12 +432,14 @@ specify bundle build --path ./my-bundle
 
 ```text
 /speckit.constitution
+/speckit.inception.product
+/speckit.inception.arch
 /speckit.arch.generate
 /speckit.specify
 /speckit.clarify
 /speckit.discovery.feasibility
 /speckit.plan
-/speckit.preview.mid-html
+/speckit.preview.wireflow mid
 /speckit.tasks
 /speckit.analyze
 /speckit.implement
@@ -449,9 +474,9 @@ specify bundle build --path ./my-bundle
 ```text
 /speckit.intake.visual-design
 /speckit.specify
-/speckit.preview.low-md
+/speckit.preview.wireflow low
 /speckit.plan
-/speckit.preview.mid-html
+/speckit.preview.wireflow mid
 /speckit.tasks
 /speckit.implement
 ```
@@ -501,8 +526,10 @@ specify extension add bug
 | --- | --- | --- |
 | `.specify/memory/architecture.md` | `arch` | 面向 `/speckit.plan` 的架构规划契约。 |
 | `.specify/memory/repository-governance.md` | `repository-governance` | 内部仓库治理 SSOT。 |
+| `inception/product/` | `inception` | 产品 UC 和 medium/high wireflow 启动设计产物。 |
+| `inception/arch/` | `inception` | 架构前置设计、真实 API POC 证据和运行资产。 |
 | `specs/<feature>/intake/` | `intake` | PRD、视觉设计、测试用例的结构化证据包。 |
-| `specs/<feature>/preview/` | `preview` | Markdown wireflow 和自包含 HTML 预览。 |
+| `specs/<feature>/preview/` | `preview` | 单一自包含 HTML wireflow 预览。 |
 | `specs/<feature>/contracts/bdd/` | `workflow-preset` | BDD 行为契约。 |
 | `specs/<feature>/contracts/uif/` | `workflow-preset` | UI flow / interface fidelity 契约。 |
 | `specs/<feature>/contracts/behavior/` | `workflow-preset` | 行为场景、fixture、assertion 等正式契约。 |

@@ -30,6 +30,7 @@ DEFAULT_BUNDLED_EXTENSIONS = (
     "arch",
     "discovery",
     "git",
+    "inception",
     "intake",
     "preview",
     "repository-governance",

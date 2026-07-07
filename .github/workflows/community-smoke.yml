@@ -48,6 +48,7 @@ jobs:
           test -f .specify/extensions/arch/extension.yml
           test -f .specify/extensions/preview/extension.yml
           test -f .specify/extensions/discovery/extension.yml
+          test -f .specify/extensions/inception/extension.yml
           test -f .specify/extensions/intake/extension.yml
           test -f .specify/extensions/repository-governance/extension.yml
           test -f .specify/presets/workflow-preset/preset.yml
@@ -99,6 +100,8 @@ jobs:
           done
           test -f .claude/skills/speckit-preview-wireflow/SKILL.md
           test -f .claude/skills/speckit-discovery-contract/SKILL.md
+          test -f .claude/skills/speckit-inception-product/SKILL.md
+          test -f .claude/skills/speckit-inception-arch/SKILL.md
           test -f .claude/skills/speckit-intake-visual-design/SKILL.md
           test -f .claude/skills/speckit-intake-prd/SKILL.md
           test -f .claude/skills/speckit-intake-test-cases/SKILL.md
@@ -119,7 +122,7 @@ jobs:
           grep -q "Vertical Planner Agent" .claude/skills/speckit-implement/SKILL.md
           grep -q "Worker Agent" .claude/skills/speckit-implement/SKILL.md
 
-          for extension_id in arch discovery intake preview repository-governance; do
+          for extension_id in arch discovery inception intake preview repository-governance; do
             /tmp/specify-community-smoke-venv/bin/specify extension remove "$extension_id" --force
             test ! -d ".specify/extensions/$extension_id"
             case "$extension_id" in
@@ -132,6 +135,9 @@ jobs:
               discovery)
                 test "$(find .claude/skills -maxdepth 1 -type d -name 'speckit-discovery-*' | wc -l)" -eq 0
                 ;;
+              inception)
+                test "$(find .claude/skills -maxdepth 1 -type d -name 'speckit-inception-*' | wc -l)" -eq 0
+                ;;
               intake)
                 test "$(find .claude/skills -maxdepth 1 -type d -name 'speckit-intake-*' | wc -l)" -eq 0
                 ;;
@@ -141,7 +147,7 @@ jobs:
             esac
           done
 
-          for extension_id in arch discovery intake preview repository-governance; do
+          for extension_id in arch discovery inception intake preview repository-governance; do
             /tmp/specify-community-smoke-venv/bin/specify extension add "$GITHUB_WORKSPACE/extensions/$extension_id" --dev
             case "$extension_id" in
               arch)
@@ -156,6 +162,12 @@ jobs:
               discovery)
                 test -f .claude/skills/speckit-discovery-contract/SKILL.md
                 grep -q "interface-contract discovery facilitator" .claude/skills/speckit-discovery-contract/SKILL.md
+                ;;
+              inception)
+                test -f .claude/skills/speckit-inception-product/SKILL.md
+                test -f .claude/skills/speckit-inception-arch/SKILL.md
+                grep -q "Conversation Workflow" .claude/skills/speckit-inception-product/SKILL.md
+                grep -q "API POC Workflow" .claude/skills/speckit-inception-arch/SKILL.md
                 ;;
               intake)
                 test -f .claude/skills/speckit-intake-visual-design/SKILL.md

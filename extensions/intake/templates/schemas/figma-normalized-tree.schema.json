@@ -118,7 +118,7 @@
   "$defs": {
     "no_downstream_field_name": {
       "not": {
-        "pattern": "(preview|screenshot|diff|evidence_packet|requirement|implementation|task|selector|locator|code_component|component_name|visual_spec|acceptance|prd|test_case)"
+        "pattern": "(preview|delivery|screenshot|diff|evidence_packet|requirement|implementation|task|selector|locator|code_component|component_name|visual_spec|acceptance|prd|test_case)"
       }
     }
   },

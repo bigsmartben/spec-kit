@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+### Changed
+
+- Replace abstract vertical SSOT domains with fixed directory-tree SSOT entries: `agent-runtime/`, `engineering-runtime/`, `poc/`, `source-code/`, `test-code/`, and `other-tools/`.
+- Treat matched directories and fixed directory-tree files as SSOT index source refs, including agent runtime paths, CI/CD and Docker/runtime files, source paths, test paths, and auxiliary tool configs.
+- Rename the generated fallback and agent harness wording to Directory Tree and `agent-runtime/` wording.
+- Add `poc/` as the pre-iteration exploration SSOT for technical spikes, architecture drafts, UC designs, prototypes, research notes, validation reports, and validation conclusions.
+- Require POC promotion to cite a formal design or task before `source-code/` edits, and require validation record source refs or `NEEDS_CLARIFICATION:poc-validation-record`.
+
 ## [3.0.2] - 2026-07-03
 
 ### Changed

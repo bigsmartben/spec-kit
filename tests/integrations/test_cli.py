@@ -1021,7 +1021,7 @@ class TestGitExtensionDefaultInstall:
 
         assert result.exit_code == 0, f"init failed: {result.output}"
 
-        for extension_id in ("arch", "discovery", "git", "intake", "preview", "repository-governance"):
+        for extension_id in ("arch", "discovery", "git", "inception", "intake", "preview", "repository-governance"):
             ext_dir = project / ".specify" / "extensions" / extension_id
             assert (ext_dir / "extension.yml").exists(), f"{extension_id} was not installed"
 
@@ -1031,6 +1031,7 @@ class TestGitExtensionDefaultInstall:
             "arch",
             "discovery",
             "git",
+            "inception",
             "intake",
             "preview",
             "repository-governance",
@@ -1127,7 +1128,7 @@ class TestGitExtensionDefaultInstall:
         assert result.exit_code == 0, f"init failed: {result.output}"
         assert (project / ".specify" / "extensions" / "git" / "extension.yml").exists()
 
-        for extension_id in ("arch", "discovery", "intake", "preview", "repository-governance"):
+        for extension_id in ("arch", "discovery", "inception", "intake", "preview", "repository-governance"):
             ext_dir = project / ".specify" / "extensions" / extension_id
             assert (ext_dir / "extension.yml").exists(), f"{extension_id} was not installed"
 

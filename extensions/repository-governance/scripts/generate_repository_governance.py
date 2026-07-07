@@ -204,78 +204,64 @@ MAX_ROUTE_FILE_BYTES = 512_000
 SPEC_KIT_METADATA = [".specify/integration.json", ".specify/init-options.json", ".specify/extensions.yml"]
 EVIDENCE_SCAN_MAX_PARENT_DEPTH = 3
 SUPPORTED_ADAPTERS = {"codex", "zed"}
-ARCHITECTURE_SSOT_FILES = ["ARCHITECTURE.md", "architecture.md"]
-ARCHITECTURE_SSOT_GLOBS = [
-    "docs/architecture*.md",
-    "docs/**/architecture*.md",
-    "adr/*.md",
-    "adr/**/*.md",
-    "adrs/*.md",
-    "adrs/**/*.md",
+AGENT_RUNTIME_DIRS = [
+    ".codex",
+    ".claude",
+    ".cursor",
+    ".augment",
+    ".junie",
+    ".kilocode",
+    ".lingma",
+    ".roo",
+    ".trae",
+    ".windsurf",
 ]
-ENGINEERING_SSOT_FILES = [
-    "CONTRIBUTING.md",
-    "contributing.md",
-    "DEVELOPMENT.md",
-    "development.md",
-    "RELEASE.md",
-    "release.md",
-    "VERSION",
-    "docs/engineering.md",
-    "docs/development.md",
-    "docs/release.md",
-    "docs/releases.md",
-    "docs/ci.md",
-    "docs/tooling.md",
-    "docs/commands.md",
+ENGINEERING_RUNTIME_FILES = [
+    ".editorconfig",
+    ".extensionignore",
+    ".gitignore",
+    "Dockerfile",
+    "compose.yml",
+    "compose.yaml",
+    "docker-compose.yml",
+    "docker-compose.yaml",
+    "extension.yml",
+    *PACKAGE_MANIFESTS,
+    *LOCKFILES,
+    *TASK_RUNNERS,
+    *BUILD_CONFIG_FILES,
+    *CODE_STYLE_FILES,
+    *RUNTIME_CONFIG_FILES,
     *EXTENSION_CONTRACT_FILES,
 ]
-EXTENSION_ENGINEERING_SSOT_FILES = ["extension.yml", ".extensionignore"]
-DIRECTORY_STRUCTURE_SSOT_FILES = [
-    "STRUCTURE.md",
-    "structure.md",
-    "LAYOUT.md",
-    "layout.md",
-    "docs/structure.md",
-    "docs/directory-structure.md",
-    "docs/repository-structure.md",
-    "docs/layout.md",
+ENGINEERING_RUNTIME_DIRS = [
+    ".devcontainer",
+    ".github/workflows",
+    "ci",
+    "devops",
+    "deploy",
+    "deployment",
+    "docker",
+    "env",
+    "environments",
+    "helm",
+    "infra",
+    "k8s",
+    "terraform",
 ]
-DIRECTORY_STRUCTURE_SSOT_GLOBS = [
-    "docs/*structure*.md",
-    "docs/**/structure*.md",
-    "docs/**/directory-structure*.md",
-    "docs/**/repository-structure*.md",
+POC_DIRS = [
+    "poc",
+    "poc/technical-spikes",
+    "poc/architecture-drafts",
+    "poc/uc-designs",
+    "poc/prototypes",
+    "poc/research-notes",
+    "poc/validation-reports",
 ]
-AGENT_HARNESS_SSOT_FILES = [
-    "AGENT_HARNESS.md",
-    "agent-harness.md",
-    "AGENT_GOVERNANCE.md",
-    "agent-governance.md",
-    "docs/agent-harness.md",
-    "docs/agent-governance.md",
-    "docs/agents.md",
-]
-AGENT_HARNESS_SSOT_GLOBS = [
-    "docs/*agent*harness*.md",
-    "docs/**/*agent*harness*.md",
-    "docs/*agent*governance*.md",
-    "docs/**/*agent*governance*.md",
-]
-CODE_STYLE_SSOT_FILES = [
-    ".editorconfig",
-    "STYLE.md",
-    "style.md",
-    "CODE_STYLE.md",
-    "code-style.md",
-    "docs/style.md",
-    "docs/code-style.md",
-    "docs/coding-style.md",
-]
-CODE_STYLE_SSOT_GLOBS = [
-    "docs/*style*.md",
-    "docs/**/*style*.md",
-]
+SOURCE_CODE_DIRS = ["src", "app", "client", "clients", "frontend", "web", "server", "backend", "api", "lib", "services", "packages", "apps", "cmd", "internal", "scripts", "commands", "templates"]
+TEST_CODE_DIRS = ["test", "tests", "spec", "specs", "e2e", "fixtures", "testdata", "test-results", "coverage"]
+TOOLING_DIRS = ["tools", ".codegraph", ".vscode", ".idea"]
+TOOLING_FILES = ["codegraph.json", "codegraph.yml", ".codegraph.json", ".codegraph.yml", *MCP_CONFIG_NAMES]
 
 
 def main() -> int:
@@ -344,46 +330,58 @@ def repository_evidence_lines(root: Path, state: dict[str, Any], init_options: d
     return lines
 
 
-def architecture_ssot_refs(root: Path) -> list[str]:
-    return unique_ordered(
-        [
-            *existing_paths(root, ARCHITECTURE_SSOT_FILES),
-            *bounded_glob_files(root, ARCHITECTURE_SSOT_GLOBS),
-        ]
-    )
-
-
-def engineering_ssot_refs(root: Path) -> list[str]:
-    refs = existing_paths(root, ENGINEERING_SSOT_FILES)
-    if is_repository_governance_extension_source(root):
-        refs.extend(existing_paths(root, EXTENSION_ENGINEERING_SSOT_FILES))
-    return unique_ordered(refs)
-
-
-def code_style_ssot_refs(root: Path) -> list[str]:
-    return unique_ordered(
-        [
-            *existing_paths(root, CODE_STYLE_SSOT_FILES),
-            *bounded_glob_files(root, CODE_STYLE_SSOT_GLOBS),
-        ]
-    )
-
-
-def directory_structure_ssot_refs(root: Path) -> list[str]:
-    return unique_ordered(
-        [
-            *existing_paths(root, DIRECTORY_STRUCTURE_SSOT_FILES),
-            *bounded_glob_files(root, DIRECTORY_STRUCTURE_SSOT_GLOBS),
-        ]
-    )
-
-
-def agent_harness_ssot_refs(root: Path, init_options: dict[str, Any], state: dict[str, Any]) -> list[str]:
+def agent_runtime_ssot_refs(root: Path, init_options: dict[str, Any], state: dict[str, Any]) -> list[str]:
     return unique_ordered(
         [
             *existing_context_files(root, init_options, state),
-            *existing_paths(root, AGENT_HARNESS_SSOT_FILES),
-            *bounded_glob_files(root, AGENT_HARNESS_SSOT_GLOBS),
+            *existing_dirs(root, AGENT_RUNTIME_DIRS),
+        ]
+    )
+
+
+def engineering_runtime_ssot_refs(root: Path) -> list[str]:
+    return unique_ordered(
+        [
+            *existing_paths(root, ENGINEERING_RUNTIME_FILES),
+            *existing_dirs(root, ENGINEERING_RUNTIME_DIRS),
+            *directory_files(root, ".github/workflows"),
+        ]
+    )
+
+
+def source_code_ssot_refs(root: Path) -> list[str]:
+    return unique_ordered(
+        [
+            *existing_dirs(root, SOURCE_CODE_DIRS),
+            *api_contract_paths(root),
+            *route_files(root),
+        ]
+    )
+
+
+def poc_ssot_refs(root: Path) -> list[str]:
+    return unique_ordered(
+        [
+            *existing_dirs(root, POC_DIRS),
+            *directory_files(root, "poc/validation-reports"),
+        ]
+    )
+
+
+def test_code_ssot_refs(root: Path) -> list[str]:
+    return unique_ordered(
+        [
+            *existing_dirs(root, TEST_CODE_DIRS),
+            *existing_paths(root, ["pytest.ini", "tox.ini", "vitest.config.js", "vitest.config.ts", "jest.config.js", "playwright.config.ts"]),
+        ]
+    )
+
+
+def tooling_ssot_refs(root: Path) -> list[str]:
+    return unique_ordered(
+        [
+            *existing_dirs(root, TOOLING_DIRS),
+            *existing_paths(root, TOOLING_FILES),
         ]
     )
 
@@ -428,6 +426,8 @@ def bounded_named_files(root: Path, names: list[str], max_parent_depth: int = EV
         for path in files:
             relative = path.relative_to(root)
             path_text = relative.as_posix()
+            if name.startswith(".") and "/" not in name and path_text != name:
+                continue
             if (path_text == name or path.name == name) and len(relative.parts) - 1 <= max_parent_depth:
                 matches.append(rel(root, path))
     return unique_ordered(matches)
@@ -438,9 +438,10 @@ def bounded_named_dirs(root: Path, names: list[str], max_parent_depth: int = EVI
     dirs = project_dirs(root)
     for name in names:
         for path in dirs:
-            if path.name != name:
-                continue
             relative = path.relative_to(root)
+            path_text = relative.as_posix()
+            if path_text != name and path.name != name:
+                continue
             if len(relative.parts) - 1 <= max_parent_depth:
                 matches.append(f"{rel(root, path)}/")
     return unique_ordered(matches)
@@ -792,9 +793,9 @@ def render_projection(root: Path, target: Path, state: dict[str, Any], init_opti
         "## Repository-Wide Instructions",
         f"- {style_lead(style)}",
         "- Treat this file as the active project-governance entrypoint for coding-agent work in this repository.",
-        "- Keep task reasoning grounded in source-backed repository facts, matched SSOT routes, and explicit user instructions.",
-        "- Keep edits scoped to the active task and matched path family.",
-        "- architecture methodology: owned by Architecture SSOT.",
+        "- Keep task reasoning grounded in source-backed repository facts, matched directory-tree routes, and explicit user instructions.",
+        "- Keep edits scoped to the active task and matched fixed directory tree.",
+        "- Fixed directory-tree SSOT: when a path matches `agent-runtime/`, `engineering-runtime/`, `poc/`, `source-code/`, `test-code/`, or `other-tools/`, route it to that SSOT.",
         "",
         "### Context",
         f"- Installed integrations: {', '.join(installed) if installed else 'none'}",
@@ -806,20 +807,20 @@ def render_projection(root: Path, target: Path, state: dict[str, Any], init_opti
         *authority_default(),
         "",
         "## SSOT Index",
-        *vertical_ssot_registry_default(),
+        *directory_tree_ssot_registry_default(),
         "",
         *ssot_index_lines(root, state, init_options),
         "",
         "### Missing SSOT Handling",
         *missing_ssot_handling_default(),
         "",
-        "## Path And Task Scope Rules",
+        "## Directory Tree And Task Scope Rules",
         *task_scope_rules_default(),
         "",
-        "### Directory Structure Fallback",
-        *directory_structure_fallback_default(),
+        "### Directory Tree Fallback",
+        *directory_tree_fallback_default(),
         "",
-        "## Agent Harness",
+        "## agent-runtime",
         *agent_adapter_lines(root, target, default_key),
         "",
         *mcp_default(style),
@@ -873,23 +874,28 @@ def remove_section(path: Path) -> None:
         path.write_text(updated, encoding="utf-8")
 
 
-def directory_structure_fallback_default() -> list[str]:
+def directory_tree_fallback_default() -> list[str]:
     return [
-        "- Use only when Directory Structure SSOT is missing and the task scope is explicit.",
-        "- Treat scanned repository areas as descriptive context, not as approved directory policy.",
+        "- Use only when no fixed directory-tree SSOT matches, or the matched tree has no source_refs and the task scope is explicit.",
+        "- Treat scanned repository areas as descriptive context, not as approved path policy.",
         "- Keep new or moved files aligned with existing nearby conventions unless the user supplies a different target.",
-        "- Record `NEEDS_CLARIFICATION:DIRECTORY_STRUCTURE` in handoff when placement is ambiguous.",
+        "- Record the matched `NEEDS_CLARIFICATION:<SSOT>` gap in handoff when placement is ambiguous.",
     ]
 
 
 def task_scope_rules_default() -> list[str]:
     return [
-        "- Source, API, route, runtime, infra, or dependency-boundary changes: read Architecture SSOT before planning edits.",
-        "- Build, release, CI, manifest, lockfile, command, template, or runtime configuration changes: read Engineering SSOT before edits.",
-        "- Formatting, linting, typing, testing, logging, comments, naming, or error-handling changes: read Code Style SSOT before edits.",
-        "- New files, moved files, generated assets, or directory responsibility changes: read Directory Structure SSOT before edits.",
-        "- Agent instructions, permissions, MCP, external tools, skills, validation, or failure-handling changes: read Agent Harness SSOT before edits.",
-        "- If multiple rules match, read every matched SSOT and apply the highest authority non-conflicting rule.",
+        "- Routing rule: seeing a file in one fixed directory tree classifies it as that SSOT; no match falls through to Directory Tree Fallback.",
+        "- `agent-runtime/`: `.codex/`, `.claude/`, `AGENTS.md`, `CLAUDE.md`, and other agent rule files; read `agent-runtime/` SSOT before edits.",
+        "- `engineering-runtime/`: `.github/workflows/`, Docker files, environment files, manifests, lockfiles, DevOps, infra, secrets, key, password, and permission surfaces; read `engineering-runtime/` SSOT before edits.",
+        "- `poc/`: `technical-spikes/`, `architecture-drafts/`, `uc-designs/`, `prototypes/`, `research-notes/`, and `validation-reports/`; read `poc/` SSOT before edits.",
+        "- `poc/` content is not formal implementation.",
+        "- Before editing `source-code/` from POC work, create or cite a formal design or task; implement from that artifact, not by copying experimental code directly.",
+        "- POC conclusions must include validation record source_refs under `poc/validation-reports/`; otherwise record `NEEDS_CLARIFICATION:poc-validation-record` in handoff.",
+        "- `source-code/`: `src/`, `app/`, `client/`, `server/`, `api/`, `lib/`, `services/`, `scripts/`, `commands/`, and `templates/`; read `source-code/` SSOT before edits.",
+        "- `test-code/`: `tests/`, `test/`, `e2e/`, `fixtures/`, `testdata/`, `test-results/`, and `coverage/`; read `test-code/` SSOT before edits.",
+        "- `other-tools/`: `tools/`, `.codegraph/`, MCP config files, `.vscode/`, and `.idea/`; read `other-tools/` SSOT before edits.",
+        "- If multiple trees match, read every matched SSOT and apply the highest authority non-conflicting rule.",
     ]
 
 
@@ -897,13 +903,14 @@ def development_commands_default() -> list[str]:
     return ["- none recorded"]
 
 
-def vertical_ssot_registry_default() -> list[str]:
+def directory_tree_ssot_registry_default() -> list[str]:
     return [
-        "- Architecture SSOT: owns architecture boundaries, interfaces, dependencies, runtime constraints, deployment assumptions, and scenario-level architecture decisions.",
-        "- Engineering SSOT: owns branch, version, release, CI/CD, collaboration process, standard tools, command entrypoints, configuration templates, and execution constraints.",
-        "- Code Style SSOT: owns naming, formatting, comments, error handling, logging, tests, and quality standards.",
-        "- Directory Structure SSOT: owns directory layout, file placement, module organization, and configuration locations.",
-        "- Agent Harness SSOT: owns agent task boundaries, tool usage, permissions, audit, validation, and failure handling.",
+        "- `agent-runtime/`: `.codex/`, `.claude/`, `AGENTS.md`, `CLAUDE.md`, and other agent rule files.",
+        "- `engineering-runtime/`: `.github/workflows/`, Docker files, environment files, manifests, lockfiles, DevOps, infra, and secrets/key/password configuration surfaces.",
+        "- `poc/`: pre-iteration exploration for technical spikes, architecture drafts, UC designs, prototypes, research notes, validation reports, and validation conclusions.",
+        "- `source-code/`: client, server, API, route, library, service, script, command, and template code.",
+        "- `test-code/`: test code, fixtures, prepared data, test resources, reports, and test conclusions.",
+        "- `other-tools/`: `tools/`, `.codegraph/`, MCP config files, `.vscode/`, `.idea/`, and auxiliary tool settings.",
     ]
 
 
@@ -916,11 +923,12 @@ def ssot_index_lines(root: Path, state: dict[str, Any], init_options: dict[str, 
 
 def ssot_index_data(root: Path, state: dict[str, Any], init_options: dict[str, Any]) -> list[tuple[str, list[str]]]:
     return [
-        ("Architecture", architecture_ssot_refs(root)),
-        ("Engineering", engineering_ssot_refs(root)),
-        ("Code Style", code_style_ssot_refs(root)),
-        ("Directory Structure", directory_structure_ssot_refs(root)),
-        ("Agent Harness", agent_harness_ssot_refs(root, init_options, state)),
+        ("agent-runtime", agent_runtime_ssot_refs(root, init_options, state)),
+        ("engineering-runtime", engineering_runtime_ssot_refs(root)),
+        ("poc", poc_ssot_refs(root)),
+        ("source-code", source_code_ssot_refs(root)),
+        ("test-code", test_code_ssot_refs(root)),
+        ("other-tools", tooling_ssot_refs(root)),
     ]
 
 
@@ -928,7 +936,7 @@ def ssot_index_entry(name: str, refs: list[str]) -> list[str]:
     status = "indexed" if refs else "missing"
     gap = "none" if refs else ssot_gap_code(name)
     return [
-        f"- {name} SSOT index:",
+        f"- `{name}/` SSOT index:",
         f"  - status: {status}",
         f"  - source_refs: {format_index_refs(refs)}",
         f"  - gap: {gap}",
@@ -936,12 +944,12 @@ def ssot_index_entry(name: str, refs: list[str]) -> list[str]:
 
 
 def ssot_gap_code(name: str) -> str:
-    return f"NEEDS_CLARIFICATION:{name.replace(' ', '_').upper()}"
+    return f"NEEDS_CLARIFICATION:{name}"
 
 
 def missing_ssot_handling_default() -> list[str]:
     return [
-        "- If a vertical SSOT is missing or incomplete, treat repository evidence as descriptive context only.",
+        "- If a fixed directory-tree SSOT is missing or incomplete, treat repository evidence as descriptive context only.",
         "- Before changing a surface governed by missing SSOT, ask for clarification or record `NEEDS_CLARIFICATION:<SSOT>` in handoff.",
         "- Use existing code and config facts for narrow edits only when task scope and validation are explicit.",
         "- Do not invent repository policy from descriptive repository evidence.",
@@ -952,22 +960,22 @@ def authority_default() -> list[str]:
     return [
         "1. Current user instruction",
         "2. Safety and permission constraints",
-        "3. Vertical SSOT documents",
+        "3. Fixed directory-tree SSOT documents",
         "4. Current repository code and configuration facts",
         "5. Active `PROJECT GOVERNANCE` projection",
         "6. Tests and CI results",
         "7. Historical documents",
         "8. Explicit assumptions for reversible local edits",
-        "- Active projection is generated routing guidance and is subordinate to explicit vertical SSOT documents or source-backed repository facts on substantive conflicts.",
+        "- Active projection is generated routing guidance and is subordinate to explicit fixed directory-tree SSOT documents or source-backed repository facts on substantive conflicts.",
     ]
 
 
 def repository_workflow_default() -> list[str]:
     return [
-        "- Classify task type and path family before changing files.",
-        "- Read every SSOT route matched by Path And Task Scope Rules.",
+        "- Classify task type and fixed directory tree before changing files.",
+        "- Read every SSOT route matched by Directory Tree And Task Scope Rules.",
         "- Use SSOT Index source_refs as entrypoints, not as replacement content for the referenced sources.",
-        "- Run validation commands from explicit Engineering SSOT instructions or user direction when they match the changed surface.",
+        "- Run validation commands from explicit `engineering-runtime/` SSOT instructions or user direction when they match the changed surface.",
         "- Scope: active task only.",
         "- Preserve: user-authored edits.",
         "- Protected files: implementation paths, CI configuration, MCP configuration, secrets, permissions, tool settings, and arbitrary repository paths outside the resolved write surface.",
@@ -1036,7 +1044,7 @@ def mcp_default(style: str) -> list[str]:
 
 def skill_default(style: str) -> list[str]:
     return [
-        "- Repository-local skills are evidence only unless an explicit Agent Harness SSOT source names them.",
+        "- Repository-local skills are evidence only unless an explicit `agent-runtime/` SSOT source names them.",
         "- Read matching repository-local `SKILL.md` before planning or editing.",
         "- Treat skill scope declarations as task-local constraints.",
         "- If a matching skill lacks scope or validation guidance, ask for clarification before expanding writes.",

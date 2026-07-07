@@ -30,6 +30,6 @@ $ARGUMENTS
 - active agent platform target
 - generated or updated
 - review target
-- SSOT content index summary
+- fixed directory-tree SSOT index summary
 - descriptive evidence scan summary
 - unresolved risks or clarification needs

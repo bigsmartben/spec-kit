@@ -1,10 +1,10 @@
-﻿schema_version: "1.0"
+schema_version: "1.0"
 
 extension:
   id: intake
   name: "Intake"
-  version: "0.1.5"
-  description: "Normalize PRD, visual design/spec packages, preview evidence, and test-case evidence into SDD-ready intake artifacts"
+  version: "0.2.0"
+  description: "Normalize PRD, visual design, final static HTML delivery, and test-case evidence into SDD-ready intake artifacts"
   author: "bigsmartben"
   repository: "https://github.com/bigsmartben/spec-kit-intake"
   homepage: "https://github.com/bigsmartben/spec-kit-intake"
@@ -22,7 +22,7 @@ provides:
   commands:
     - name: "speckit.intake.visual-design"
       file: "commands/speckit.intake.visual-design.md"
-      description: "Capture or validate visual design evidence, Figma-backed resources, visual requirements, and structured visual spec packages for the active feature"
+      description: "Orchestrate visual design intake into source-backed visual IR, user-confirmed operation replay, and final static HTML delivery"
     - name: "speckit.intake.prd"
       file: "commands/speckit.intake.prd.md"
       description: "Capture or validate PRD evidence and normalize product intent, scope, rules, and acceptance inputs for SDD workflows"
@@ -40,8 +40,8 @@ hooks:
   before_specify:
     command: "speckit.intake.visual-design"
     optional: true
-    prompt: "Validate visual design intake evidence before downstream SDD projection?"
-    description: "Checks visual design intake readiness before downstream workflows project source evidence"
+    prompt: "Validate visual design static HTML delivery evidence before downstream SDD projection?"
+    description: "Checks visual intake and static HTML delivery readiness before downstream workflows project source evidence"
 
 tags:
   - "intake"
@@ -49,13 +49,14 @@ tags:
   - "requirements"
   - "validation"
   - "figma"
+  - "static-html"
 
 defaults:
   artifacts:
     base_dir: "specs/{feature}/intake"
     visual_design_dir: "visual-design"
-    previews_dir: "previews"
-    visual_spec_package_dir: "visual-spec-package"
+    visual_ir_dir: "visual-ir"
+    static_html_delivery_dir: "delivery"
     prd_dir: "prd"
     test_cases_dir: "test-cases"
     prd_source_manifest: "source-manifest.yaml"
@@ -65,29 +66,30 @@ defaults:
     prd_intake: "prd-intake.yaml"
     visual_requirements: "visual-requirements.yaml"
     test_case_intake: "test-case-intake.yaml"
-    preview_html: "preview.html"
-    component_coverage: "component-coverage.yaml"
-    viewport_coverage: "viewport-coverage.yaml"
-    visual_previews_known_gaps: "known-gaps.md"
-    visual_previews_screenshots_dir: "screenshots"
+    static_html_entry: "index.html"
+    static_html_assets_dir: "assets"
+    static_html_screenshots_dir: "screenshots"
+    static_html_render_replay_report: "render-replay-report.yaml"
+    static_html_evidence_packet: "evidence-packet.md"
+    visual_ir_asset_inventory: "asset-inventory.yaml"
+    visual_ir_layout_tree: "layout-tree.yaml"
+    visual_ir_component_model: "component-model.yaml"
+    visual_ir_page_route_model: "page-route-model.yaml"
+    visual_ir_interaction_model: "interaction-model.yaml"
+    visual_ir_motion_anchor_model: "motion-anchor-model.yaml"
+    visual_ir_clarification_log: "clarification-log.yaml"
     intake_validator_common: "scripts/python/intake_validator_common.py"
     prd_validator: "scripts/python/validate_prd_intake.py"
     test_cases_validator: "scripts/python/validate_test_cases_intake.py"
     visual_design_validator: "scripts/python/validate_visual_design_intake.py"
     figma_metadata_capture_script: "scripts/python/capture_figma_metadata_shards.py"
     figma_layout_normalization_script: "scripts/python/normalize_figma_layout.py"
-    visual_previews_validator: "scripts/python/validate_visual_previews.py"
-    visual_spec_package: "visual-spec.yaml"
-    visual_spec_assertions: "visual-spec-assertions.yaml"
-    visual_spec_package_evidence_packet: "visual-spec-evidence-packet.md"
-    visual_spec_package_validator: "scripts/python/validate_visual_spec_package.py"
+    static_html_delivery_validator: "scripts/python/validate_static_html_delivery.py"
     prd_contract: "templates/intake-prd-contract.md"
     prd_evidence_packet_template: "templates/intake-prd-evidence-packet-template.md"
     visual_design_contract: "templates/intake-visual-design-contract.md"
     visual_design_evidence_packet_template: "templates/intake-visual-design-evidence-packet-template.md"
-    visual_previews_contract: "templates/intake-visual-previews-contract.md"
-    visual_spec_package_contract: "templates/intake-visual-spec-package-contract.md"
-    visual_spec_package_evidence_packet_template: "templates/intake-visual-spec-package-evidence-packet-template.md"
+    static_html_delivery_contract: "templates/intake-static-html-delivery-contract.md"
     test_cases_contract: "templates/intake-test-cases-contract.md"
     test_cases_evidence_packet_template: "templates/intake-test-cases-evidence-packet-template.md"
     schemas_dir: "templates/schemas"
@@ -100,10 +102,7 @@ defaults:
     figma_metadata_index_schema: "templates/schemas/figma-metadata-index.schema.json"
     figma_node_inventory_schema: "templates/schemas/figma-node-inventory.schema.json"
     figma_normalized_tree_schema: "templates/schemas/figma-normalized-tree.schema.json"
-    component_coverage_schema: "templates/schemas/component-coverage.schema.json"
-    viewport_coverage_schema: "templates/schemas/viewport-coverage.schema.json"
-    visual_spec_package_schema: "templates/schemas/visual-spec-package.schema.json"
-    visual_spec_assertions_schema: "templates/schemas/visual-spec-assertions.schema.json"
+    static_html_delivery_schema: "templates/schemas/static-html-delivery.schema.json"
     metadata_glob: "figma-metadata.part-*.xml"
     metadata_index: "figma-metadata.index.yaml"
     node_inventory: "figma-node-inventory.yaml"
@@ -131,12 +130,6 @@ defaults:
       - "high"
     require_source_integrity: true
     require_visual_requirements: true
-    require_visual_spec_package: true
-    require_visual_spec_package_source_refs: true
-    require_visual_spec_package_provider_evidence: true
-    require_visual_spec_package_ci_assertions: true
-    require_visual_spec_package_provider_product_gap_separation: true
-    require_visual_preview_ia_matrix_interactions: true
     require_visual_source_refs: true
     require_fidelity_rules_applied: true
     require_visual_parity_plan: true
@@ -147,6 +140,13 @@ defaults:
     require_figma_layout_normalization_for_figma: true
     require_figma_layout_normalization_node_coverage_for_figma: "100%"
     require_bounded_inference_for_visual_claims: true
+    require_static_html_delivery: true
+    require_static_html_visual_ir: true
+    require_static_html_operation_replay: true
+    require_static_html_motion_anchors: true
+    require_static_html_viewport_screenshots: true
+    require_static_html_visual_diff: true
+    require_static_html_clarification_resolution: true
     fail_on_unbounded_inference_for_figma: true
     fail_on_unsupported_visual_claims: true
     fail_on_blocker_lint_errors: true
@@ -161,5 +161,5 @@ defaults:
     figma_layout_normalization_mode: "derived_from_verified_metadata"
     preserve_raw_metadata: true
     reject_truncated_metadata_shards: true
-    allow_screenshot_only_intake: true
-    default_screenshot_level: "L0"
+    allow_screenshot_only_intake: false
+    default_screenshot_level: "source_blocked_until_delivery_validation"

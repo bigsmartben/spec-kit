@@ -66,7 +66,7 @@ specify init my-project --integration codex --ignore-agent-tools
 | 自动扩展 | `agent-context` | `extensions/agent-context` | 维护 AGENTS、CLAUDE、Copilot 等 agent context 文件里的 Spec Kit 受管段。 |
 | 默认扩展 | `arch` | `extensions/arch` | 生成或反向生成面向 `/speckit.plan` 的架构规划契约。 |
 | 默认扩展 | `discovery` | `extensions/discovery` | 在正式计划前做可行性、技术选型、旧代码评估、接口理解、PoC 和场景化技术决策。 |
-| 默认扩展 | `intake` | `extensions/intake` | 把 PRD、设计稿、Figma、视觉规格资产包、preview 覆盖证据、测试用例等来源归一化为 SDD 可消费的证据包。 |
+| 默认扩展 | `intake` | `extensions/intake` | 把 PRD、设计稿、Figma、最终静态 HTML 交付、测试用例等来源归一化为 SDD 可消费的证据包。 |
 | 默认扩展 | `preview` | `extensions/preview` | 从规格和计划生成低、中、高保真 Markdown 或自包含 HTML 预览。 |
 | 默认扩展 | `repository-governance` | `extensions/repository-governance` | 生成仓库治理 SSOT，帮助 agent 明确目录责任、读取顺序和事实证据。 |
 | 默认预设 | `workflow-preset` | `presets/workflow-preset` | 强化 BDD、NFR、UIF、设计产物、任务验证策略和 implement handoff 编排。 |
@@ -140,7 +140,7 @@ specify init my-project --integration codex --ignore-agent-tools
 
 - PRD、产品说明、Markdown、PDF、导出的文档。
 - 图片、线框图、设计 PDF、Figma 文件、Figma 页面或节点。
-- 视觉规格结构化资产包，以及 Figma 派生的组件矩阵 preview 覆盖证据。
+- 设计稿派生的视觉 IR、操作回放、动效锚点、视口截图和最终静态 HTML 交付证据。
 - 既有测试、Gherkin、手工测试用例、QA 导出、测试管理表格。
 
 主要产物：
@@ -148,8 +148,8 @@ specify init my-project --integration codex --ignore-agent-tools
 ```text
 specs/<feature>/intake/prd/
 specs/<feature>/intake/visual-design/
-specs/<feature>/intake/visual-design/visual-spec-package/
-specs/<feature>/intake/visual-design/previews/
+specs/<feature>/intake/visual-design/visual-ir/
+specs/<feature>/intake/visual-design/delivery/
 specs/<feature>/intake/test-cases/
 ```
 

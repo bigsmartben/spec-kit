@@ -1,0 +1,240 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://spec-kit-intake.local/schemas/static-html-delivery.schema.json",
+  "title": "Static HTML Delivery Render Replay Report",
+  "type": "object",
+  "required": [
+    "ready_gate",
+    "blockers",
+    "html_entry",
+    "source_intake_ref",
+    "visual_ir_refs",
+    "assets",
+    "pages",
+    "components",
+    "operations",
+    "motion_anchors",
+    "viewports",
+    "visual_diffs",
+    "clarifications"
+  ],
+  "properties": {
+    "ready_gate": { "enum": ["PASS", "BLOCKED"] },
+    "blockers": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/blocker_code" }
+    },
+    "html_entry": { "type": "string", "minLength": 1 },
+    "source_intake_ref": { "type": "string", "minLength": 1 },
+    "visual_ir_refs": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "assets": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/asset_record" }
+    },
+    "pages": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/page_record" }
+    },
+    "components": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/component_record" }
+    },
+    "operations": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/operation_record" }
+    },
+    "motion_anchors": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/motion_record" }
+    },
+    "viewports": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/viewport_record" }
+    },
+    "visual_diffs": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/visual_diff_record" }
+    },
+    "clarifications": {
+      "type": "object",
+      "required": [
+        "required_question_count",
+        "answered_required_question_count",
+        "unanswered_required_question_ids"
+      ],
+      "properties": {
+        "required_question_count": { "type": "integer", "minimum": 0 },
+        "answered_required_question_count": { "type": "integer", "minimum": 0 },
+        "unanswered_required_question_ids": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        }
+      },
+      "additionalProperties": true
+    }
+  },
+  "$defs": {
+    "blocker_code": {
+      "enum": [
+        "STATIC_HTML_SOURCE_INTAKE_BLOCKED",
+        "STATIC_HTML_REQUIRED_ARTIFACT_MISSING",
+        "STATIC_HTML_SCHEMA_INVALID",
+        "STATIC_HTML_IR_BLOCKED",
+        "STATIC_HTML_CLARIFICATION_REQUIRED",
+        "STATIC_HTML_ASSET_INCOMPLETE",
+        "STATIC_HTML_LAYOUT_INCOMPLETE",
+        "STATIC_HTML_COMPONENT_STATE_INCOMPLETE",
+        "STATIC_HTML_PAGE_ROUTE_INCOMPLETE",
+        "STATIC_HTML_OPERATION_REPLAY_INCOMPLETE",
+        "STATIC_HTML_MOTION_ANCHOR_INCOMPLETE",
+        "STATIC_HTML_VIEWPORT_CAPTURE_INCOMPLETE",
+        "STATIC_HTML_VISUAL_DIFF_BLOCKED",
+        "STATIC_HTML_READY_WITHOUT_EVIDENCE"
+      ]
+    },
+    "status": {
+      "enum": ["covered", "blocked", "out_of_scope"]
+    },
+    "source_refs": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "not": {
+          "pattern": "(delivery/index\\.html|screenshots/|visual-diff|diff-output|evidence-packet\\.md)"
+        }
+      }
+    },
+    "asset_record": {
+      "type": "object",
+      "required": ["id", "inventory_ref", "html_refs", "local_paths", "source_refs", "status", "blockers"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "inventory_ref": { "type": "string", "minLength": 1 },
+        "html_refs": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+        "local_paths": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+        "source_refs": { "$ref": "#/$defs/source_refs" },
+        "status": { "$ref": "#/$defs/status" },
+        "blockers": { "type": "array", "items": { "$ref": "#/$defs/blocker_code" } }
+      },
+      "additionalProperties": true
+    },
+    "page_record": {
+      "type": "object",
+      "required": ["id", "route", "html_ref", "state_refs", "layout_refs", "source_refs", "status", "blockers"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "route": { "type": "string", "minLength": 1 },
+        "html_ref": { "type": "string", "minLength": 1 },
+        "state_refs": { "type": "array", "minItems": 1 },
+        "layout_refs": { "type": "array", "minItems": 1 },
+        "source_refs": { "$ref": "#/$defs/source_refs" },
+        "status": { "$ref": "#/$defs/status" },
+        "blockers": { "type": "array", "items": { "$ref": "#/$defs/blocker_code" } }
+      },
+      "additionalProperties": true
+    },
+    "component_record": {
+      "type": "object",
+      "required": ["id", "component_model_ref", "html_ref", "state_refs", "operation_refs", "source_refs", "status", "blockers"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "component_model_ref": { "type": "string", "minLength": 1 },
+        "html_ref": { "type": "string", "minLength": 1 },
+        "state_refs": { "type": "array", "minItems": 1 },
+        "operation_refs": { "type": "array" },
+        "source_refs": { "$ref": "#/$defs/source_refs" },
+        "status": { "$ref": "#/$defs/status" },
+        "blockers": { "type": "array", "items": { "$ref": "#/$defs/blocker_code" } }
+      },
+      "additionalProperties": true
+    },
+    "operation_record": {
+      "type": "object",
+      "required": [
+        "id",
+        "interaction_model_ref",
+        "event",
+        "target_ref",
+        "result_ref",
+        "precondition",
+        "replay_status",
+        "source_refs",
+        "blockers"
+      ],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "interaction_model_ref": { "type": "string", "minLength": 1 },
+        "event": { "type": "string", "minLength": 1 },
+        "target_ref": { "type": "string", "minLength": 1 },
+        "result_ref": { "type": "string", "minLength": 1 },
+        "precondition": { "type": "string", "minLength": 1 },
+        "replay_status": { "enum": ["pass", "blocked", "not_applicable"] },
+        "source_refs": { "$ref": "#/$defs/source_refs" },
+        "blockers": { "type": "array", "items": { "$ref": "#/$defs/blocker_code" } }
+      },
+      "additionalProperties": true
+    },
+    "motion_record": {
+      "type": "object",
+      "required": [
+        "id",
+        "motion_model_ref",
+        "trigger_ref",
+        "affected_ref",
+        "end_state_ref",
+        "replay_status",
+        "source_refs",
+        "blockers"
+      ],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "motion_model_ref": { "type": "string", "minLength": 1 },
+        "trigger_ref": { "type": "string", "minLength": 1 },
+        "affected_ref": { "type": "string", "minLength": 1 },
+        "end_state_ref": { "type": "string", "minLength": 1 },
+        "replay_status": { "enum": ["pass", "blocked", "not_applicable"] },
+        "source_refs": { "$ref": "#/$defs/source_refs" },
+        "blockers": { "type": "array", "items": { "$ref": "#/$defs/blocker_code" } }
+      },
+      "additionalProperties": true
+    },
+    "viewport_record": {
+      "type": "object",
+      "required": ["id", "width", "height", "page_refs", "screenshot_refs", "render_status", "blockers"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "width": { "type": "integer", "minimum": 1 },
+        "height": { "type": "integer", "minimum": 1 },
+        "page_refs": { "type": "array", "minItems": 1 },
+        "screenshot_refs": { "type": "array", "minItems": 1 },
+        "render_status": { "enum": ["pass", "blocked"] },
+        "blockers": { "type": "array", "items": { "$ref": "#/$defs/blocker_code" } }
+      },
+      "additionalProperties": true
+    },
+    "visual_diff_record": {
+      "type": "object",
+      "required": ["id", "source_ref", "screenshot_ref", "status", "thresholds", "diff_summary", "blockers"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "source_ref": { "type": "string", "minLength": 1 },
+        "screenshot_ref": { "type": "string", "minLength": 1 },
+        "status": { "enum": ["pass", "blocked"] },
+        "thresholds": { "type": "object" },
+        "diff_summary": { "type": "object" },
+        "blockers": { "type": "array", "items": { "$ref": "#/$defs/blocker_code" } }
+      },
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": true
+}

@@ -50,10 +50,9 @@ def is_supporting_visual_artifact_ref(value: Any) -> bool:
     supporting_markers = (
         "visual-evidence-packet.md",
         "figma-evidence-packet.md",
-        "visual-spec-evidence-packet.md",
-        "preview.html",
-        "/previews/",
-        "previews/",
+        "delivery/index.html",
+        "/delivery/",
+        "delivery/",
         "/screenshots/",
         "screenshots/",
         "visual-diff",

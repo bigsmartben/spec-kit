@@ -13,8 +13,7 @@ ROOT = Path(__file__).resolve().parents[1]
 VALIDATOR = ROOT / "scripts" / "python" / "validate_visual_design_intake.py"
 PRD_VALIDATOR = ROOT / "scripts" / "python" / "validate_prd_intake.py"
 TEST_CASE_VALIDATOR = ROOT / "scripts" / "python" / "validate_test_cases_intake.py"
-VISUAL_PREVIEWS_VALIDATOR = ROOT / "scripts" / "python" / "validate_visual_previews.py"
-VISUAL_SPEC_PACKAGE_VALIDATOR = ROOT / "scripts" / "python" / "validate_visual_spec_package.py"
+STATIC_HTML_DELIVERY_VALIDATOR = ROOT / "scripts" / "python" / "validate_static_html_delivery.py"
 FIGMA_METADATA_CAPTURE = ROOT / "scripts" / "python" / "capture_figma_metadata_shards.py"
 FIGMA_LAYOUT_NORMALIZE = ROOT / "scripts" / "python" / "normalize_figma_layout.py"
 
@@ -416,210 +415,182 @@ def write_image_visual_intake_fixture(intake: Path):
     write_visual_intake_fixture(intake, "image", "low", "wireframe.png")
 
 
-def write_visual_previews_fixture(html_dir: Path):
-    visual_intake = html_dir.parent
-    write_visual_spec_package_fixture(visual_intake / "visual-spec-package")
-    html_dir.mkdir(parents=True, exist_ok=True)
-    screenshots = html_dir / "screenshots"
+def write_static_html_delivery_fixture(delivery_dir: Path):
+    visual_intake = delivery_dir.parent
+    write_visual_intake_fixture(visual_intake, "figma", "high", "figma-source.txt")
+    write_figma_metadata_fixture(visual_intake)
+    ir_dir = visual_intake / "visual-ir"
+    ir_dir.mkdir(parents=True, exist_ok=True)
+    delivery_dir.mkdir(parents=True, exist_ok=True)
+    assets = delivery_dir / "assets"
+    screenshots = delivery_dir / "screenshots"
+    assets.mkdir(exist_ok=True)
     screenshots.mkdir(exist_ok=True)
+    (assets / "logo.svg").write_text("<svg xmlns=\"http://www.w3.org/2000/svg\" />\n", encoding="utf-8")
     (screenshots / "home-desktop.png").write_bytes(b"fake-png")
 
-    (html_dir / "preview.html").write_text(
-        '<main>'
-        '<section id="home-page" data-preview-id="home-page" data-preview-section="mock-page" '
-        'data-figma-node-id="1" data-spec-role="home-page">'
-        '<header>Home</header>'
-        '<button id="button-md-primary-default" data-preview-id="button-md-primary-default" '
-        'data-preview-kind="component-state" data-figma-node-id="2" '
-        'data-acceptance-unit="component-state">Save</button>'
+    ir_common = "ready_gate: PASS\nblockers: []\n"
+    (ir_dir / "asset-inventory.yaml").write_text(
+        ir_common
+        + "assets:\n"
+        + "  - id: asset-logo\n"
+        + "    source_refs: [figma://node/asset-logo]\n"
+        + "    local_path: ../delivery/assets/logo.svg\n",
+        encoding="utf-8",
+    )
+    (ir_dir / "layout-tree.yaml").write_text(
+        ir_common
+        + "boxes:\n"
+        + "  - id: box-home\n"
+        + "    source_refs: [figma://node/1]\n",
+        encoding="utf-8",
+    )
+    (ir_dir / "component-model.yaml").write_text(
+        ir_common
+        + "components:\n"
+        + "  - id: cmp-save\n"
+        + "    states: [default, submitted]\n"
+        + "    source_refs: [figma://node/2]\n",
+        encoding="utf-8",
+    )
+    (ir_dir / "page-route-model.yaml").write_text(
+        ir_common
+        + "pages:\n"
+        + "  - id: page-home\n"
+        + "    route: /\n"
+        + "    source_refs: [figma://node/1]\n",
+        encoding="utf-8",
+    )
+    (ir_dir / "interaction-model.yaml").write_text(
+        ir_common
+        + "operations:\n"
+        + "  - id: op-save\n"
+        + "    event: click\n"
+        + "    target_ref: delivery/index.html#save-button\n"
+        + "    result_ref: delivery/index.html#save-result\n",
+        encoding="utf-8",
+    )
+    (ir_dir / "motion-anchor-model.yaml").write_text(
+        ir_common
+        + "motion_anchors:\n"
+        + "  - id: motion-save-feedback\n"
+        + "    trigger_ref: delivery/index.html#save-button\n"
+        + "    affected_ref: delivery/index.html#save-result\n"
+        + "    end_state_ref: delivery/index.html#save-result\n",
+        encoding="utf-8",
+    )
+    (ir_dir / "clarification-log.yaml").write_text(
+        ir_common + "questions: []\n",
+        encoding="utf-8",
+    )
+
+    (delivery_dir / "index.html").write_text(
+        '<main data-delivery-root>'
+        '<section data-page-id="page-home" data-route-id="route-home" data-visual-id="box-home">'
+        '<img data-visual-id="asset-logo" src="assets/logo.svg" alt="Logo">'
+        '<button id="save-button" data-component-id="cmp-save" data-state-id="cmp-save-default" '
+        'data-operation-id="op-save" data-motion-id="motion-save-feedback">Save</button>'
+        '<output id="save-result" data-state-id="cmp-save-submitted" aria-live="polite">Saved</output>'
         "</section>"
-        '<section data-preview-section="ia-matrix-overview">IA matrix overview</section>'
-        '<section id="home-page-states" data-preview-id="home-page-states" '
-        'data-preview-section="page-state-enumeration" data-figma-node-id="1" data-spec-role="home-page">'
-        '<div id="home-page-default" data-preview-id="home-page-default">Home default state</div>'
-        "</section>"
-        '<table id="home-page-ia" data-preview-id="home-page-ia" data-preview-section="page-ia-matrix">'
-        '<tr data-interaction-id="home-page-save-click">'
-        '<td data-page-ia-field="page_region">header</td>'
-        '<td data-page-ia-field="visual_state">default</td>'
-        '<td data-page-ia-field="user_event">click Save</td>'
-        '<td data-page-ia-field="precondition">button enabled</td>'
-        '<td data-page-ia-field="system_response">submit action is requested</td>'
-        '<td data-page-ia-field="state_change">default to submitted</td>'
-        '<td data-page-ia-field="transition_or_overlay">none</td>'
-        '<td data-page-ia-field="exception_branch">blocked state remains missing when unsupported</td>'
-        '<td data-page-ia-field="evidence_ref">figma://node/2</td>'
-        '<td data-page-ia-field="coverage_status">covered</td>'
-        "</tr>"
-        "</table>"
-        '<section id="button-states" data-preview-id="button-states" data-preview-section="component-state-enumeration">'
-        '<div data-preview-id="button-md-primary-default-state">Save button default state</div>'
-        "</section>"
-        '<table id="button-ia" data-preview-id="button-ia" data-preview-section="component-ia-matrix">'
-        '<tr data-interaction-id="button-md-primary-default-click">'
-        '<td data-component-ia-field="component_state">default</td>'
-        '<td data-component-ia-field="visible_elements">Save label</td>'
-        '<td data-component-ia-field="action_target">button</td>'
-        '<td data-component-ia-field="user_event">click</td>'
-        '<td data-component-ia-field="precondition">enabled</td>'
-        '<td data-component-ia-field="immediate_feedback">pressed visual feedback</td>'
-        '<td data-component-ia-field="state_change">default to submitted</td>'
-        '<td data-component-ia-field="affected_surface">home page</td>'
-        '<td data-component-ia-field="disabled_or_error_rule">unsupported states remain missing</td>'
-        '<td data-component-ia-field="evidence_ref">figma://node/2</td>'
-        '<td data-component-ia-field="coverage_status">covered</td>'
-        "</tr>"
-        "</table>"
-        '<section id="coverage-evidence-conclusion" data-preview-id="coverage-evidence-conclusion" '
-        'data-preview-section="coverage-evidence-conclusion">Coverage evidence conclusion</section>'
         "</main>",
         encoding="utf-8",
     )
-    (html_dir / "component-coverage.yaml").write_text(
+    (delivery_dir / "render-replay-report.yaml").write_text(
         "\n".join(
             [
                 "ready_gate: PASS",
                 "blockers: []",
+                "html_entry: index.html",
+                "source_intake_ref: ../visual-requirements.yaml",
+                "visual_ir_refs:",
+                "  - ../visual-ir/asset-inventory.yaml",
+                "  - ../visual-ir/layout-tree.yaml",
+                "  - ../visual-ir/component-model.yaml",
+                "  - ../visual-ir/page-route-model.yaml",
+                "  - ../visual-ir/interaction-model.yaml",
+                "  - ../visual-ir/motion-anchor-model.yaml",
+                "  - ../visual-ir/clarification-log.yaml",
+                "assets:",
+                "  - id: asset-logo",
+                "    inventory_ref: ../visual-ir/asset-inventory.yaml#asset-logo",
+                "    html_refs: [index.html#asset-logo]",
+                "    local_paths: [assets/logo.svg]",
+                "    source_refs: [figma://node/asset-logo]",
+                "    status: covered",
+                "    blockers: []",
+                "pages:",
+                "  - id: page-home",
+                "    route: /",
+                "    html_ref: index.html#page-home",
+                "    state_refs: [../visual-ir/page-route-model.yaml#page-home]",
+                "    layout_refs: [../visual-ir/layout-tree.yaml#box-home]",
+                "    source_refs: [figma://node/1]",
+                "    status: covered",
+                "    blockers: []",
                 "components:",
-                "  - id: component-button",
-                "    source_ref: figma://node/button-set",
-                "    name: Button",
-                "    required_dimensions:",
-                "      size: [md]",
-                "      tone: [primary]",
-                "      state: [default]",
-                "      icon: [none]",
-                "    covered:",
-                "      - size: md",
-                "        tone: primary",
-                "        state: default",
-                "        icon: none",
-                "        source_ref: figma://node/2",
-                "        visual_spec_ref: ../visual-spec-package/visual-spec.yaml#VS-home-save-default",
-                "        preview_ref: preview.html#button-md-primary-default",
-                "        interaction_ref: preview.html#button-md-primary-default-click",
-                "        screenshot_refs:",
-                "          - screenshots/home-desktop.png",
-                "    missing: []",
-                "",
-            ]
-        ),
-        encoding="utf-8",
-    )
-    (html_dir / "viewport-coverage.yaml").write_text(
-        "ready_gate: PASS\n"
-        "blockers: []\n"
-        "viewports:\n"
-        "  - id: desktop\n"
-        "    width: 1440\n"
-        "    height: 900\n"
-        "    covered: true\n"
-        "    source_refs:\n"
-        "      - figma://node/1\n"
-        "    visual_spec_refs:\n"
-        "      - ../visual-spec-package/visual-spec.yaml#VS-home-save-default\n"
-        "    page_refs:\n"
-        "      - preview.html#home-page\n"
-        "    screenshot_refs:\n"
-        "      - screenshots/home-desktop.png\n"
-        "    visual_diff_status: pass\n",
-        encoding="utf-8",
-    )
-    (html_dir / "known-gaps.md").write_text("# Known Gaps\n\nNone.\n", encoding="utf-8")
-
-
-def write_visual_spec_package_fixture(package_dir: Path):
-    visual_intake = package_dir.parent
-    write_visual_intake_fixture(visual_intake, "figma", "high", "figma-source.txt")
-    write_figma_metadata_fixture(visual_intake)
-    package_dir.mkdir(parents=True, exist_ok=True)
-
-    (package_dir / "visual-spec.yaml").write_text(
-        "\n".join(
-            [
-                "visual_spec_package_complete: true",
-                "visual_spec_item_count: 1",
-                "source_refs_complete: true",
-                "provider_evidence_complete: true",
-                "resources_traceable_to_design_source: true",
-                "product_ambiguities_recorded: true",
-                "downstream_ownership_free: true",
-                "product_ambiguities: []",
-                "blocker_lint_errors: []",
-                "items:",
-                "  - id: VS-home-save-default",
-                "    source_refs:",
-                "      - figma://node/2",
-                "    visual_requirement_refs:",
-                "      - ../visual-requirements.yaml#VR-001",
-                "    preview_refs:",
-                "      - ../previews/preview.html#button-md-primary-default",
-                "      - ../previews/component-coverage.yaml#component-button",
-                "    page: home",
-                "    region: header",
-                "    role: button",
-                "    state: default",
-                "    viewport: desktop",
-                "    locator:",
-                "      strategy: role",
-                "      value: button[name='Save']",
-                "      implementation_owned: false",
-                "    expectations:",
-                "      dom:",
-                "        - button element is present",
-                "      aria:",
-                "        - accessible name is Save",
-                "      design_tokens:",
-                "        - token: color.primary",
-                "          source_ref: figma://variables/color-primary",
-                "      relations:",
-                "        - type: appears-before",
-                "          target: main content",
-                "    acceptance_intent: Save control is semantically discoverable at desktop viewport",
-                "    evidence_type: observed",
-                "    confidence: high",
-                "    status: ready",
+                "  - id: cmp-save",
+                "    component_model_ref: ../visual-ir/component-model.yaml#cmp-save",
+                "    html_ref: index.html#cmp-save",
+                "    state_refs: [../visual-ir/component-model.yaml#cmp-save-default]",
+                "    operation_refs: [op-save]",
+                "    source_refs: [figma://node/2]",
+                "    status: covered",
                 "    blockers: []",
-                "",
-            ]
-        ),
-        encoding="utf-8",
-    )
-
-    (package_dir / "visual-spec-assertions.yaml").write_text(
-        "\n".join(
-            [
-                "assertions_complete: true",
-                "assertion_count: 1",
-                "ci_assertions_complete: true",
-                "blocker_lint_errors: []",
-                "assertions:",
-                "  - id: VSA-home-save-visible",
-                "    visual_spec_refs:",
-                "      - VS-home-save-default",
-                "    assertion_type: visible",
-                "    acceptance_intent: Save control is visible and discoverable",
-                "    expected: true",
-                "    evidence_refs:",
-                "      - visual-spec.yaml#VS-home-save-default",
-                "    ci_suitability: ci_low_cost",
-                "    status: ready",
+                "operations:",
+                "  - id: op-save",
+                "    interaction_model_ref: ../visual-ir/interaction-model.yaml#op-save",
+                "    event: click",
+                "    target_ref: index.html#save-button",
+                "    result_ref: index.html#save-result",
+                "    precondition: enabled",
+                "    replay_status: pass",
+                "    source_refs: [figma://node/2]",
                 "    blockers: []",
+                "motion_anchors:",
+                "  - id: motion-save-feedback",
+                "    motion_model_ref: ../visual-ir/motion-anchor-model.yaml#motion-save-feedback",
+                "    trigger_ref: index.html#save-button",
+                "    affected_ref: index.html#save-result",
+                "    end_state_ref: index.html#save-result",
+                "    replay_status: pass",
+                "    source_refs: [figma://prototype/save-feedback]",
+                "    blockers: []",
+                "viewports:",
+                "  - id: desktop",
+                "    width: 1440",
+                "    height: 900",
+                "    page_refs: [index.html#page-home]",
+                "    screenshot_refs: [screenshots/home-desktop.png]",
+                "    render_status: pass",
+                "    blockers: []",
+                "visual_diffs:",
+                "  - id: diff-desktop",
+                "    source_ref: figma://node/1",
+                "    screenshot_ref: screenshots/home-desktop.png",
+                "    status: pass",
+                "    thresholds:",
+                "      max_pixel_diff_percent: 0.5",
+                "    diff_summary:",
+                "      pixel_diff_percent: 0",
+                "    blockers: []",
+                "clarifications:",
+                "  required_question_count: 0",
+                "  answered_required_question_count: 0",
+                "  unanswered_required_question_ids: []",
                 "",
             ]
         ),
         encoding="utf-8",
     )
-
-    (package_dir / "visual-spec-evidence-packet.md").write_text(
+    (delivery_dir / "evidence-packet.md").write_text(
         "---\n"
         "ready_gate: PASS\n"
         "blockers: []\n"
         "source_ref_count: 1\n"
-        "extracted_item_count: 1\n"
+        "extracted_item_count: 6\n"
         "generated_at: '2026-07-01T00:00:00Z'\n"
         "---\n"
-        "# Visual Spec Package Evidence Packet\n",
+        "# Static HTML Delivery Evidence Packet\n",
         encoding="utf-8",
     )
 
@@ -700,45 +671,37 @@ def test_readme_release_url_matches_extension_version():
     assert f"archive/refs/tags/v{version}.zip" in readme
 
 
-def test_visual_previews_schema_and_validator_paths_are_declared():
+def test_static_html_delivery_schema_and_validator_paths_are_declared():
     extension = ROOT / "extension.yml"
     config = ROOT / "config-template.yml"
     for document in (extension.read_text(encoding="utf-8-sig"), config.read_text(encoding="utf-8")):
-        assert "scripts/python/validate_visual_previews.py" in document
-        assert "templates/intake-visual-previews-contract.md" in document
-        assert "templates/schemas/component-coverage.schema.json" in document
-        assert "templates/schemas/viewport-coverage.schema.json" in document
+        assert "scripts/python/validate_static_html_delivery.py" in document
+        assert "templates/intake-static-html-delivery-contract.md" in document
+        assert "templates/schemas/static-html-delivery.schema.json" in document
+        assert "scripts/python/validate_visual_previews.py" not in document
+        assert "templates/intake-visual-previews-contract.md" not in document
 
-    assert VISUAL_PREVIEWS_VALIDATOR.exists()
-    assert (ROOT / "templates" / "intake-visual-previews-contract.md").exists()
-    assert (ROOT / "templates" / "schemas" / "component-coverage.schema.json").exists()
-    assert (ROOT / "templates" / "schemas" / "viewport-coverage.schema.json").exists()
+    assert STATIC_HTML_DELIVERY_VALIDATOR.exists()
+    assert (ROOT / "templates" / "intake-static-html-delivery-contract.md").exists()
+    assert (ROOT / "templates" / "schemas" / "static-html-delivery.schema.json").exists()
 
 
-def test_visual_design_command_uses_html_mock_mode_names():
+def test_visual_design_command_is_single_entrypoint():
     command = (ROOT / "commands" / "speckit.intake.visual-design.md").read_text(encoding="utf-8")
 
     assert "build-previews" not in command
     assert "validate-previews" not in command
-    assert "build-html-mock" in command
-    assert "validate-html-mock" in command
+    assert "build-html-mock" not in command
+    assert "validate-html-mock" not in command
+    assert "Do not expose or require user-facing subcommands" in command
 
 
-def test_visual_spec_package_schema_and_validator_paths_are_declared():
+def test_visual_spec_package_paths_are_not_declared_as_static_html_authority():
     extension = ROOT / "extension.yml"
     config = ROOT / "config-template.yml"
     for document in (extension.read_text(encoding="utf-8-sig"), config.read_text(encoding="utf-8")):
-        assert "scripts/python/validate_visual_spec_package.py" in document
-        assert "templates/intake-visual-spec-package-contract.md" in document
-        assert "templates/intake-visual-spec-package-evidence-packet-template.md" in document
-        assert "templates/schemas/visual-spec-package.schema.json" in document
-        assert "templates/schemas/visual-spec-assertions.schema.json" in document
-
-    assert VISUAL_SPEC_PACKAGE_VALIDATOR.exists()
-    assert (ROOT / "templates" / "intake-visual-spec-package-contract.md").exists()
-    assert (ROOT / "templates" / "intake-visual-spec-package-evidence-packet-template.md").exists()
-    assert (ROOT / "templates" / "schemas" / "visual-spec-package.schema.json").exists()
-    assert (ROOT / "templates" / "schemas" / "visual-spec-assertions.schema.json").exists()
+        assert "visual-spec-package" not in document
+        assert "validate_visual_spec_package.py" not in document
 
 
 def test_figma_layout_normalization_schema_and_script_paths_are_declared():
@@ -794,20 +757,6 @@ def test_test_case_validator_blocks_missing_directory():
     assert "TEST_SOURCE_MANIFEST_MISSING" in result.stdout
     assert "TEST_CASE_INTAKE_MISSING" in result.stdout
     assert "TEST_EVIDENCE_PACKET_MISSING" in result.stdout
-
-
-def test_visual_spec_package_validator_blocks_missing_directory():
-    result = subprocess.run(
-        [sys.executable, str(VISUAL_SPEC_PACKAGE_VALIDATOR), "missing-dir"],
-        cwd=ROOT,
-        text=True,
-        capture_output=True,
-    )
-
-    assert result.returncode == 1
-    assert "VISUAL_SPEC_SOURCE_INTAKE_BLOCKED" in result.stdout
-    assert "VISUAL_SPEC_REQUIRED_ARTIFACT_MISSING" in result.stdout
-    assert "VISUAL_SPEC_READY_WITHOUT_EVIDENCE" in result.stdout
 
 
 @pytest.mark.parametrize(
@@ -1753,7 +1702,7 @@ def test_visual_validator_blocks_helper_artifacts_as_source_refs():
 
     requirements = yaml.safe_load((intake / "visual-requirements.yaml").read_text(encoding="utf-8"))
     requirements["requirements"][0]["source_refs"] = [
-        "previews/preview.html#home-page",
+        "delivery/index.html#home-page",
         "source-files/wireframe.png#full",
     ]
     (intake / "visual-requirements.yaml").write_text(yaml.safe_dump(requirements), encoding="utf-8")
@@ -1770,7 +1719,7 @@ def test_visual_validator_blocks_helper_artifacts_as_source_refs():
     assert "VISUAL_SCHEMA_INVALID" in payload["blockers"]
     assert "VISUAL_REQUIREMENTS_UNTRACEABLE" in payload["blockers"]
     helper_refs = payload["details"]["visual_requirements"]["supporting_artifact_source_refs"]
-    assert helper_refs[0]["refs"] == ["previews/preview.html#home-page"]
+    assert helper_refs[0]["refs"] == ["delivery/index.html#home-page"]
 
     shutil.rmtree(work_dir)
 
@@ -2041,7 +1990,7 @@ def test_visual_validator_blocks_downstream_fields_in_figma_normalized_tree():
     write_figma_metadata_fixture(intake)
 
     normalized = yaml.safe_load((intake / "figma-normalized-tree.yaml").read_text(encoding="utf-8"))
-    normalized["nodes"][0]["preview_ref"] = "previews/preview.html#root"
+    normalized["nodes"][0]["delivery_ref"] = "delivery/index.html#root"
     normalized["nodes"][0]["code_component"] = "RootView"
     (intake / "figma-normalized-tree.yaml").write_text(yaml.safe_dump(normalized), encoding="utf-8")
 
@@ -2176,45 +2125,45 @@ def test_validator_blocks_legacy_figma_only_without_manifest():
     shutil.rmtree(work_dir)
 
 
-def test_visual_previews_validator_passes_complete_minimal_bundle():
-    work_dir = ROOT / ".tmp" / "test-visual-previews-validator-pass"
+def test_static_html_delivery_validator_passes_complete_minimal_bundle():
+    work_dir = ROOT / ".tmp" / "test-static-html-delivery-validator-pass"
     if work_dir.exists():
         shutil.rmtree(work_dir)
-    html_dir = work_dir / "visual-design" / "previews"
-    write_visual_previews_fixture(html_dir)
+    delivery_dir = work_dir / "visual-design" / "delivery"
+    write_static_html_delivery_fixture(delivery_dir)
 
     result = subprocess.run(
-        [sys.executable, str(VISUAL_PREVIEWS_VALIDATOR), str(html_dir)],
+        [sys.executable, str(STATIC_HTML_DELIVERY_VALIDATOR), str(delivery_dir)],
         cwd=ROOT,
         text=True,
         capture_output=True,
     )
 
     assert result.returncode == 0, result.stdout + result.stderr
-    assert "HTML mock readiness: PASS" in result.stdout
+    assert "Static HTML delivery readiness: PASS" in result.stdout
 
     shutil.rmtree(work_dir)
 
 
-def test_visual_previews_validator_blocks_missing_directory():
+def test_static_html_delivery_validator_blocks_missing_directory():
     result = subprocess.run(
-        [sys.executable, str(VISUAL_PREVIEWS_VALIDATOR), "missing-dir"],
+        [sys.executable, str(STATIC_HTML_DELIVERY_VALIDATOR), "missing-dir"],
         cwd=ROOT,
         text=True,
         capture_output=True,
     )
 
     assert result.returncode == 1
-    assert "VISUAL_PREVIEW_REQUIRED_ARTIFACT_MISSING" in result.stdout
+    assert "STATIC_HTML_REQUIRED_ARTIFACT_MISSING" in result.stdout
 
 
-def test_visual_previews_validator_blocks_source_intake_blocked():
-    work_dir = ROOT / ".tmp" / "test-visual-previews-source-blocked"
+def test_static_html_delivery_validator_blocks_source_intake_blocked():
+    work_dir = ROOT / ".tmp" / "test-static-html-delivery-source-blocked"
     if work_dir.exists():
         shutil.rmtree(work_dir)
-    html_dir = work_dir / "visual-design" / "previews"
-    write_visual_previews_fixture(html_dir)
-    packet = html_dir.parent / "visual-evidence-packet.md"
+    delivery_dir = work_dir / "visual-design" / "delivery"
+    write_static_html_delivery_fixture(delivery_dir)
+    packet = delivery_dir.parent / "visual-evidence-packet.md"
     packet.write_text(
         "---\n"
         "ready_gate: BLOCKED\n"
@@ -2227,7 +2176,7 @@ def test_visual_previews_validator_blocks_source_intake_blocked():
     )
 
     result = subprocess.run(
-        [sys.executable, str(VISUAL_PREVIEWS_VALIDATOR), "--json", str(html_dir)],
+        [sys.executable, str(STATIC_HTML_DELIVERY_VALIDATOR), "--json", str(delivery_dir)],
         cwd=ROOT,
         text=True,
         capture_output=True,
@@ -2235,23 +2184,23 @@ def test_visual_previews_validator_blocks_source_intake_blocked():
 
     payload = json.loads(result.stdout)
     assert result.returncode == 1
-    assert "VISUAL_PREVIEW_SOURCE_INTAKE_BLOCKED" in payload["blockers"]
+    assert "STATIC_HTML_SOURCE_INTAKE_BLOCKED" in payload["blockers"]
 
     shutil.rmtree(work_dir)
 
 
-def test_visual_previews_validator_reports_schema_errors_in_json():
-    work_dir = ROOT / ".tmp" / "test-visual-previews-schema-error"
+def test_static_html_delivery_validator_reports_schema_errors_in_json():
+    work_dir = ROOT / ".tmp" / "test-static-html-delivery-schema-error"
     if work_dir.exists():
         shutil.rmtree(work_dir)
-    html_dir = work_dir / "visual-design" / "previews"
-    write_visual_previews_fixture(html_dir)
-    component_coverage = yaml.safe_load((html_dir / "component-coverage.yaml").read_text(encoding="utf-8"))
-    component_coverage["components"][0]["covered"][0].pop("preview_ref")
-    (html_dir / "component-coverage.yaml").write_text(yaml.safe_dump(component_coverage), encoding="utf-8")
+    delivery_dir = work_dir / "visual-design" / "delivery"
+    write_static_html_delivery_fixture(delivery_dir)
+    report = yaml.safe_load((delivery_dir / "render-replay-report.yaml").read_text(encoding="utf-8"))
+    report["operations"][0].pop("target_ref")
+    (delivery_dir / "render-replay-report.yaml").write_text(yaml.safe_dump(report), encoding="utf-8")
 
     result = subprocess.run(
-        [sys.executable, str(VISUAL_PREVIEWS_VALIDATOR), "--json", str(html_dir)],
+        [sys.executable, str(STATIC_HTML_DELIVERY_VALIDATOR), "--json", str(delivery_dir)],
         cwd=ROOT,
         text=True,
         capture_output=True,
@@ -2259,44 +2208,8 @@ def test_visual_previews_validator_reports_schema_errors_in_json():
 
     payload = json.loads(result.stdout)
     assert result.returncode == 1
-    assert "VISUAL_PREVIEW_SCHEMA_INVALID" in payload["blockers"]
-    assert payload["details"]["schema_validation"]["component_coverage"]["valid"] is False
-
-    shutil.rmtree(work_dir)
-
-
-def test_visual_previews_validator_blocks_helper_artifacts_as_source_refs():
-    work_dir = ROOT / ".tmp" / "test-visual-previews-helper-source-refs"
-    if work_dir.exists():
-        shutil.rmtree(work_dir)
-    html_dir = work_dir / "visual-design" / "previews"
-    write_visual_previews_fixture(html_dir)
-
-    component_coverage = yaml.safe_load((html_dir / "component-coverage.yaml").read_text(encoding="utf-8"))
-    component_coverage["components"][0]["source_ref"] = "preview.html#button-md-primary-default"
-    component_coverage["components"][0]["covered"][0]["source_ref"] = "screenshots/home-desktop.png"
-    (html_dir / "component-coverage.yaml").write_text(yaml.safe_dump(component_coverage), encoding="utf-8")
-
-    viewport_coverage = yaml.safe_load((html_dir / "viewport-coverage.yaml").read_text(encoding="utf-8"))
-    viewport_coverage["viewports"][0]["source_refs"] = [
-        "previews/preview.html#home-page",
-        "figma://node/1",
-    ]
-    (html_dir / "viewport-coverage.yaml").write_text(yaml.safe_dump(viewport_coverage), encoding="utf-8")
-
-    result = subprocess.run(
-        [sys.executable, str(VISUAL_PREVIEWS_VALIDATOR), "--json", str(html_dir)],
-        cwd=ROOT,
-        text=True,
-        capture_output=True,
-    )
-
-    payload = json.loads(result.stdout)
-    assert result.returncode == 1
-    assert "VISUAL_PREVIEW_SCHEMA_INVALID" in payload["blockers"]
-    assert "VISUAL_PREVIEW_ASSET_TRACEABILITY_INCOMPLETE" in payload["blockers"]
-    assert payload["details"]["component_coverage"]["supporting_artifact_source_refs"]
-    assert payload["details"]["viewport_coverage"]["supporting_artifact_source_refs"]
+    assert "STATIC_HTML_SCHEMA_INVALID" in payload["blockers"]
+    assert payload["details"]["schema_validation"]["static_html_delivery"]["valid"] is False
 
     shutil.rmtree(work_dir)
 
@@ -2304,455 +2217,85 @@ def test_visual_previews_validator_blocks_helper_artifacts_as_source_refs():
 @pytest.mark.parametrize(
     ("edit_kind", "expected_blocker"),
     [
-        ("missing_selector", "VISUAL_PREVIEW_FIGMA_NODE_COVERAGE_INCOMPLETE"),
-        ("wrong_preview_file_ref", "VISUAL_PREVIEW_FIGMA_NODE_COVERAGE_INCOMPLETE"),
-        ("missing_mock_page", "VISUAL_PREVIEW_IA_MATRIX_INCOMPLETE"),
-        ("component_ref_to_matrix", "VISUAL_PREVIEW_FIGMA_NODE_COVERAGE_INCOMPLETE"),
-        ("ia_matrix", "VISUAL_PREVIEW_IA_MATRIX_INCOMPLETE"),
-        ("incomplete_ia_row", "VISUAL_PREVIEW_IA_MATRIX_INCOMPLETE"),
-        ("duplicate_anchor", "VISUAL_PREVIEW_IA_MATRIX_INCOMPLETE"),
-        ("interaction_ref", "VISUAL_PREVIEW_IA_MATRIX_INCOMPLETE"),
-        ("missing_visual_spec_ref", "VISUAL_PREVIEW_COMPONENT_STATE_COVERAGE_INCOMPLETE"),
-        ("wrong_visual_spec_file_ref", "VISUAL_PREVIEW_COMPONENT_STATE_COVERAGE_INCOMPLETE"),
-        ("visual_spec_package_blocked", "VISUAL_PREVIEW_COMPONENT_STATE_COVERAGE_INCOMPLETE"),
-        ("component_state", "VISUAL_PREVIEW_COMPONENT_STATE_COVERAGE_INCOMPLETE"),
-        ("missing_component_screenshot", "VISUAL_PREVIEW_VIEWPORT_CAPTURE_INCOMPLETE"),
-        ("component_screenshot_directory", "VISUAL_PREVIEW_VIEWPORT_CAPTURE_INCOMPLETE"),
-        ("component_screenshot_outside_preview_dir", "VISUAL_PREVIEW_VIEWPORT_CAPTURE_INCOMPLETE"),
-        ("page", "VISUAL_PREVIEW_PAGE_COVERAGE_INCOMPLETE"),
-        ("wrong_page_file_ref", "VISUAL_PREVIEW_PAGE_COVERAGE_INCOMPLETE"),
-        ("page_ref_to_matrix", "VISUAL_PREVIEW_PAGE_COVERAGE_INCOMPLETE"),
-        ("viewport_visual_spec_ref", "VISUAL_PREVIEW_PAGE_COVERAGE_INCOMPLETE"),
-        ("viewport_wrong_visual_spec_file_ref", "VISUAL_PREVIEW_PAGE_COVERAGE_INCOMPLETE"),
-        ("asset", "VISUAL_PREVIEW_ASSET_TRACEABILITY_INCOMPLETE"),
-        ("viewport", "VISUAL_PREVIEW_VIEWPORT_CAPTURE_INCOMPLETE"),
-        ("visual_diff", "VISUAL_PREVIEW_VISUAL_DIFF_BLOCKED"),
-        ("known_gap", "VISUAL_PREVIEW_KNOWN_GAP_UNRESOLVED"),
+        ("missing_html_ref", "STATIC_HTML_REQUIRED_ARTIFACT_MISSING"),
+        ("typed_anchor", "STATIC_HTML_REQUIRED_ARTIFACT_MISSING"),
+        ("source_intake_ref", "STATIC_HTML_SOURCE_INTAKE_BLOCKED"),
+        ("visual_ir_refs", "STATIC_HTML_IR_BLOCKED"),
+        ("ir_ref", "STATIC_HTML_IR_BLOCKED"),
+        ("missing_asset", "STATIC_HTML_ASSET_INCOMPLETE"),
+        ("blocked_ir", "STATIC_HTML_IR_BLOCKED"),
+        ("clarification", "STATIC_HTML_CLARIFICATION_REQUIRED"),
+        ("operation", "STATIC_HTML_OPERATION_REPLAY_INCOMPLETE"),
+        ("motion", "STATIC_HTML_MOTION_ANCHOR_INCOMPLETE"),
+        ("viewport", "STATIC_HTML_VIEWPORT_CAPTURE_INCOMPLETE"),
+        ("visual_diff", "STATIC_HTML_VISUAL_DIFF_BLOCKED"),
+        ("evidence_packet", "STATIC_HTML_READY_WITHOUT_EVIDENCE"),
     ],
 )
-def test_visual_previews_validator_blocks_incomplete_coverage(edit_kind, expected_blocker):
-    work_dir = ROOT / ".tmp" / f"test-visual-previews-{edit_kind}"
+def test_static_html_delivery_validator_blocks_incomplete_delivery(edit_kind, expected_blocker):
+    work_dir = ROOT / ".tmp" / f"test-static-html-delivery-{edit_kind}"
     if work_dir.exists():
         shutil.rmtree(work_dir)
-    html_dir = work_dir / "visual-design" / "previews"
-    write_visual_previews_fixture(html_dir)
+    delivery_dir = work_dir / "visual-design" / "delivery"
+    write_static_html_delivery_fixture(delivery_dir)
+    report_path = delivery_dir / "render-replay-report.yaml"
+    report = yaml.safe_load(report_path.read_text(encoding="utf-8"))
 
-    if edit_kind == "missing_selector":
-        html = (html_dir / "preview.html").read_text(encoding="utf-8")
-        (html_dir / "preview.html").write_text(
-            html.replace('id="button-md-primary-default"', "").replace(
-                'data-preview-id="button-md-primary-default"', ""
-            ),
+    if edit_kind == "missing_html_ref":
+        report["components"][0]["html_ref"] = "index.html#missing-component"
+    elif edit_kind == "typed_anchor":
+        report["components"][0]["html_ref"] = "index.html#page-home"
+    elif edit_kind == "source_intake_ref":
+        report["source_intake_ref"] = "../missing-visual-requirements.yaml"
+    elif edit_kind == "visual_ir_refs":
+        report["visual_ir_refs"] = report["visual_ir_refs"][:-1]
+    elif edit_kind == "ir_ref":
+        report["pages"][0]["layout_refs"] = ["../visual-ir/layout-tree.yaml#missing-box"]
+    elif edit_kind == "missing_asset":
+        report["assets"][0]["local_paths"] = ["assets/missing.svg"]
+    elif edit_kind == "blocked_ir":
+        ir_file = delivery_dir.parent / "visual-ir" / "component-model.yaml"
+        ir_file.write_text("ready_gate: BLOCKED\nblockers: [STATIC_HTML_COMPONENT_STATE_INCOMPLETE]\n", encoding="utf-8")
+    elif edit_kind == "clarification":
+        clarification = delivery_dir.parent / "visual-ir" / "clarification-log.yaml"
+        clarification.write_text(
+            "ready_gate: PASS\n"
+            "blockers: []\n"
+            "questions:\n"
+            "  - id: CQ-001\n"
+            "    required_for_html: true\n"
+            "    status: unanswered\n",
             encoding="utf-8",
         )
-    elif edit_kind == "wrong_preview_file_ref":
-        component_coverage = yaml.safe_load((html_dir / "component-coverage.yaml").read_text(encoding="utf-8"))
-        component_coverage["components"][0]["covered"][0]["preview_ref"] = (
-            "wrong-preview.html#button-md-primary-default"
-        )
-        (html_dir / "component-coverage.yaml").write_text(yaml.safe_dump(component_coverage), encoding="utf-8")
-    elif edit_kind == "missing_mock_page":
-        html = (html_dir / "preview.html").read_text(encoding="utf-8")
-        (html_dir / "preview.html").write_text(
-            html.replace('data-preview-section="mock-page"', ""),
-            encoding="utf-8",
-        )
-    elif edit_kind == "component_ref_to_matrix":
-        component_coverage = yaml.safe_load((html_dir / "component-coverage.yaml").read_text(encoding="utf-8"))
-        component_coverage["components"][0]["covered"][0]["preview_ref"] = "preview.html#button-ia"
-        (html_dir / "component-coverage.yaml").write_text(yaml.safe_dump(component_coverage), encoding="utf-8")
-    elif edit_kind == "ia_matrix":
-        html = (html_dir / "preview.html").read_text(encoding="utf-8")
-        (html_dir / "preview.html").write_text(
-            html.replace('data-preview-section="component-ia-matrix"', ""),
-            encoding="utf-8",
-        )
-    elif edit_kind == "incomplete_ia_row":
-        html = (html_dir / "preview.html").read_text(encoding="utf-8")
-        (html_dir / "preview.html").write_text(
-            html.replace(
-                "</table>"
-                '<section id="button-states"',
-                '<tr><td data-page-ia-field="page_region">footer</td></tr></table>'
-                '<section id="button-states"',
-                1,
-            ),
-            encoding="utf-8",
-        )
-    elif edit_kind == "duplicate_anchor":
-        html = (html_dir / "preview.html").read_text(encoding="utf-8")
-        (html_dir / "preview.html").write_text(
-            html.replace("</main>", '<div data-preview-id="home-page">Duplicate</div></main>'),
-            encoding="utf-8",
-        )
-    elif edit_kind == "interaction_ref":
-        html = (html_dir / "preview.html").read_text(encoding="utf-8")
-        (html_dir / "preview.html").write_text(
-            html.replace('data-interaction-id="button-md-primary-default-click"', ""),
-            encoding="utf-8",
-        )
-    elif edit_kind == "missing_visual_spec_ref":
-        component_coverage = yaml.safe_load((html_dir / "component-coverage.yaml").read_text(encoding="utf-8"))
-        component_coverage["components"][0]["covered"][0]["visual_spec_ref"] = (
-            "../visual-spec-package/visual-spec.yaml#VS-missing"
-        )
-        (html_dir / "component-coverage.yaml").write_text(yaml.safe_dump(component_coverage), encoding="utf-8")
-    elif edit_kind == "wrong_visual_spec_file_ref":
-        component_coverage = yaml.safe_load((html_dir / "component-coverage.yaml").read_text(encoding="utf-8"))
-        component_coverage["components"][0]["covered"][0]["visual_spec_ref"] = (
-            "../visual-spec-package/other.yaml#VS-home-save-default"
-        )
-        (html_dir / "component-coverage.yaml").write_text(yaml.safe_dump(component_coverage), encoding="utf-8")
-    elif edit_kind == "visual_spec_package_blocked":
-        (html_dir.parent / "visual-spec-package" / "visual-spec-assertions.yaml").unlink()
-    elif edit_kind == "component_state":
-        component_coverage = yaml.safe_load((html_dir / "component-coverage.yaml").read_text(encoding="utf-8"))
-        component_coverage["components"][0]["missing"].append(
-            {
-                "missing_type": "state",
-                "state": "loading",
-                "reason": "Missing Figma source state",
-                "blocker": "VISUAL_SPEC_PROVIDER_EVIDENCE_MISSING",
-            }
-        )
-        (html_dir / "component-coverage.yaml").write_text(yaml.safe_dump(component_coverage), encoding="utf-8")
-    elif edit_kind == "missing_component_screenshot":
-        component_coverage = yaml.safe_load((html_dir / "component-coverage.yaml").read_text(encoding="utf-8"))
-        component_coverage["components"][0]["covered"][0]["screenshot_refs"] = ["screenshots/missing.png"]
-        (html_dir / "component-coverage.yaml").write_text(yaml.safe_dump(component_coverage), encoding="utf-8")
-    elif edit_kind == "component_screenshot_directory":
-        component_coverage = yaml.safe_load((html_dir / "component-coverage.yaml").read_text(encoding="utf-8"))
-        component_coverage["components"][0]["covered"][0]["screenshot_refs"] = ["screenshots"]
-        (html_dir / "component-coverage.yaml").write_text(yaml.safe_dump(component_coverage), encoding="utf-8")
-    elif edit_kind == "component_screenshot_outside_preview_dir":
-        outside = html_dir.parent / "outside.png"
-        outside.write_bytes(b"fake-png")
-        component_coverage = yaml.safe_load((html_dir / "component-coverage.yaml").read_text(encoding="utf-8"))
-        component_coverage["components"][0]["covered"][0]["screenshot_refs"] = ["../outside.png"]
-        (html_dir / "component-coverage.yaml").write_text(yaml.safe_dump(component_coverage), encoding="utf-8")
-    elif edit_kind == "page":
-        viewport_coverage = yaml.safe_load((html_dir / "viewport-coverage.yaml").read_text(encoding="utf-8"))
-        viewport_coverage["viewports"][0]["page_refs"] = []
-        (html_dir / "viewport-coverage.yaml").write_text(yaml.safe_dump(viewport_coverage), encoding="utf-8")
-    elif edit_kind == "wrong_page_file_ref":
-        viewport_coverage = yaml.safe_load((html_dir / "viewport-coverage.yaml").read_text(encoding="utf-8"))
-        viewport_coverage["viewports"][0]["page_refs"] = ["wrong-preview.html#home-page"]
-        (html_dir / "viewport-coverage.yaml").write_text(yaml.safe_dump(viewport_coverage), encoding="utf-8")
-    elif edit_kind == "page_ref_to_matrix":
-        viewport_coverage = yaml.safe_load((html_dir / "viewport-coverage.yaml").read_text(encoding="utf-8"))
-        viewport_coverage["viewports"][0]["page_refs"] = ["preview.html#home-page-ia"]
-        (html_dir / "viewport-coverage.yaml").write_text(yaml.safe_dump(viewport_coverage), encoding="utf-8")
-    elif edit_kind == "viewport_visual_spec_ref":
-        viewport_coverage = yaml.safe_load((html_dir / "viewport-coverage.yaml").read_text(encoding="utf-8"))
-        viewport_coverage["viewports"][0]["visual_spec_refs"] = [
-            "../visual-spec-package/visual-spec.yaml#VS-missing"
-        ]
-        (html_dir / "viewport-coverage.yaml").write_text(yaml.safe_dump(viewport_coverage), encoding="utf-8")
-    elif edit_kind == "viewport_wrong_visual_spec_file_ref":
-        viewport_coverage = yaml.safe_load((html_dir / "viewport-coverage.yaml").read_text(encoding="utf-8"))
-        viewport_coverage["viewports"][0]["visual_spec_refs"] = [
-            "../visual-spec-package/other.yaml#VS-home-save-default"
-        ]
-        (html_dir / "viewport-coverage.yaml").write_text(yaml.safe_dump(viewport_coverage), encoding="utf-8")
-    elif edit_kind == "asset":
-        component_coverage = yaml.safe_load((html_dir / "component-coverage.yaml").read_text(encoding="utf-8"))
-        component_coverage["components"][0]["missing"].append(
-            {
-                "missing_type": "resource",
-                "resource": "logo",
-                "reason": "Missing Figma image resource",
-                "blocker": "VISUAL_SPEC_PROVIDER_EVIDENCE_MISSING",
-            }
-        )
-        (html_dir / "component-coverage.yaml").write_text(yaml.safe_dump(component_coverage), encoding="utf-8")
+        report["clarifications"]["required_question_count"] = 1
+        report["clarifications"]["unanswered_required_question_ids"] = ["CQ-001"]
+    elif edit_kind == "operation":
+        report["operations"][0]["replay_status"] = "blocked"
+        report["operations"][0]["blockers"] = ["STATIC_HTML_OPERATION_REPLAY_INCOMPLETE"]
+    elif edit_kind == "motion":
+        report["motion_anchors"][0]["replay_status"] = "blocked"
+        report["motion_anchors"][0]["blockers"] = ["STATIC_HTML_MOTION_ANCHOR_INCOMPLETE"]
     elif edit_kind == "viewport":
-        shutil.rmtree(html_dir / "screenshots")
-        (html_dir / "screenshots").mkdir()
+        report["viewports"][0]["screenshot_refs"] = ["screenshots/missing.png"]
     elif edit_kind == "visual_diff":
-        viewport_coverage = yaml.safe_load((html_dir / "viewport-coverage.yaml").read_text(encoding="utf-8"))
-        viewport_coverage["viewports"][0]["visual_diff_status"] = "blocked"
-        (html_dir / "viewport-coverage.yaml").write_text(yaml.safe_dump(viewport_coverage), encoding="utf-8")
-    elif edit_kind == "known_gap":
-        (html_dir / "known-gaps.md").write_text("# Known Gaps\n\nBLOCKED: missing mobile state.\n", encoding="utf-8")
-
-    result = subprocess.run(
-        [sys.executable, str(VISUAL_PREVIEWS_VALIDATOR), "--json", str(html_dir)],
-        cwd=ROOT,
-        text=True,
-        capture_output=True,
-    )
-
-    payload = json.loads(result.stdout)
-    assert result.returncode == 1
-    assert expected_blocker in payload["blockers"]
-
-    shutil.rmtree(work_dir)
-
-
-def test_visual_spec_package_validator_passes_complete_minimal_bundle():
-    work_dir = ROOT / ".tmp" / "test-visual-spec-package-validator-pass"
-    if work_dir.exists():
-        shutil.rmtree(work_dir)
-    package_dir = work_dir / "visual-design" / "visual-spec-package"
-    write_visual_spec_package_fixture(package_dir)
-
-    result = subprocess.run(
-        [sys.executable, str(VISUAL_SPEC_PACKAGE_VALIDATOR), str(package_dir)],
-        cwd=ROOT,
-        text=True,
-        capture_output=True,
-    )
-
-    assert result.returncode == 0, result.stdout + result.stderr
-    assert "Visual Spec Package intake readiness: PASS" in result.stdout
-
-    shutil.rmtree(work_dir)
-
-
-def test_visual_spec_package_validator_ignores_preview_gate_status():
-    work_dir = ROOT / ".tmp" / "test-visual-spec-package-ignores-preview-gate"
-    if work_dir.exists():
-        shutil.rmtree(work_dir)
-    package_dir = work_dir / "visual-design" / "visual-spec-package"
-    write_visual_spec_package_fixture(package_dir)
-    previews_dir = package_dir.parent / "previews"
-    previews_dir.mkdir(parents=True)
-    (previews_dir / "component-coverage.yaml").write_text(
-        "ready_gate: BLOCKED\n"
-        "blockers: [VISUAL_PREVIEW_KNOWN_GAP_UNRESOLVED]\n"
-        "components: []\n",
-        encoding="utf-8",
-    )
-
-    result = subprocess.run(
-        [sys.executable, str(VISUAL_SPEC_PACKAGE_VALIDATOR), "--json", str(package_dir)],
-        cwd=ROOT,
-        text=True,
-        capture_output=True,
-    )
-
-    payload = json.loads(result.stdout)
-    assert result.returncode == 0, result.stdout + result.stderr
-    assert payload["status"] == "PASS"
-    assert not any(code.startswith("VISUAL_PREVIEW_") for code in payload["blockers"])
-
-    shutil.rmtree(work_dir)
-
-
-def test_visual_spec_package_validator_blocks_source_intake_blocked():
-    work_dir = ROOT / ".tmp" / "test-visual-spec-package-source-blocked"
-    if work_dir.exists():
-        shutil.rmtree(work_dir)
-    package_dir = work_dir / "visual-design" / "visual-spec-package"
-    write_visual_spec_package_fixture(package_dir)
-    packet = package_dir.parent / "visual-evidence-packet.md"
-    packet.write_text(
-        "---\n"
-        "ready_gate: BLOCKED\n"
-        "blockers: [VISUAL_REQUIREMENTS_MISSING]\n"
-        "source_ref_count: 1\n"
-        "extracted_item_count: 0\n"
-        "generated_at: '2026-07-01T00:00:00Z'\n"
-        "---\n",
-        encoding="utf-8",
-    )
-
-    result = subprocess.run(
-        [sys.executable, str(VISUAL_SPEC_PACKAGE_VALIDATOR), "--json", str(package_dir)],
-        cwd=ROOT,
-        text=True,
-        capture_output=True,
-    )
-
-    payload = json.loads(result.stdout)
-    assert result.returncode == 1
-    assert "VISUAL_SPEC_SOURCE_INTAKE_BLOCKED" in payload["blockers"]
-    assert "VISUAL_SPEC_READY_WITHOUT_EVIDENCE" in payload["blockers"]
-
-    shutil.rmtree(work_dir)
-
-
-def test_visual_spec_package_validator_blocks_helper_artifacts_as_fact_refs():
-    work_dir = ROOT / ".tmp" / "test-visual-spec-package-helper-fact-refs"
-    if work_dir.exists():
-        shutil.rmtree(work_dir)
-    package_dir = work_dir / "visual-design" / "visual-spec-package"
-    write_visual_spec_package_fixture(package_dir)
-
-    package_doc = yaml.safe_load((package_dir / "visual-spec.yaml").read_text(encoding="utf-8"))
-    package_doc["items"][0]["source_refs"] = [
-        "../previews/preview.html#button-md-primary-default",
-        "figma://node/2",
-    ]
-    (package_dir / "visual-spec.yaml").write_text(yaml.safe_dump(package_doc), encoding="utf-8")
-
-    assertions_doc = yaml.safe_load((package_dir / "visual-spec-assertions.yaml").read_text(encoding="utf-8"))
-    assertions_doc["assertions"][0]["evidence_refs"] = [
-        "visual-spec-evidence-packet.md#summary",
-        "figma://node/2",
-    ]
-    (package_dir / "visual-spec-assertions.yaml").write_text(yaml.safe_dump(assertions_doc), encoding="utf-8")
-
-    result = subprocess.run(
-        [sys.executable, str(VISUAL_SPEC_PACKAGE_VALIDATOR), "--json", str(package_dir)],
-        cwd=ROOT,
-        text=True,
-        capture_output=True,
-    )
-
-    payload = json.loads(result.stdout)
-    assert result.returncode == 1
-    assert "VISUAL_SPEC_SCHEMA_INVALID" in payload["blockers"]
-    assert "VISUAL_SPEC_PROVIDER_EVIDENCE_MISSING" in payload["blockers"]
-    assert "VS-home-save-default" in payload["details"]["visual_spec_package"]["provider_evidence_gaps"]
-    assert "VSA-home-save-visible" in payload["details"]["visual_spec_assertions"]["provider_evidence_gaps"]
-
-    shutil.rmtree(work_dir)
-
-
-def test_visual_spec_package_validator_reports_schema_errors_in_json():
-    work_dir = ROOT / ".tmp" / "test-visual-spec-package-schema-error"
-    if work_dir.exists():
-        shutil.rmtree(work_dir)
-    package_dir = work_dir / "visual-design" / "visual-spec-package"
-    write_visual_spec_package_fixture(package_dir)
-    text = (package_dir / "visual-spec.yaml").read_text(encoding="utf-8")
-    (package_dir / "visual-spec.yaml").write_text(
-        text.replace("    role: button\n", ""),
-        encoding="utf-8",
-    )
-
-    result = subprocess.run(
-        [sys.executable, str(VISUAL_SPEC_PACKAGE_VALIDATOR), "--json", str(package_dir)],
-        cwd=ROOT,
-        text=True,
-        capture_output=True,
-    )
-
-    payload = json.loads(result.stdout)
-    assert result.returncode == 1
-    assert "VISUAL_SPEC_SCHEMA_INVALID" in payload["blockers"]
-    assert payload["details"]["schema_validation"]["visual_spec_package"]["valid"] is False
-
-    shutil.rmtree(work_dir)
-
-
-@pytest.mark.parametrize(
-    ("artifact", "detail_key"),
-    [
-        ("visual-spec.yaml", "visual_spec_package"),
-        ("visual-spec-assertions.yaml", "visual_spec_assertions"),
-    ],
-)
-def test_visual_spec_package_validator_rejects_unknown_blocker_codes(artifact, detail_key):
-    work_dir = ROOT / ".tmp" / f"test-visual-spec-package-unknown-blocker-{detail_key}"
-    if work_dir.exists():
-        shutil.rmtree(work_dir)
-    package_dir = work_dir / "visual-design" / "visual-spec-package"
-    write_visual_spec_package_fixture(package_dir)
-
-    path = package_dir / artifact
-    text = path.read_text(encoding="utf-8")
-    path.write_text(text.replace("    blockers: []", "    blockers: [NOT_A_BLOCKER]", 1), encoding="utf-8")
-
-    result = subprocess.run(
-        [sys.executable, str(VISUAL_SPEC_PACKAGE_VALIDATOR), "--json", str(package_dir)],
-        cwd=ROOT,
-        text=True,
-        capture_output=True,
-    )
-
-    payload = json.loads(result.stdout)
-    assert result.returncode == 1
-    assert "VISUAL_SPEC_SCHEMA_INVALID" in payload["blockers"]
-    assert payload["details"]["schema_validation"][detail_key]["valid"] is False
-
-    shutil.rmtree(work_dir)
-
-
-@pytest.mark.parametrize(
-    ("edit_kind", "expected_blocker"),
-    [
-        ("provider_evidence", "VISUAL_SPEC_PROVIDER_EVIDENCE_MISSING"),
-        ("provider_evidence_blocker", "VISUAL_SPEC_PROVIDER_EVIDENCE_MISSING"),
-        ("product_ambiguity", "VISUAL_SPEC_PRODUCT_AMBIGUITY_UNRESOLVED"),
-        ("locator", "VISUAL_SPEC_LOCATOR_STRATEGY_INVALID"),
-        ("ownership", "VISUAL_SPEC_DOWNSTREAM_OWNERSHIP_LEAK"),
-        ("assertion_coverage", "VISUAL_SPEC_ASSERTION_COVERAGE_INCOMPLETE"),
-        ("assertion_blocker", "VISUAL_SPEC_ASSERTION_COVERAGE_INCOMPLETE"),
-        ("cross_ref", "VISUAL_SPEC_ASSERTION_COVERAGE_INCOMPLETE"),
-        ("evidence_packet", "VISUAL_SPEC_READY_WITHOUT_EVIDENCE"),
-    ],
-)
-def test_visual_spec_package_validator_blocks_readiness_failures(edit_kind, expected_blocker):
-    work_dir = ROOT / ".tmp" / f"test-visual-spec-package-{edit_kind}"
-    if work_dir.exists():
-        shutil.rmtree(work_dir)
-    package_dir = work_dir / "visual-design" / "visual-spec-package"
-    write_visual_spec_package_fixture(package_dir)
-
-    if edit_kind == "provider_evidence":
-        text = (package_dir / "visual-spec.yaml").read_text(encoding="utf-8")
-        (package_dir / "visual-spec.yaml").write_text(
-            text.replace("provider_evidence_complete: true", "provider_evidence_complete: false"),
-            encoding="utf-8",
-        )
-    elif edit_kind == "provider_evidence_blocker":
-        text = (package_dir / "visual-spec.yaml").read_text(encoding="utf-8")
-        (package_dir / "visual-spec.yaml").write_text(
-            text.replace("    blockers: []", "    blockers: [VISUAL_SPEC_PROVIDER_EVIDENCE_MISSING]", 1),
-            encoding="utf-8",
-        )
-    elif edit_kind == "product_ambiguity":
-        text = (package_dir / "visual-spec.yaml").read_text(encoding="utf-8")
-        (package_dir / "visual-spec.yaml").write_text(
-            text.replace("product_ambiguities: []", "product_ambiguities:\n  - Save disabled conditions are not specified."),
-            encoding="utf-8",
-        )
-    elif edit_kind == "locator":
-        text = (package_dir / "visual-spec.yaml").read_text(encoding="utf-8")
-        (package_dir / "visual-spec.yaml").write_text(
-            text.replace("      value: button[name='Save']", "      value: '#save-button'"),
-            encoding="utf-8",
-        )
-    elif edit_kind == "ownership":
-        text = (package_dir / "visual-spec.yaml").read_text(encoding="utf-8")
-        (package_dir / "visual-spec.yaml").write_text(
-            text.replace("    blockers: []", "    blockers: []\n    code_component: SaveButton", 1),
-            encoding="utf-8",
-        )
-    elif edit_kind == "assertion_coverage":
-        text = (package_dir / "visual-spec-assertions.yaml").read_text(encoding="utf-8")
-        (package_dir / "visual-spec-assertions.yaml").write_text(
-            text.replace("    ci_suitability: ci_low_cost", "    ci_suitability: manual_review"),
-            encoding="utf-8",
-        )
-    elif edit_kind == "assertion_blocker":
-        text = (package_dir / "visual-spec-assertions.yaml").read_text(encoding="utf-8")
-        (package_dir / "visual-spec-assertions.yaml").write_text(
-            text.replace("    blockers: []", "    blockers: [VISUAL_SPEC_PROVIDER_EVIDENCE_MISSING]", 1),
-            encoding="utf-8",
-        )
-    elif edit_kind == "cross_ref":
-        text = (package_dir / "visual-spec-assertions.yaml").read_text(encoding="utf-8")
-        (package_dir / "visual-spec-assertions.yaml").write_text(
-            text.replace("      - VS-home-save-default", "      - VS-missing"),
-            encoding="utf-8",
-        )
+        report["visual_diffs"][0]["status"] = "blocked"
+        report["visual_diffs"][0]["blockers"] = ["STATIC_HTML_VISUAL_DIFF_BLOCKED"]
     elif edit_kind == "evidence_packet":
-        (package_dir / "visual-spec-evidence-packet.md").write_text(
+        (delivery_dir / "evidence-packet.md").write_text(
             "---\n"
             "ready_gate: BLOCKED\n"
-            "blockers: [VISUAL_SPEC_PROVIDER_EVIDENCE_MISSING]\n"
+            "blockers: [STATIC_HTML_READY_WITHOUT_EVIDENCE]\n"
             "source_ref_count: 1\n"
-            "extracted_item_count: 1\n"
+            "extracted_item_count: 0\n"
             "generated_at: '2026-07-01T00:00:00Z'\n"
             "---\n",
             encoding="utf-8",
         )
 
+    report_path.write_text(yaml.safe_dump(report, sort_keys=False), encoding="utf-8")
+
     result = subprocess.run(
-        [sys.executable, str(VISUAL_SPEC_PACKAGE_VALIDATOR), "--json", str(package_dir)],
+        [sys.executable, str(STATIC_HTML_DELIVERY_VALIDATOR), "--json", str(delivery_dir)],
         cwd=ROOT,
         text=True,
         capture_output=True,
@@ -2763,3 +2306,5 @@ def test_visual_spec_package_validator_blocks_readiness_failures(edit_kind, expe
     assert expected_blocker in payload["blockers"]
 
     shutil.rmtree(work_dir)
+
+

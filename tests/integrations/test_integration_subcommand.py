@@ -1265,9 +1265,6 @@ class TestIntegrationInstall:
         """
         project = _init_project(tmp_path, "claude")
 
-        result = _run_in_project(project, ["extension", "add", "git"])
-        assert result.exit_code == 0, f"extension add failed: {result.output}"
-
         registry_path = project / ".specify" / "extensions" / ".registry"
         registered = json.loads(registry_path.read_text(encoding="utf-8"))[
             "extensions"
@@ -1307,8 +1304,6 @@ class TestIntegrationInstall:
         """A disabled extension must not be registered for a newly installed agent."""
         project = _init_project(tmp_path, "claude")
 
-        result = _run_in_project(project, ["extension", "add", "git"])
-        assert result.exit_code == 0, f"extension add failed: {result.output}"
         result = _run_in_project(project, ["extension", "disable", "git"])
         assert result.exit_code == 0, result.output
 
@@ -1336,9 +1331,6 @@ class TestIntegrationInstall:
         active agent and receives extension skills.
         """
         project = _init_project(tmp_path, "claude")
-
-        result = _run_in_project(project, ["extension", "add", "git"])
-        assert result.exit_code == 0, f"extension add failed: {result.output}"
 
         # Copilot is not multi_install_safe, so --force is required to add it
         # alongside the existing default integration.
@@ -1822,10 +1814,6 @@ class TestIntegrationSwitch:
         """Switching should migrate extension commands to the new agent directory."""
         project = _init_project(tmp_path, "kimi")
 
-        # Install the bundled git extension
-        result = _run_in_project(project, ["extension", "add", "git"])
-        assert result.exit_code == 0, f"extension add failed: {result.output}"
-
         # Verify git extension skills exist for kimi
         kimi_git_feature = project / ".kimi-code" / "skills" / "speckit-git-feature" / "SKILL.md"
         assert kimi_git_feature.exists(), "Git extension skill should exist for kimi"
@@ -1877,9 +1865,6 @@ class TestIntegrationSwitch:
         """Switching to an already-installed agent should register extensions."""
         project = _init_project(tmp_path, "claude")
 
-        result = _run_in_project(project, ["extension", "add", "git"])
-        assert result.exit_code == 0, f"extension add failed: {result.output}"
-
         registry_path = project / ".specify" / "extensions" / ".registry"
         registered = json.loads(registry_path.read_text(encoding="utf-8"))[
             "extensions"
@@ -1910,9 +1895,6 @@ class TestIntegrationSwitch:
     def test_switch_migrates_copilot_skills_extension_commands(self, tmp_path):
         """Copilot --skills should receive extension skills, not .agent.md files."""
         project = _init_project(tmp_path, "opencode")
-
-        result = _run_in_project(project, ["extension", "add", "git"])
-        assert result.exit_code == 0, f"extension add failed: {result.output}"
 
         result = _run_in_project(project, [
             "integration", "switch", "copilot",
@@ -1961,8 +1943,6 @@ class TestIntegrationSwitch:
         """Disabled extensions should stay disabled and should not migrate commands."""
         project = _init_project(tmp_path, "opencode")
 
-        result = _run_in_project(project, ["extension", "add", "git"])
-        assert result.exit_code == 0, f"extension add failed: {result.output}"
         result = _run_in_project(project, ["extension", "disable", "git"])
         assert result.exit_code == 0, result.output
 
@@ -2529,9 +2509,6 @@ class TestIntegrationUpgrade:
         """
         project = _init_project(tmp_path, "claude")
 
-        result = _run_in_project(project, ["extension", "add", "git"])
-        assert result.exit_code == 0, f"extension add failed: {result.output}"
-
         result = _run_in_project(project, [
             "integration", "install", "codex",
             "--script", "sh",
@@ -2580,8 +2557,6 @@ class TestIntegrationUpgrade:
         """
         # Active agent: copilot in skills mode → git extension renders as skills.
         project = _init_project(tmp_path, "copilot", integration_options="--skills")
-        result = _run_in_project(project, ["extension", "add", "git"])
-        assert result.exit_code == 0, f"extension add failed: {result.output}"
 
         skill = project / ".github" / "skills" / "speckit-git-feature" / "SKILL.md"
         assert skill.exists(), "precondition: active copilot has the git extension skill"

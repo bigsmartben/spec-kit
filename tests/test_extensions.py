@@ -262,6 +262,32 @@ class TestExtensionManifest:
         assert community_entry["download_url"].endswith(f"/refs/tags/v{manifest.version}.zip")
         assert default_commands == manifest_commands
 
+    def test_bundled_inception_catalog_matches_manifest(self):
+        """Inception is bundled locally but not mirrored into the community catalog."""
+        from tests.integrations.community_defaults import DEFAULT_EXTENSION_COMMANDS
+
+        repo_root = Path(__file__).resolve().parent.parent
+        manifest = ExtensionManifest(repo_root / "extensions" / "inception" / "extension.yml")
+        bundled_catalog = json.loads(
+            (repo_root / "extensions" / "catalog.json").read_text(encoding="utf-8")
+        )
+        bundled_entry = bundled_catalog["extensions"]["inception"]
+        manifest_repository = manifest.data["extension"]["repository"]
+        manifest_commands = tuple(command["name"] for command in manifest.commands)
+        default_commands = tuple(
+            command
+            for command in DEFAULT_EXTENSION_COMMANDS
+            if command.startswith("speckit.inception.")
+        )
+
+        assert bundled_entry["name"] == manifest.name
+        assert bundled_entry["version"] == manifest.version
+        assert bundled_entry["description"] == manifest.description
+        assert bundled_entry["repository"] == manifest_repository
+        assert bundled_entry["bundled"] is True
+        assert bundled_entry["provides"]["commands"] == len(manifest.commands)
+        assert default_commands == manifest_commands
+
     def test_missing_required_field(self, temp_dir):
         """Test manifest missing required field."""
         import yaml

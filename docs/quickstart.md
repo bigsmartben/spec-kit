@@ -14,13 +14,15 @@
 
 ```text
 /speckit.constitution
+/speckit.inception.product
+/speckit.inception.arch
 /speckit.arch.generate
 /speckit.repository-governance.generate
 /speckit.specify
 /speckit.clarify
 /speckit.plan
 /speckit.checklist
-/speckit.preview.mid-html
+/speckit.preview.wireflow mid
 /speckit.tasks
 /speckit.analyze
 /speckit.implement
@@ -178,16 +180,16 @@ specs/<feature>/checklists/behavior-testability.md
 对 UI、流程或交互有不确定性时，先生成保真度合适的预览产物：
 
 ```text
-/speckit.preview.mid-html mobile album browsing and reorder flow
+/speckit.preview.wireflow mid mobile album browsing and reorder flow
 ```
 
 打开输出文件评审：
 
 ```text
-specs/<feature>/preview/wireflow-mid.html
+specs/<feature>/preview/wireflow.html
 ```
 
-这个文件只用于实现前评审 flow、信息架构、状态和交互假设，不会修改生产代码。也可以按需要使用 `/speckit.preview.low-md`、`/speckit.preview.low-html`、`/speckit.preview.high-md` 或 `/speckit.preview.high-html`。
+这个文件只用于实现前评审 flow、信息架构、状态和交互假设，不会修改生产代码。也可以按需要使用 `/speckit.preview.wireflow low` 或 `/speckit.preview.wireflow high`。
 
 ## 7. 生成计划与行为契约
 
@@ -289,6 +291,7 @@ specify workflow search
 
 ```bash
 specify extension add arch
+specify extension add inception
 specify extension add preview
 specify extension add repository-governance
 specify preset add workflow-preset

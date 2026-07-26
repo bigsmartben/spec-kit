@@ -65,7 +65,12 @@ jobs:
           assert registry_version == manifest_version
           PY
           test -f .specify/presets/workflow-preset/templates/behavior/behavior-scenarios-draft.json
-          test -f .specify/presets/workflow-preset/templates/behavior/behavior-testability-checklist.md
+          test ! -e .specify/presets/workflow-preset/templates/behavior/behavior-testability-checklist.md
+          test -f .specify/presets/workflow-preset/templates/behavior/behavior-testability.md
+          test -f .specify/presets/workflow-preset/templates/requirements/behavior-gate.md
+          test -f .specify/presets/workflow-preset/templates/requirements/domain-gate.md
+          test -f .specify/presets/workflow-preset/templates/requirements/nfr-gate.md
+          test -f .specify/presets/workflow-preset/templates/requirements/visual-gate.md
           test -f .specify/presets/workflow-preset/templates/behavior/bdd-draft.feature
           test -f .specify/presets/workflow-preset/templates/behavior/bdd-contract.feature
           test -f .specify/presets/workflow-preset/templates/behavior/uif-intent.json

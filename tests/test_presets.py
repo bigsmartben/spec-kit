@@ -4754,6 +4754,21 @@ class TestBundledPresetLocator:
             "speckit.implement.receipt.v1.schema.json"
         ) in verify_run
         assert (
+            "test ! -e .specify/presets/workflow-preset/templates/behavior/"
+            "behavior-testability-checklist.md"
+        ) in verify_run
+        assert (
+            "test -f .specify/presets/workflow-preset/templates/behavior/"
+            "behavior-testability.md"
+        ) in verify_run
+        for template in (
+            "behavior-gate.md",
+            "domain-gate.md",
+            "nfr-gate.md",
+            "visual-gate.md",
+        ):
+            assert f"templates/requirements/{template}" in verify_run
+        assert (
             'for extension_id in arch discovery inception intake preview repository-governance; do'
             in verify_run
         )

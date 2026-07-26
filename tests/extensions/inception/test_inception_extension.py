@@ -60,7 +60,7 @@ def test_architecture_command_is_write_free_migration_entrypoint():
 
     for expected in (
         "INCEPTION_ARCH_COMMAND_RETIRED",
-        "/speckit.constitution",
+        "__SPECKIT_COMMAND_CONSTITUTION__",
         "Do not read `inception/product/uc.md` by default",
         "Do not create `inception/arch/`",
         "not a prerequisite or automatic authority",

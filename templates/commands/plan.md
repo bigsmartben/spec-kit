@@ -5,12 +5,9 @@ handoffs:
     agent: speckit.tasks
     prompt: Break the plan into tasks
     send: true
-  - label: Create Checklist
-    agent: speckit.checklist
-    prompt: Create a checklist for the following domain...
 scripts:
-  sh: scripts/bash/setup-plan.sh --json
-  ps: scripts/powershell/setup-plan.ps1 -Json
+  sh: scripts/bash/setup-plan.sh --json --paths-only
+  ps: scripts/powershell/setup-plan.ps1 -Json -PathsOnly
 ---
 
 ## User Input
@@ -21,7 +18,39 @@ $ARGUMENTS
 
 You **MUST** consider the user input before proceeding (if not empty).
 
+## Requirement Gate Preflight
+
+Complete this read-only preflight before extension hooks or any planning write:
+
+1. Run `{SCRIPT}` from the repository root and parse `FEATURE_SPEC`,
+   `IMPL_PLAN`, `SPECS_DIR`, and `BRANCH`.
+2. Require `FEATURE_SPEC` and `SPECS_DIR/checklists/requirements.md`.
+3. Compute the SHA-256 digest of the exact `spec.md` bytes as
+   `sha256:<lowercase-hex>`.
+4. Scan `SPECS_DIR/checklists/*.md`, excluding the legacy
+   `checklists/behavior-testability.md`.
+5. Aggregate only metadata-bearing requirement checklists:
+   - `Stage: requirements`
+   - `Gate: planning-readiness`
+   - standard domains `requirements`, `behavior`, `ux`, `security`, `nfr`,
+     and `visual` must each have an explicit evaluation
+   - `APPLICABLE` gates must be `PASS`
+   - `NOT_APPLICABLE` gates must be `PASS` and include an applicability reason
+   - every gate must carry the current `Spec Revision`
+6. Treat missing domains, malformed metadata, stale revisions, or any BLOCKED
+   gate as Planning Readiness BLOCKED. Advisory files do not block.
+7. On BLOCKED, stop and report the exact missing/stale files and blocker IDs.
+   Do not run hooks, create directories, copy/touch `plan.md`, or write any
+   planning artifact. Route product-decision blockers to
+   `__SPECKIT_COMMAND_CLARIFY__` and provider-evidence blockers to their
+   intake/provider workflow.
+
+Planning Readiness is an in-memory aggregate. Never create
+`planning-readiness.md`.
+
 ## Pre-Execution Checks
+
+Run this section only after Planning Readiness PASS.
 
 **Check for extension hooks (before planning)**:
 - Check if `.specify/extensions.yml` exists in the project root.
@@ -58,7 +87,10 @@ You **MUST** consider the user input before proceeding (if not empty).
 
 ## Outline
 
-1. **Setup**: Run `{SCRIPT}` from repo root and parse JSON for FEATURE_SPEC, IMPL_PLAN, SPECS_DIR, BRANCH. For single quotes in args like "I'm Groot", use escape syntax: e.g 'I'\''m Groot' (or double-quote if possible: "I'm Groot").
+1. **Materialize plan**: Re-run the resolved setup-plan script from the
+   preflight without `--paths-only`/`-PathsOnly` (retain JSON mode), then parse
+   FEATURE_SPEC, IMPL_PLAN, SPECS_DIR, and BRANCH. This is the first step
+   allowed to create the feature directory or copy the plan template.
 
 2. **Load context**: Read FEATURE_SPEC and `/memory/constitution.md`. Load IMPL_PLAN template (already copied).
 
@@ -161,10 +193,12 @@ Command ends after Phase 2 planning. Report branch, IMPL_PLAN path, and generate
 ## Key rules
 
 - Use absolute paths for filesystem operations; use project-relative paths for references in documentation
-- ERROR on gate failures or unresolved clarifications
+- ERROR on requirement-gate failures, stale spec revisions, constitution gate
+  failures, or unresolved clarifications
 
 ## Done When
 
 - [ ] Plan workflow executed and design artifacts generated
+- [ ] Planning Readiness passed before hooks or planning writes
 - [ ] Extension hooks dispatched or skipped according to the rules in Mandatory Post-Execution Hooks above
 - [ ] Completion reported to user with branch, plan path, and generated artifacts

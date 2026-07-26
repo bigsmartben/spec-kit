@@ -1,12 +1,9 @@
 ---
 description: Create or update the feature specification from a natural language feature description.
 handoffs: 
-  - label: Build Technical Plan
-    agent: speckit.plan
-    prompt: Create a plan for the spec. I am building with...
-  - label: Clarify Spec Requirements
-    agent: speckit.clarify
-    prompt: Clarify specification requirements
+  - label: Generate Requirement Gates
+    agent: speckit.checklist
+    prompt: Evaluate all standard requirement domains before planning
     send: true
 ---
 
@@ -143,7 +140,10 @@ Given that feature description, do this:
 
 7. **Specification Quality Validation**: After writing the initial spec, validate it against quality criteria:
 
-   a. **Create Spec Quality Checklist**: Generate a checklist file at `SPECIFY_FEATURE_DIRECTORY/checklists/requirements.md` using the checklist template structure with these validation items:
+   a. **Create Spec Quality Checklist**: Compute the SHA-256 digest of the exact
+      `spec.md` bytes and generate
+      `SPECIFY_FEATURE_DIRECTORY/checklists/requirements.md` using the checklist
+      template structure with these validation items:
 
       ```markdown
       # Specification Quality Checklist: [FEATURE NAME]
@@ -151,6 +151,12 @@ Given that feature description, do this:
       **Purpose**: Validate specification completeness and quality before proceeding to planning
       **Created**: [DATE]
       **Feature**: [Link to spec.md]
+      **Stage**: requirements
+      **Domain**: requirements
+      **Gate**: planning-readiness
+      **Applicability**: APPLICABLE
+      **Status**: PASS | BLOCKED
+      **Spec Revision**: sha256:[SPEC CONTENT HASH]
       
       ## Content Quality
       
@@ -179,7 +185,8 @@ Given that feature description, do this:
       
       ## Notes
       
-      - Items marked incomplete require spec updates before `__SPECKIT_COMMAND_CLARIFY__` or `__SPECKIT_COMMAND_PLAN__`
+      - Items marked incomplete require spec updates before
+        `__SPECKIT_COMMAND_CHECKLIST__` and `__SPECKIT_COMMAND_CLARIFY__`
       ```
 
    b. **Run Validation Check**: Review the spec against each checklist item:
@@ -273,7 +280,7 @@ Report completion to the user with:
 - `SPECIFY_FEATURE_DIRECTORY` — the feature directory path
 - `SPEC_FILE` — the spec file path
 - Checklist results summary
-- Readiness for the next phase (`__SPECKIT_COMMAND_CLARIFY__` or `__SPECKIT_COMMAND_PLAN__`)
+- Readiness for the next phase (`__SPECKIT_COMMAND_CHECKLIST__`)
 
 **NOTE:** Branch creation is handled by the `before_specify` hook (git extension). Spec directory and file creation are always handled by this core command.
 

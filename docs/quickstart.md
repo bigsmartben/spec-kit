@@ -19,9 +19,9 @@
 /speckit.arch.generate
 /speckit.repository-governance.generate
 /speckit.specify
+/speckit.checklist
 /speckit.clarify
 /speckit.plan
-/speckit.checklist
 /speckit.preview.wireflow mid
 /speckit.tasks
 /speckit.analyze
@@ -29,7 +29,7 @@
 /speckit.converge
 ```
 
-`/speckit.clarify` 用来在规划前降低需求歧义；`/speckit.checklist` 在计划形成后生成质量检查清单；`/speckit.analyze` 在实现前检查 spec、plan 和 tasks 的一致性；`/speckit.converge` 在实现后对照 feature artifacts 检查剩余缺口。如果 converge 追加了新任务，继续运行 `/speckit.implement` 并再次 converge，直到功能收敛。
+`/speckit.checklist` 在规划前根据 `spec.md` 生成多领域需求门禁；`/speckit.clarify` 修复其中的产品决策缺口并重评门禁。Planning Readiness 是运行时聚合结果，不会生成独立文件。`/speckit.analyze` 在实现前检查 spec、plan 和 tasks 的一致性；`/speckit.converge` 在实现后对照 feature artifacts 检查剩余缺口。如果 converge 追加了新任务，继续运行 `/speckit.implement` 并再次 converge，直到功能收敛。
 
 接手旧仓库时，把 `/speckit.arch.generate` 换成 `/speckit.arch.reverse`，先从仓库证据反向生成架构规划契约。
 
@@ -40,7 +40,7 @@ specify preset add lean
 ```
 
 ```text
-/speckit.specify -> /speckit.plan -> /speckit.tasks -> /speckit.implement
+/speckit.specify -> /speckit.checklist -> /speckit.clarify -> /speckit.plan -> /speckit.tasks -> /speckit.implement
 ```
 
 ## 1. 安装 Specify
@@ -147,7 +147,7 @@ specify integration list
 
 后续 `/speckit.plan` 会基于这份唯一架构文件中的边界、约束、反模式、开放问题和 review checklist 进行规划。
 
-## 5. 创建并澄清规格
+## 5. 创建、检查并澄清规格
 
 创建功能规格时只描述用户目标、业务规则和验收语义，不要过早指定技术栈：
 
@@ -155,25 +155,30 @@ specify integration list
 /speckit.specify Build a photo album app. Users can create albums, group photos by date, reorder albums by drag and drop, and preview photos as tiles. The UI must support mobile browsing and desktop bulk organization.
 ```
 
-澄清缺口：
-
-```text
-/speckit.clarify Focus on album permissions, empty states, reorder conflict behavior, responsive UI states, and validation boundaries.
-```
-
-运行 BDD/NFR readiness gate：
+生成 requirements、behavior、UX、security、NFR 和 visual 领域的需求门禁：
 
 ```text
 /speckit.checklist
 ```
 
-检查生成的 readiness 清单：
+如果门禁中存在产品决策缺口，再运行：
 
 ```text
-specs/<feature>/checklists/behavior-testability.md
+/speckit.clarify Focus on album permissions, empty states, reorder conflict behavior, responsive UI states, and validation boundaries.
 ```
 
-如果清单指出 Given/When/Then、可观察结果、边界状态或 NFR 声明缺失，先回到 `/speckit.clarify` 或 `/speckit.specify` 补齐。
+检查生成的领域清单：
+
+```text
+specs/<feature>/checklists/requirements.md
+specs/<feature>/checklists/behavior.md
+specs/<feature>/checklists/ux.md
+specs/<feature>/checklists/security.md
+specs/<feature>/checklists/nfr.md
+specs/<feature>/checklists/visual.md
+```
+
+如果清单指出产品决策缺失，使用 `/speckit.clarify` 修复；provider 证据缺口返回对应 intake。所有适用门禁通过后，`/speckit.plan` 才会写入规划产物。
 
 ## 6. 预览 UI/UX 规格
 
@@ -209,9 +214,10 @@ specs/<feature>/contracts/bdd/
 specs/<feature>/contracts/uif/
 specs/<feature>/contracts/behavior/
 specs/<feature>/quickstart.md
+specs/<feature>/behavior/behavior-testability.md
 ```
 
-`quickstart.md` 应包含可执行或可复现的验证路径，后续 tasks 和 code review receipt 会引用它。
+`behavior/behavior-testability.md` 在计划收尾时把 Required Case、正式契约、fixture、assertion、视觉/NFR 引用和 `quickstart.md` 路径映射为 Task Readiness；它不属于需求清单目录。
 
 ## 8. 拆任务、分析并实现
 

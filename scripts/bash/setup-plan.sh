@@ -4,6 +4,7 @@ set -e
 
 # Parse command line arguments
 JSON_MODE=false
+PATHS_ONLY=false
 ARGS=()
 
 for arg in "$@"; do
@@ -11,9 +12,13 @@ for arg in "$@"; do
         --json) 
             JSON_MODE=true 
             ;;
+        --paths-only)
+            PATHS_ONLY=true
+            ;;
         --help|-h) 
-            echo "Usage: $0 [--json]"
+            echo "Usage: $0 [--json] [--paths-only]"
             echo "  --json    Output results in JSON format"
+            echo "  --paths-only  Resolve paths without creating plan artifacts"
             echo "  --help    Show this help message"
             exit 0 
             ;;
@@ -32,33 +37,37 @@ _paths_output=$(get_feature_paths) || { echo "ERROR: Failed to resolve feature p
 eval "$_paths_output"
 unset _paths_output
 
-# Ensure the feature directory exists
-mkdir -p "$FEATURE_DIR"
+# Paths-only is the no-write preflight used by /speckit.plan before requirement
+# gates are evaluated. Keep every filesystem mutation inside this guard.
+if ! $PATHS_ONLY; then
+    # Ensure the feature directory exists
+    mkdir -p "$FEATURE_DIR"
 
-# Copy plan template if plan doesn't already exist
-if [[ -f "$IMPL_PLAN" ]]; then
-    if $JSON_MODE; then
-        echo "Plan already exists at $IMPL_PLAN, skipping template copy" >&2
-    else
-        echo "Plan already exists at $IMPL_PLAN, skipping template copy"
-    fi
-else
-    TEMPLATE=$(resolve_template "plan-template" "$REPO_ROOT") || true
-    if [[ -n "$TEMPLATE" ]] && [[ -f "$TEMPLATE" ]]; then
-        cp "$TEMPLATE" "$IMPL_PLAN"
+    # Copy plan template if plan doesn't already exist
+    if [[ -f "$IMPL_PLAN" ]]; then
         if $JSON_MODE; then
-            echo "Copied plan template to $IMPL_PLAN" >&2
+            echo "Plan already exists at $IMPL_PLAN, skipping template copy" >&2
         else
-            echo "Copied plan template to $IMPL_PLAN"
+            echo "Plan already exists at $IMPL_PLAN, skipping template copy"
         fi
     else
-        if $JSON_MODE; then
-            echo "Warning: Plan template not found" >&2
+        TEMPLATE=$(resolve_template "plan-template" "$REPO_ROOT") || true
+        if [[ -n "$TEMPLATE" ]] && [[ -f "$TEMPLATE" ]]; then
+            cp "$TEMPLATE" "$IMPL_PLAN"
+            if $JSON_MODE; then
+                echo "Copied plan template to $IMPL_PLAN" >&2
+            else
+                echo "Copied plan template to $IMPL_PLAN"
+            fi
         else
-            echo "Warning: Plan template not found"
+            if $JSON_MODE; then
+                echo "Warning: Plan template not found" >&2
+            else
+                echo "Warning: Plan template not found"
+            fi
+            # Create a basic plan file if template doesn't exist
+            touch "$IMPL_PLAN"
         fi
-        # Create a basic plan file if template doesn't exist
-        touch "$IMPL_PLAN"
     fi
 fi
 
@@ -81,4 +90,3 @@ else
     echo "SPECS_DIR: $FEATURE_DIR"
     echo "BRANCH: $CURRENT_BRANCH"
 fi
-

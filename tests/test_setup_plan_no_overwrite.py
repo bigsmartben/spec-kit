@@ -175,6 +175,26 @@ def test_setup_plan_json_parseable_on_first_run(plan_repo: Path) -> None:
     assert "Copied plan template" in result.stderr
 
 
+@requires_bash
+def test_setup_plan_paths_only_does_not_create_plan_artifacts(plan_repo: Path) -> None:
+    """Preflight resolves paths but must not create the feature directory or plan."""
+    script = plan_repo / ".specify" / "scripts" / "bash" / "setup-plan.sh"
+    feature_dir = plan_repo / "specs" / "001-my-feature"
+    result = subprocess.run(
+        ["bash", str(script), "--json", "--paths-only"],
+        cwd=plan_repo,
+        capture_output=True,
+        text=True,
+        check=False,
+        env=_clean_env(),
+    )
+    assert result.returncode == 0, result.stderr
+    data = json.loads(result.stdout)
+    assert Path(data["SPECS_DIR"]) == feature_dir
+    assert not feature_dir.exists()
+    assert not Path(data["IMPL_PLAN"]).exists()
+
+
 # ── PowerShell tests ──────────────────────────────────────────────────────
 
 
@@ -246,6 +266,29 @@ def test_ps_setup_plan_copied_message_on_stderr_in_json_mode(plan_repo: Path) ->
     data = json.loads(result.stdout)
     assert "IMPL_PLAN" in data
     assert "Copied plan template" in result.stderr
+
+
+@pytest.mark.skipif(not (HAS_PWSH or _WINDOWS_POWERSHELL), reason="no PowerShell available")
+def test_ps_setup_plan_paths_only_does_not_create_plan_artifacts(
+    plan_repo: Path,
+) -> None:
+    """PowerShell preflight has the same no-write contract as Bash."""
+    script = plan_repo / ".specify" / "scripts" / "powershell" / "setup-plan.ps1"
+    exe = "pwsh" if HAS_PWSH else _WINDOWS_POWERSHELL
+    feature_dir = plan_repo / "specs" / "001-my-feature"
+    result = subprocess.run(
+        [exe, "-NoProfile", "-File", str(script), "-Json", "-PathsOnly"],
+        cwd=plan_repo,
+        capture_output=True,
+        text=True,
+        check=False,
+        env=_clean_env(),
+    )
+    assert result.returncode == 0, result.stderr
+    data = json.loads(result.stdout)
+    assert Path(data["SPECS_DIR"]) == feature_dir
+    assert not feature_dir.exists()
+    assert not Path(data["IMPL_PLAN"]).exists()
 
 
 @pytest.mark.skipif(not (HAS_PWSH or _WINDOWS_POWERSHELL), reason="no PowerShell available")

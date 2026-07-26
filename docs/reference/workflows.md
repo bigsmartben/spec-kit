@@ -166,9 +166,9 @@ schema_version: "1.0"
 workflow:
   id: "speckit"
   name: "Full SDD Cycle"
-  version: "1.0.0"
+  version: "1.1.0"
   author: "GitHub"
-  description: "Runs specify → plan → tasks → implement with review gates"
+  description: "Runs specify → checklist → clarify → plan → tasks → implement with review gates"
 
 requires:
   speckit_version: ">=0.7.2"
@@ -196,9 +196,21 @@ steps:
     input:
       args: "{{ inputs.spec }}"
 
+  - id: checklist
+    command: speckit.checklist
+    integration: "{{ inputs.integration }}"
+    input:
+      args: "Evaluate all standard requirement domains"
+
+  - id: clarify
+    command: speckit.clarify
+    integration: "{{ inputs.integration }}"
+    input:
+      args: "Repair blocked product-decision gates and recompute Planning Readiness"
+
   - id: review-spec
     type: gate
-    message: "Review the generated spec before planning."
+    message: "Review the clarified spec and requirement gates before planning."
     options: [approve, reject]
     on_reject: abort
 

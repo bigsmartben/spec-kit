@@ -63,8 +63,12 @@ Implementation files include source code, tests, build configuration, migrations
 1. Run `{SCRIPT}` from repo root and parse FEATURE_DIR and AVAILABLE_DOCS list. All paths must be absolute. For single quotes in args like "I'm Groot", use escape syntax: e.g 'I'\''m Groot' (or double-quote if possible: "I'm Groot").
 
 2. **Check checklists status** (if FEATURE_DIR/checklists/ exists):
-   - Scan all checklist files in the checklists/ directory
-   - For each checklist, count:
+   - Scan checklist files in the checklists/ directory, but include only files
+     explicitly carrying `Stage: requirements`,
+     `Gate: planning-readiness`, and `Applicability: APPLICABLE`.
+   - Ignore advisory checklists, NOT_APPLICABLE domains, files without gate
+     metadata, and the legacy `checklists/behavior-testability.md`.
+   - For each included checklist, count:
      - Total items: All lines matching `- [ ]` or `- [X]` or `- [x]`
      - Completed items: Lines matching `- [X]` or `- [x]`
      - Incomplete items: Lines matching `- [ ]`
@@ -78,6 +82,7 @@ Implementation files include source code, tests, build configuration, migrations
      | security.md | 6   | 6         | 0          | ✓ PASS |
      ```
 
+   - Also require each included checklist metadata `Status` to be `PASS`.
    - Calculate overall status:
      - **PASS**: All checklists have 0 incomplete items
      - **FAIL**: One or more checklists have incomplete items

@@ -12,9 +12,9 @@
 - Interface contracts: `./contracts/`
 - Validation path: `./quickstart.md`
 
-## Visual fidelity navigation
+## UI/UX Planning Navigation
 
-- Visual/IR source refs and readiness inputs: `./research.md`
-- Visual interaction contracts: `./contracts/uif/` and `./contracts/behavior/`
-- Visual flow sequences: `./contracts/sequences.md`
-- Non-visual acceptance execution: `./quickstart.md`
+- UI/UX planning decisions: `./research.md`
+- Interaction contracts: `./contracts/uif/` and `./contracts/behavior/`
+- Cross-boundary UI flows: `./contracts/sequences.md`
+- UI/UX acceptance paths: `./quickstart.md`

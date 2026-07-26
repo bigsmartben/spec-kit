@@ -300,16 +300,13 @@ def _handoff_requires_traceable_validation_evidence(handoff: dict[str, Any]) -> 
         "BehaviorScenarioInstance",
         "BDD scenario",
         "behavior assertion",
-        "Visual Item ID",
-        "Requirement Status",
-        "visual_setup",
-        "visual_implementation",
+        "UI/UX Requirement ID",
+        "UI-",
+        "UX-",
+        "ui_setup",
+        "ui_implementation",
+        "ui_accessibility",
         "ui_acceptance",
-        "asset_binding",
-        "visual SSOT ref",
-        "HTML SSOT ref",
-        "structured IR ref",
-        "Client Asset Contract",
     )
     values: list[str] = []
     for key in ("allowed_read_paths", "allowed_write_paths", "task_text"):
@@ -326,15 +323,9 @@ def _receipt_references_traceable_validation_evidence(receipt: dict[str, Any]) -
         "AST-",
         "BDD",
         "UIF-",
-        "Visual Item ID",
-        "Requirement Status",
-        "visual SSOT ref",
-        "visual SSOT refs",
-        "HTML SSOT ref",
-        "HTML SSOT refs",
-        "structured IR ref",
-        "structured IR refs",
-        "Client Asset Contract",
+        "UI-",
+        "UX-",
+        "UI/UX Requirement ID",
         "quickstart validation",
         "contracts/bdd/",
         "contracts/uif/",
@@ -826,8 +817,7 @@ def validate_receipt_structure(
     ) and not _receipt_references_traceable_validation_evidence(receipt):
         raise ValueError(
             "receipt validation_evidence must reference relevant BDD scenario, "
-            "behavior assertion, API contract, UIF path, Visual Item ID, "
-            "visual SSOT ref, HTML SSOT ref, structured IR ref, Client Asset Contract entry, "
+            "behavior assertion, API contract, UIF path, UI/UX requirement ID, "
             "or quickstart path"
         )
 

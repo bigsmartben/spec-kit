@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+- Added a wrapping `spec-template` as the single owner of the source-agnostic
+  `UI/UX Specification` structure, including stable `UI-###` and `UX-###`
+  requirements.
+- Removed design-provider and intake-evidence dependencies from runtime
+  commands, templates, validators, protocols, and public documentation.
+- Separated UI/UX Applicability (`Required`, `Not Applicable`, `Unknown`) from
+  specification Readiness (`Ready`, `Blocked`) across checklist, planning,
+  task, implementation, and receipt contracts.
+
 ## 1.3.12 - 2026-07-01
 
 - Added a shared cross-agent protocol contract with command profiles for specify, plan, tasks, analyze, and implement, while keeping persistent handoff orchestration scoped to `/speckit.implement`.

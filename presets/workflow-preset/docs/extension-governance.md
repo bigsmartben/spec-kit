@@ -21,13 +21,10 @@ a new capability outside the existing Spec Kit workflow.
 Do not reintroduce Python orchestration, workflow shell dispatch, integration
 adapter scripts, or worker dispatch from scripts.
 
-Source intake artifacts belong in an extension, not this preset. External intake owns source capture, provider evidence, provider metadata, rendered HTML SSOT bundles, structured IR artifacts,
-source-side readiness, and blocker codes. This preset may consume confirmed
-external intake artifact refs, visual SSOT refs, HTML SSOT refs, structured IR refs,
-source refs, coverage gaps, readiness inputs, accepted exception refs, and provider blockers already cited in `spec.md`.
-External evidence refs are consumed as source, readiness, blocker, and traceability inputs only. Provider tools, provider execution, hooks, adapter scripts,
-and authentication are external integration concerns and remain outside this
-preset.
+Source acquisition, tool-specific extraction, normalization, authentication,
+and source-readiness evaluation are outside this preset. `workflow-preset`
+consumes explicit product text and confirmed product decisions, then owns only
+source-agnostic requirement, planning, task, and implementation artifacts.
 
 ## Template And Command Ownership
 
@@ -44,18 +41,21 @@ Stage ownership:
 - `/speckit.constitution`: constitution governance and project principles only.
 - `/speckit.specify`: requirement artifacts only.
 - `/speckit.clarify`: requirement clarification only.
-- `/speckit.checklist`: checklist artifacts and BDD/NFR/Visual Fidelity readiness gates only.
+- `/speckit.checklist`: checklist artifacts and BDD/NFR/UI/UX specification readiness gates only.
 - `/speckit.plan`: Phase 0 behavior projection, planning artifacts, and formal contracts.
 - `/speckit.tasks`: `tasks.md` only.
 - `/speckit.analyze`: vertical consistency checks across requirements, behavior drafts, contracts, and tasks only.
 - `/speckit.implement`: implementation handoff execution only.
 
-`/speckit.tasks` owns implementation, non-visual acceptance, contract validation, data-side-effect validation, integration/e2e validation, and code review task definition in `tasks.md`. `/speckit.implement` may execute those tasks and record receipt evidence, but it must not invent validation strategy, visual validation work, lifecycle roles, requirements, contract updates, or wider scope during execution.
+`/speckit.tasks` owns implementation, UI/UX acceptance, contract validation, data-side-effect validation, integration/e2e validation, and code review task definition in `tasks.md`. `/speckit.implement` may execute those tasks and record receipt evidence, but it must not invent validation strategy, lifecycle roles, requirements, contract updates, or wider scope during execution.
 
-When external intake evidence or visual SSOT refs have already been projected into `spec.md`, `/speckit.clarify` may clarify those requirement gaps from `spec.md`, but extraction remains outside clarification.
-External design extraction is not a clarification responsibility.
+The wrapping `spec-template` owns the stable `UI/UX Specification` shape.
+`/speckit.specify` decides applicability and fills that shape; it must not
+duplicate headings, fields, matrix columns, status enums, or examples.
 
-Visual Fidelity readiness applies to external-intake-derived and product-side visual requirements such as pixel-perfect, brand-critical, responsive visual, or UI visual acceptance requirements. The Visual Fidelity Evidence Matrix is the single visual readiness record and uses one row per visual requirement with Source `spec.md` section, Requirement Status, provider-evidence dependency, visual SSOT refs, HTML SSOT refs, structured IR refs, other evidence refs, readiness input, Blocking Item ID, and accepted exception refs. It records visual planning readiness, traceability refs, provider blocker status, accepted exception refs, checklist Gate Status, and checklist Blocking Items. It must not define visual validation work, screenshot comparison, visual diff, baseline capture, or final visual review. Source-side intake readiness remains separate: an intake extension may prove raw metadata completeness, source coverage, node inventory parity, HTML SSOT coverage, structured IR coverage, and blocker lint errors, but that proof is not re-run by this preset.
+UI/UX requirement Applicability uses `Required`, `Not Applicable`, or `Unknown`.
+Checklist Readiness uses `Ready` or `Blocked` as a separate dimension. The
+UI/UX Coverage Matrix is the only UI/UX specification-readiness matrix.
 
 ## Structured Artifact Rules
 
@@ -121,7 +121,13 @@ NFR readiness belongs in `spec.md` product requirements rather than downstream
 planning guesses. Keep domain model details in `data-model.md`, interface
 schemas in `contracts/`, and validation run guidance in `quickstart.md`.
 
-For visual planning, research.md records visual/IR source refs, readiness inputs, accepted exception refs, related contract paths, and unresolved blocker refs only; it must not duplicate the Visual Fidelity Evidence Matrix or define visual validation strategy, screenshot comparison, visual diff, baseline capture, or final visual review. contracts formalize visual interaction and state constraints by referencing accepted visual items, source refs, structured IR refs, and accepted exception refs; contracts/sequences.md records visual state flow only when it affects cross-boundary sequencing, async callbacks, retry, rollback, compensation, or error propagation, and must not define visual style, tokens, layout breakpoints, screenshot matrices, or validation commands.
+For UI/UX planning, `research.md` records implementation decisions needed by
+accepted `UI-###` and `UX-###` requirements. Contracts formalize interaction,
+feedback, state, responsive, and accessibility constraints.
+`contracts/sequences.md` records UI state flow only when it affects
+cross-boundary sequencing, async callbacks, retry, rollback, compensation, or
+error propagation; it must not define visual style, typography, color, spacing,
+or layout details.
 
 ## Handoff Extension Rules
 
@@ -144,13 +150,11 @@ Do not bump preset version or release archive URLs until release preparation.
 Unreleased behavior belongs under `## Unreleased` in `CHANGELOG.md`.
 
 ## Verification
-
 After changing preset commands, templates, schemas, validators, governance docs,
 or public documentation, run:
 
 ```bash
 python3 -m unittest tests/test_preset_contract.py
 ```
-
 If the system Python lacks development dependencies, use a local virtual
 environment and the same unittest command from that environment.

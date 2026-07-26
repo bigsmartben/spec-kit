@@ -6,54 +6,49 @@ strategy: wrap
 Follow cross-agent protocol profile: `speckit.specify.single_core`.
 
 ## Spec-Only Requirement Policy
+
 This wrapper must not redefine core-owned User Input, Pre-Execution Checks, extension hooks, base path resolution, or core file handling.
 
-Preset-added requirement output writes only `spec.md`.
-Product requirements stay in `spec.md`: user stories, acceptance criteria, functional requirements, non-functional requirements, visual and UI requirements, constraints, assumptions, and any clarification markers required by the core template.
+Preset-added requirement output writes only `spec.md`. Product requirements stay in `spec.md`: user stories, acceptance criteria, functional requirements, non-functional requirements, UI/UX requirements, constraints, assumptions, and clarification markers required by the active template.
 
-Keep requirement text implementation-agnostic and scoped to product behavior. Non-functional requirements must be explicit product-level assumptions or constraints, including no-special-requirement or not-applicable statements when that is the confirmed requirement.
+Keep requirement text implementation-agnostic and scoped to product behavior. Focus on WHAT users need and WHY; avoid HOW to implement it.
 
 ## Wrapper Input Additions
-Treat product notes, PRDs, user prompts, confirmed external intake facts, visual SSOT refs, HTML SSOT refs, structured IR refs, evidence refs, screenshots, and visual proof refs as input to the same feature description. If the core feature description is empty, follow the core command error path.
 
-Treat confirmed Visual Asset Registry refs as external source artifact inputs only. They describe visual media inventory such as icons, images, illustrations, fonts, motion, video, textures, source refs, variants, license status, fallback policy, and blocker status.
+Treat explicit user-provided product text, notes, and confirmed decisions as the feature description. If the core feature description is empty, follow the core command error path.
 
 ## Wrapper Preflight Additions
-Before writing evidence-derived requirements, consume only confirmed external intake facts or explicit user-provided requirement text. This preset does not perform intake, call provider tools, parse HTML SSOT bundles, re-parse structured IR artifacts, decide provider source readiness, or generate provider artifact instances.
 
-Classify gaps by ownership: missing product decisions become `[NEEDS CLARIFICATION]`; missing provider or intake evidence for a feature that depends on that evidence becomes `[BLOCKED: PROVIDER_EVIDENCE]`; features that do not depend on HTML SSOT, structured IR, or provider evidence are `Not Applicable`.
+Resolve the active `spec-template` through the normal preset/template stack. Use its UI/UX section as the only stable UI/UX output structure; do not reproduce the template's headings, table columns, status enums, or examples inside this command.
 
 ## Wrapper Outline Additions
-Specification Projection Policy: write one implementation-agnostic `spec.md` from confirmed product facts, explicit product constraints, and source-backed external intake facts.
 
-When visual or UI requirements apply, write a `Visual & UI Specification` section inside `spec.md` for observable visual and UI requirements only. When no visual or UI surface applies, record a Not Applicable rationale in `spec.md`.
+Determine whether the feature has a user-facing surface or interaction journey:
 
-Every identified visual or UI requirement must be recorded with status `Required`, `Not Applicable`, `Unknown`, or `[BLOCKED: PROVIDER_EVIDENCE]`; do not silently omit low-evidence visual or UI requirements.
+- `Required`: populate every applicable UI/UX field defined by the active template.
+- `Not Applicable`: record a concrete product-level rationale in `spec.md`.
+- `Unknown`: record the unresolved product decision with `[NEEDS CLARIFICATION]`.
 
-For visual requirements, preserve visual SSOT refs, HTML SSOT refs, structured IR refs, evidence refs, state and viewport refs, visual proof refs, and Client Asset Contract facts: source refs, asset source strategy, required variants, fallback policy, and blocker status.
+Write only confirmed product requirements. Assign stable `UX-###` IDs to journey, navigation, feedback, and usability requirements, and stable `UI-###` IDs to surface, state, responsive, accessibility, content, and observable visual requirements.
 
-Promote only confirmed product facts and source-backed visual, layout, state, interaction, responsive, accessibility, and acceptance facts with source refs. Do not promote provider evidence gaps into product requirements or `[NEEDS CLARIFICATION]` markers.
+Requirements must describe observable user outcomes. Do not invent framework components, DOM structure, CSS selectors, component props, code organization, asset packaging, or other implementation decisions.
 
-Treat Component State Matrix content as Visual & UI Specification requirements, not visual assets. Record observable states, visual feedback, and interaction outcomes; do not turn them into framework component names or implementation contracts.
-
-Do not invent code props, code state names, component reuse decisions, self-drawing bans, copy restrictions, DOM structure, CSS selectors, component props, generated code organization, asset binding, or packaging strategy from external visual evidence.
-
-When visual SSOT, HTML SSOT, structured IR, or provider evidence refs are blocked or unavailable, keep explicit visual or UI requirement coverage in `spec.md`, mark evidence-derived coverage as `[BLOCKED: PROVIDER_EVIDENCE]`, and do not invent missing visual facts.
-
-## Official Style Alignment
-Focus on WHAT users need and WHY. Avoid HOW to implement. Limit [NEEDS CLARIFICATION] markers to the highest-impact unresolved product decisions; record low-impact gaps in Assumptions and provider readiness gaps as `[BLOCKED: PROVIDER_EVIDENCE]`.
+Limit `[NEEDS CLARIFICATION]` markers to the highest-impact unresolved product decisions. Record reasonable low-impact defaults in Assumptions.
 
 ## Specification Quality Validation
-Validate that requirement text is stakeholder-readable, testable, implementation-agnostic, and explicit about assumptions, NFR applicability, visual evidence source refs, provider blockers, and unresolved product decisions.
+
+Validate that the completed requirement text is stakeholder-readable, testable, implementation-agnostic, and explicit about applicability, assumptions, UI states, responsive behavior, accessibility, content, acceptance criteria, and unresolved product decisions.
 
 {CORE_TEMPLATE}
 
 ## Completion Report
-Before finishing, report the `spec.md` sections created or updated, confirmed requirements, visual SSOT refs preserved, provider blockers, and unresolved requirement ambiguities.
+
+Before finishing, report the `spec.md` sections created or updated, confirmed requirements, UI/UX applicability, and unresolved requirement ambiguities.
 
 ## Done When
-- [ ] Confirmed requirement facts, visual SSOT refs, HTML SSOT refs, structured IR refs, and applicable Client Asset Contract facts are reflected in `spec.md`.
-- [ ] Functional, non-functional, and visual/UI requirement coverage is present or explicitly marked Not Applicable, Unknown, or `[BLOCKED: PROVIDER_EVIDENCE]`.
+
+- [ ] The active spec template supplied the stable UI/UX artifact shape.
+- [ ] Functional, non-functional, and UI/UX requirement coverage is present or explicitly marked Not Applicable or Unknown.
+- [ ] Applicable UI/UX requirements have stable `UI-###` or `UX-###` IDs and observable acceptance criteria.
 - [ ] Product `[NEEDS CLARIFICATION]` markers are limited to high-impact unresolved decisions.
-- [ ] Provider readiness blockers remain `[BLOCKED: PROVIDER_EVIDENCE]`.
-- [ ] Completion reported with updated `spec.md` sections and remaining blockers.
+- [ ] Completion reported updated `spec.md` sections and remaining ambiguities.

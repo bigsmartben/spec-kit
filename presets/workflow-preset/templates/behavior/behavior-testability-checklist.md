@@ -56,40 +56,37 @@ For each user story or capability, record one row per story or capability case t
 - [ ] Required NFR entries have verifiable product-level criteria without prescribing architecture.
 - [ ] Unknown NFR entries that affect downstream design are listed as blocking items.
 
-## Visual Fidelity Readiness
-- [ ] Apply this section when `spec.md` contains `Visual & UI Specification`, visual requirements, visual SSOT refs, HTML SSOT refs, structured IR refs, external intake refs, provider evidence blockers, or provider-specific evidence requests. Also apply it when `spec.md` contains product-side visual requirements such as pixel-perfect, brand-critical, responsive visual, or UI visual acceptance requirements.
-- [ ] `Visual & UI Specification` exists when a visual or UI surface applies; otherwise `spec.md` records a Not Applicable rationale.
-- [ ] Every identified visual/UI requirement uses status `Required`, `Not Applicable`, `Unknown`, or `[BLOCKED: PROVIDER_EVIDENCE]`.
-- [ ] Unknown visual/UI coverage status appears in Blocking Items when it affects downstream behavior projection or design.
-- [ ] Required visual/UI requirements have observable requirement text in `spec.md`.
-- [ ] Design-derived requirements identify the design source, provider source refs, and required fidelity.
-- [ ] Visual requirements record external intake readiness status when cited, visual SSOT refs, HTML SSOT refs, structured IR refs, other evidence refs, and provider blocker status when provider evidence is required.
-- [ ] Visual Fidelity Evidence Matrix rows cite source `spec.md` sections, traceability refs, readiness inputs, blocking item IDs, and accepted exception refs.
-- [ ] Visual Fidelity Evidence Matrix is the only artifact that records visual planning readiness, provider blocker status, traceability refs, accepted exception refs, Gate Status, and Blocking Items.
-- [ ] Visual Fidelity Evidence Matrix reads visual facts from `spec.md` and cited evidence refs; it does not call provider tools, re-extract external intake evidence, parse HTML SSOT bundles, re-parse structured IR artifacts, rebuild provider matrices, define visual validation work, or create another visual readiness path.
-- [ ] Use one Visual Fidelity Evidence Matrix as the single visual readiness record; do not duplicate visual evidence decisions outside the matrix and Blocking Items.
-- [ ] Do not add historical visual rules or alternate visual decision paths.
+## UI/UX Specification Readiness
 
-## Visual Fidelity Evidence Matrix
+- [ ] Apply this section when `spec.md` marks UI/UX Applicability as Required or Unknown.
+- [ ] UI/UX Applicability is declared as `Required`, `Not Applicable`, or `Unknown`.
+- [ ] Not Applicable includes a concrete product-level rationale.
+- [ ] Unknown applicability appears in Blocking Items when it affects downstream planning.
+- [ ] Every applicable requirement has a stable `UI-###` or `UX-###` ID.
+- [ ] Required UI/UX requirements describe observable user outcomes rather than implementation details.
+- [ ] Experience goals and critical journeys are explicit.
+- [ ] Information architecture and navigation outcomes are explicit when applicable.
+- [ ] Interaction feedback, validation behavior, and recovery outcomes are explicit.
+- [ ] Required default, loading, empty, error, disabled, success, hover, and focus states are explicit.
+- [ ] Responsive reflow, scrolling, safe-area, viewport, and long-content behavior are explicit.
+- [ ] Keyboard, focus, semantics, contrast, announcements, and error accessibility behavior are explicit.
+- [ ] Required copy, visual hierarchy, typography, color use, iconography, imagery, and formatting are explicit.
+- [ ] Every Required UI/UX requirement has an objective acceptance criterion.
 
-| Visual Item ID | Source `spec.md` section | Requirement Status | Depends on Provider Evidence | HTML SSOT Refs | Structured IR Refs | Other Evidence Refs | Readiness Input | Blocking Item ID | Accepted Exception Refs |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| VIS-001 | `spec.md#...` | Required|Not Applicable|Unknown|[BLOCKED: PROVIDER_EVIDENCE] | yes|no | html-ssot/... or none | ir/... or none | provider/screenshot refs or none | ready|blocked|not-applicable | BI-... or none | EX-... or none |
+## UI/UX Coverage Matrix
 
-- [ ] Requirement Status is declared for each visual requirement.
-- [ ] Provider-dependent rows cite HTML SSOT refs, structured IR refs, visual SSOT refs, or other external intake artifact refs when available.
-- [ ] Missing required provider or intake evidence sets Gate Status: BLOCKED, uses `[BLOCKED: PROVIDER_EVIDENCE]`, and lists the item in Blocking Items.
-- [ ] Rows that do not depend on HTML SSOT, structured IR, or provider evidence are marked `Not Applicable` with rationale.
-- [ ] Product decision gaps use `Unknown` or `[NEEDS CLARIFICATION]` only when product requirements are missing, not when provider evidence is unavailable.
-- [ ] Responsive visual requirements block PASS only when required source-backed state or viewport evidence is missing for a feature that depends on provider evidence.
-- [ ] Layout, spacing, typography, colors, effects, assets, and clipping requirements are explicit.
-- [ ] Required client visual assets have source refs, asset source strategy, required variants, fallback policy, and blocker status.
-- [ ] Required component mappings and variant coverage are explicit or marked as blocking clarification items.
-- [ ] Default, hover, focus, active, disabled, loading, empty, and error states are explicit or marked as missing.
-- [ ] Required breakpoints, reflow rules, scrolling, minimum widths, safe areas, and responsive behavior is explicit.
-- [ ] Copy, icons, images, fonts, numeric formats, and placeholder content are explicit.
-- [ ] Keyboard, focus, semantics, contrast, ARIA, form error behavior, and accessibility requirements are explicit.
-- [ ] Accepted exceptions are defined as traceable exception refs and rationale.
+| Requirement ID | Source `spec.md` Section | Applicability | Readiness | States Covered | Responsive Coverage | Accessibility Coverage | Blocking Item ID |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| UI-001 | `spec.md#...` | Required | Ready|Blocked | default, error | mobile, desktop | keyboard, announcement | BI-... or none |
+
+- [ ] Applicability uses only `Required`, `Not Applicable`, or `Unknown`.
+- [ ] Readiness uses only `Ready` or `Blocked`.
+- [ ] Applicability and Readiness are evaluated independently.
+- [ ] Every Required row cites its source `spec.md` section.
+- [ ] Missing observable requirement text, required states, responsive behavior, accessibility behavior, content rules, or acceptance criteria sets Readiness to Blocked and lists a Blocking Item ID.
+- [ ] Unknown applicability sets Readiness to Blocked when the unresolved decision prevents planning.
+- [ ] Not Applicable rows include rationale and do not create implementation work.
+- [ ] UI/UX Coverage Matrix is the only UI/UX specification-readiness matrix.
 
 ## Gate Status
 Gate Status: PASS|BLOCKED

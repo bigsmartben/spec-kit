@@ -15,7 +15,7 @@ Follow cross-agent protocol profile: `speckit.plan.stage_local_planning`.
 
 Plan Core Agent owns checklist preflight, stage-local delegation, conflict resolution, and final writes to planning artifacts. Delegated agents return bounded drafts, source refs, blockers, and `context_gaps`; Plan Core Agent consumes those outputs rather than subagent conversation history.
 
-Use only planning-local roles: Behavior Projection Agent, Formal Contract Agent, Design Artifact Agent, Validation Planning Agent, and Visual Planning Agent. Each payload declares assigned scope, allowed reads, allowed sections, and output contract. If runtime subagents are unavailable, Plan Core Agent processes one assigned scope at a time with the same boundaries and final-write ownership.
+Use only planning-local roles: Behavior Projection Agent, Formal Contract Agent, Design Artifact Agent, Validation Planning Agent, and UI/UX Planning Agent. Each payload declares assigned scope, allowed reads, allowed sections, and output contract. If runtime subagents are unavailable, Plan Core Agent processes one assigned scope at a time with the same boundaries and final-write ownership.
 
 ## Design Artifact Policy
 
@@ -93,17 +93,16 @@ When `plan.md` has a design artifact/navigation section, include links to:
 - Interface contracts: `./contracts/`
 - Validation path: `./quickstart.md`
 
-When visual requirements are in scope, keep `plan.md` navigation linked to visual fidelity scope, source refs, visual SSOT refs, HTML SSOT refs, structured IR refs, screenshot refs, visual proof refs, and other external evidence refs already accepted by `spec.md` and the readiness checklist.
+When UI/UX requirements are in scope, keep `plan.md` navigation linked to accepted `UI-###` and `UX-###` requirements, related interaction contracts, planning decisions, and acceptance paths.
 
-## Visual Planning Responsibilities
+## UI/UX Planning Responsibilities
 
-When visual requirements are in scope, planning must keep the Visual Fidelity Evidence Matrix as the upstream readiness record and split visual carry-forward across the existing planning outputs.
+Use `checklists/behavior-testability.md` as the upstream UI/UX specification-readiness record. Carry forward only rows whose Applicability is `Required` and Readiness is `Ready`. If a row is `Unknown` or `Blocked`, stop with a report-only/no-write upstream gate failure and return to `/speckit.checklist` or `/speckit.clarify`. Do not project `Not Applicable` rows into planning outputs.
 
-Use the Visual Fidelity Evidence Matrix `Requirement Status` as the visual planning input filter. Carry forward only visual rows with status `Required` or an accepted exception rule. Rows with status `Unknown` or `[BLOCKED: PROVIDER_EVIDENCE]` must already have blocked checklist PASS; if encountered during planning, stop with a report-only/no-write upstream gate failure and return to `/speckit.checklist`, `/speckit.clarify`, or the external intake extension as appropriate. Do not project `Not Applicable` rows into visual planning outputs.
-
-- `research.md`: carry forward visual and IR planning inputs for each relevant Visual Item ID or visual SSOT ref. Record source refs, HTML SSOT refs, structured IR refs, readiness status, accepted exception refs, unresolved blocker refs, external evidence refs, related quickstart path, and related UIF or behavior contract path. Do not define visual validation strategy, screenshot comparison, visual diff, baseline capture, or final visual review work; do not copy the Visual Fidelity Evidence Matrix into `research.md`, create new visual requirements, call provider tools, rebuild external intake evidence, or rebuild provider evidence matrices.
-- `contracts/uif/` and `contracts/behavior/`: formalize accepted visual interaction and state constraints only when they affect observable behavior. Expected UIF contracts may carry visual_item_refs, viewport_matrix_refs, state_matrix_refs, visual_proof_refs, and accepted_exception_refs. Behavior contracts may reference visual assertion IDs or blockers when a visual state cannot be formalized without inventing requirements. Interface contracts in `contracts/` may model only API or data fields needed to support UI states, assets, or feedback; they must not contain layout rules or screenshot proof decisions.
-- `contracts/sequences.md`: add UI interaction sequence, visual state handoff points, responsive branch trigger refs, and visual proof references only when visual states affect cross-boundary order, async callbacks, retries, rollback, compensation, or error propagation. Keep visual style, tokens, layout breakpoints, screenshot matrices, and validation commands out of `contracts/sequences.md`.
+- `research.md`: record planning decisions needed to satisfy accepted UI/UX requirements, including platform constraints, interaction tradeoffs, viewport support, accessibility approach, and unresolved implementation blockers. Do not create new product requirements or change accepted applicability.
+- `contracts/uif/` and `contracts/behavior/`: formalize accepted interaction, feedback, state, responsive, and accessibility constraints when they affect observable behavior. Reference the applicable `UI-###` or `UX-###` requirement IDs.
+- `contracts/sequences.md`: add UI interaction sequences and responsive branch triggers only when UI states affect cross-boundary order, async callbacks, retries, rollback, compensation, or error propagation. Keep visual style, typography, color, spacing, and layout details outside sequence contracts.
+- `quickstart.md`: define executable acceptance paths for applicable UI/UX requirements without changing their product meaning.
 
 ## Behavior-First Planning Inputs
 

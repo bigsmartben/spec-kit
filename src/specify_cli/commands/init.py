@@ -37,13 +37,6 @@ DEFAULT_BUNDLED_EXTENSIONS = (
 DEFAULT_BUNDLED_PRESETS = ("workflow-preset",)
 
 
-def _refresh_existing_manifest_hashes(manifest: Any, project_path: Path) -> None:
-    """Refresh hashes for tracked files that may be rewritten during init."""
-    for rel_path in list(manifest.files):
-        if (project_path / rel_path).is_file():
-            manifest.record_existing(rel_path)
-
-
 def _stdin_is_interactive() -> bool:
     return sys.stdin.isatty()
 
@@ -719,7 +712,18 @@ def register(app: typer.Typer) -> None:
                             continuing="Continuing without the optional preset.",
                         )
 
-                _refresh_existing_manifest_hashes(manifest, project_path)
+                from ..integrations._helpers import (
+                    _reconcile_presets_for_active_agent,
+                )
+
+                _reconcile_presets_for_active_agent(
+                    project_path,
+                    continuing=(
+                        "Initialization completed, but enabled presets may need "
+                        "manual re-registration."
+                    ),
+                )
+                manifest.refresh_existing_hashes()
                 manifest.save()
 
                 tracker.complete("final", "project ready")

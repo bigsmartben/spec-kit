@@ -698,7 +698,12 @@ class PresetManager:
         registrar = CommandRegistrar()
         registrar.unregister_commands(registered_commands, self.project_root)
 
-    def _reconcile_composed_commands(self, command_names: List[str]) -> None:
+    def _reconcile_composed_commands(
+        self,
+        command_names: List[str],
+        *,
+        agent_name: Optional[str] = None,
+    ) -> None:
         """Re-resolve and re-register composed commands from the full stack.
 
         After install or remove, recompute the effective content for each
@@ -709,6 +714,9 @@ class PresetManager:
 
         Args:
             command_names: List of command names to reconcile
+            agent_name: Optional active agent to update. When omitted, preserve
+                the install/remove behavior of updating all detected non-skill
+                agents.
         """
         if not command_names:
             return
@@ -750,7 +758,11 @@ class PresetManager:
                             for tmpl in manifest.templates:
                                 if tmpl.get("name") == cmd_name and tmpl.get("type") == "command":
                                     self._register_for_non_skill_agents(
-                                        registrar, [tmpl], manifest.id, pack_dir
+                                        registrar,
+                                        [tmpl],
+                                        manifest.id,
+                                        pack_dir,
+                                        agent_name=agent_name,
                                     )
                                     registered = True
                                     break
@@ -774,10 +786,13 @@ class PresetManager:
                                     if c.get("name") == cmd_name
                                 ]
                                 if matching_cmds:
-                                    registrar.register_commands_for_non_skill_agents(
-                                        matching_cmds, ext_id, ext_dir,
-                                        self.project_root,
+                                    self._register_for_non_skill_agents(
+                                        registrar,
+                                        matching_cmds,
+                                        ext_id,
+                                        ext_dir,
                                         context_note=f"\n<!-- Extension: {ext_id} -->\n<!-- Config: .specify/extensions/{ext_id}/ -->\n",
+                                        agent_name=agent_name,
                                     )
                                     registered = True
                             except Exception:
@@ -789,6 +804,7 @@ class PresetManager:
                         self._register_command_from_path(
                             registrar, cmd_name, top_path,
                             source_id=source_id,
+                            agent_name=agent_name,
                         )
             else:
                 # Composed command — resolve from full stack
@@ -815,11 +831,22 @@ class PresetManager:
                                         if isinstance(alias, str):
                                             cmd_names_to_unregister.append(alias)
                                     break
-                    registrar.unregister_commands(
-                        {agent: cmd_names_to_unregister for agent in registrar.AGENT_CONFIGS
-                         if registrar.AGENT_CONFIGS[agent].get("extension") != "/SKILL.md"},
-                        self.project_root,
-                    )
+                    if agent_name:
+                        if not self._active_agent_uses_skills(agent_name):
+                            registrar.unregister_commands(
+                                {agent_name: cmd_names_to_unregister},
+                                self.project_root,
+                            )
+                    else:
+                        registrar.unregister_commands(
+                            {
+                                agent: cmd_names_to_unregister
+                                for agent in registrar.AGENT_CONFIGS
+                                if registrar.AGENT_CONFIGS[agent].get("extension")
+                                != "/SKILL.md"
+                            },
+                            self.project_root,
+                        )
                     continue
 
                 # Write to the highest-priority preset's .composed dir
@@ -839,6 +866,7 @@ class PresetManager:
                                 registrar,
                                 [{**tmpl, "file": f".composed/{cmd_name}.md"}],
                                 manifest.id, pack_dir,
+                                agent_name=agent_name,
                             )
                             registered = True
                             break
@@ -860,6 +888,7 @@ class PresetManager:
                     self._register_command_from_path(
                         registrar, cmd_name, composed_file,
                         source_id=source_id,
+                        agent_name=agent_name,
                     )
 
     def _register_command_from_path(
@@ -868,6 +897,7 @@ class PresetManager:
         cmd_name: str,
         cmd_path: Path,
         source_id: str = "reconciled",
+        agent_name: Optional[str] = None,
     ) -> None:
         """Register a single command from a file path (non-preset source).
 
@@ -879,6 +909,7 @@ class PresetManager:
             cmd_name: Command name
             cmd_path: Path to the command file
             source_id: Source attribution for rendered output
+            agent_name: Optional active agent to update
         """
         if not cmd_path.exists():
             return
@@ -908,7 +939,11 @@ class PresetManager:
             except Exception:
                 pass  # best-effort alias loading
         self._register_for_non_skill_agents(
-            registrar, [cmd_tmpl], source_id, cmd_path.parent
+            registrar,
+            [cmd_tmpl],
+            source_id,
+            cmd_path.parent,
+            agent_name=agent_name,
         )
 
     def _register_for_non_skill_agents(
@@ -917,6 +952,9 @@ class PresetManager:
         commands: List[Dict[str, Any]],
         source_id: str,
         source_dir: Path,
+        *,
+        context_note: Optional[str] = None,
+        agent_name: Optional[str] = None,
     ) -> None:
         """Register commands for non-skill agents during reconciliation.
 
@@ -931,9 +969,71 @@ class PresetManager:
         Writing raw command content to skill agents would produce invalid
         SKILL.md files (missing skill frontmatter, descriptions, etc.).
         """
+        if agent_name:
+            if self._active_agent_uses_skills(agent_name):
+                return
+            registrar.register_commands(
+                agent_name,
+                commands,
+                source_id,
+                source_dir,
+                self.project_root,
+                context_note=context_note,
+            )
+            return
         registrar.register_commands_for_non_skill_agents(
-            commands, source_id, source_dir, self.project_root
+            commands,
+            source_id,
+            source_dir,
+            self.project_root,
+            context_note=context_note,
         )
+
+    def _active_agent_uses_skills(self, agent_name: str) -> bool:
+        """Return whether ``agent_name`` is the active skills-backed agent."""
+        if not agent_name:
+            return False
+
+        from .. import load_init_options
+        from ..agents import CommandRegistrar
+
+        registrar = CommandRegistrar()
+        registrar._ensure_configs()
+        agent_config = registrar.AGENT_CONFIGS.get(agent_name, {})
+        if agent_config.get("extension") == "/SKILL.md":
+            return True
+
+        init_options = load_init_options(self.project_root)
+        return (
+            isinstance(init_options, dict)
+            and init_options.get("ai") == agent_name
+            and is_ai_skills_enabled(init_options)
+        )
+
+    def _refresh_active_integration_manifest_hashes(self) -> None:
+        """Record final preset-projected bytes for tracked active-agent files."""
+        from .. import load_init_options
+        from ..integrations.manifest import IntegrationManifest
+
+        init_options = load_init_options(self.project_root)
+        if not isinstance(init_options, dict):
+            return
+        active_agent = init_options.get("integration") or init_options.get("ai")
+        if not isinstance(active_agent, str) or not active_agent:
+            return
+
+        manifest_path = (
+            self.project_root
+            / ".specify"
+            / "integrations"
+            / f"{active_agent}.manifest.json"
+        )
+        if not manifest_path.is_file():
+            return
+
+        manifest = IntegrationManifest.load(active_agent, self.project_root)
+        manifest.refresh_existing_hashes()
+        manifest.save()
 
     class _FilteredManifest:
         """Wrapper that exposes only selected command templates from a manifest.
@@ -1098,6 +1198,145 @@ class PresetManager:
             cmds_set = set(cmds)
             filtered_manifest = self._FilteredManifest(manifest, cmds_set)
             self._register_skills(filtered_manifest, pack_dir)
+
+    def reconcile_enabled_presets_for_active_agent(self) -> Dict[str, List[str]]:
+        """Re-project the enabled preset stack onto the active integration.
+
+        Integration setup and refresh operations write their core command
+        artifacts before extension and preset layers are applied.  This method
+        restores the effective preset stack for the single active agent recorded
+        in ``init-options.json`` without touching inactive integrations.
+
+        Returns:
+            A mapping containing the active agent and the command names that
+            were reconciled successfully, or an empty mapping when no active
+            agent or enabled preset commands exist.
+        """
+        import warnings
+
+        from .. import load_init_options
+        from ..agents import CommandRegistrar
+
+        init_options = load_init_options(self.project_root)
+        if not isinstance(init_options, dict):
+            return {}
+        active_agent = init_options.get("ai") or init_options.get("integration")
+        if not isinstance(active_agent, str) or not active_agent:
+            return {}
+
+        registrar = CommandRegistrar()
+        registrar._ensure_configs()
+        if active_agent not in registrar.AGENT_CONFIGS:
+            return {}
+
+        extensions_dir = self.project_root / ".specify" / "extensions"
+        commands_by_preset: Dict[str, List[str]] = {}
+        command_names: List[str] = []
+        seen_commands: set[str] = set()
+
+        for pack_id, _metadata in self.registry.list_by_priority():
+            manifest_path = self.presets_dir / pack_id / "preset.yml"
+            if not manifest_path.is_file():
+                warnings.warn(
+                    f"Cannot reconcile enabled preset '{pack_id}': preset.yml is missing.",
+                    stacklevel=2,
+                )
+                continue
+            try:
+                manifest = PresetManifest(manifest_path)
+            except PresetValidationError as exc:
+                warnings.warn(
+                    f"Cannot reconcile enabled preset '{pack_id}': {exc}.",
+                    stacklevel=2,
+                )
+                continue
+
+            provided: List[str] = []
+            for template in manifest.templates:
+                if template.get("type") != "command":
+                    continue
+                command_name = template.get("name")
+                if not isinstance(command_name, str) or not command_name:
+                    continue
+
+                parts = command_name.split(".")
+                if (
+                    len(parts) >= 3
+                    and parts[0] == "speckit"
+                    and not (extensions_dir / parts[1]).is_dir()
+                ):
+                    continue
+
+                provided.append(command_name)
+                if command_name not in seen_commands:
+                    seen_commands.add(command_name)
+                    command_names.append(command_name)
+
+            if provided:
+                commands_by_preset[pack_id] = provided
+
+        if not command_names:
+            return {}
+
+        successful: List[str] = []
+        uses_skills = self._active_agent_uses_skills(active_agent)
+        for command_name in command_names:
+            try:
+                self._reconcile_composed_commands(
+                    [command_name],
+                    agent_name=active_agent,
+                )
+                if uses_skills:
+                    self._reconcile_skills([command_name])
+            except Exception as exc:
+                warnings.warn(
+                    f"Failed to reconcile preset command '{command_name}' for "
+                    f"active integration '{active_agent}': {exc}.",
+                    stacklevel=2,
+                )
+                continue
+            successful.append(command_name)
+
+        successful_set = set(successful)
+        for pack_id, provided in commands_by_preset.items():
+            reconciled = [name for name in provided if name in successful_set]
+            if not reconciled:
+                continue
+            metadata = self.registry.get(pack_id)
+            if not isinstance(metadata, dict):
+                continue
+
+            updates: Dict[str, Any] = {}
+            registered_commands = metadata.get("registered_commands", {})
+            if not isinstance(registered_commands, dict):
+                registered_commands = {}
+            new_registered_commands = copy.deepcopy(registered_commands)
+            existing_agent_commands = new_registered_commands.get(active_agent, [])
+            if not isinstance(existing_agent_commands, list):
+                existing_agent_commands = []
+            new_registered_commands[active_agent] = list(
+                dict.fromkeys(existing_agent_commands + reconciled)
+            )
+            if new_registered_commands != registered_commands:
+                updates["registered_commands"] = new_registered_commands
+
+            if uses_skills:
+                registered_skills = metadata.get("registered_skills", [])
+                if not isinstance(registered_skills, list):
+                    registered_skills = []
+                skill_names = [
+                    self._skill_names_for_command(name)[0] for name in reconciled
+                ]
+                new_registered_skills = list(
+                    dict.fromkeys(registered_skills + skill_names)
+                )
+                if new_registered_skills != registered_skills:
+                    updates["registered_skills"] = new_registered_skills
+
+            if updates:
+                self.registry.update(pack_id, updates)
+
+        return {active_agent: successful}
 
     def _get_skills_dir(self) -> Optional[Path]:
         """Return the active skills directory for preset skill overrides.
@@ -1505,8 +1744,8 @@ class PresetManager:
             return
 
         try:
-            from . import _get_skills_dir as resolve_skills_dir
-            from .agents import CommandRegistrar
+            from .. import _get_skills_dir as resolve_skills_dir
+            from ..agents import CommandRegistrar
         except ImportError:
             return
 
@@ -1668,6 +1907,7 @@ class PresetManager:
             try:
                 self._reconcile_composed_commands(cmd_names)
                 self._reconcile_skills(cmd_names)
+                self._refresh_active_integration_manifest_hashes()
             except Exception as exc:
                 import warnings
                 warnings.warn(
@@ -1801,6 +2041,7 @@ class PresetManager:
             try:
                 self._reconcile_composed_commands(list(removed_cmd_names))
                 self._reconcile_skills(list(removed_cmd_names))
+                self._refresh_active_integration_manifest_hashes()
             except Exception as exc:
                 import warnings
                 warnings.warn(

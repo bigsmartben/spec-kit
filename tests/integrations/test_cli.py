@@ -1106,6 +1106,68 @@ class TestGitExtensionDefaultInstall:
         assert "Worker Agent" in implement_text
         assert "speckit.implement.handoff.v2" in implement_text
 
+    @pytest.mark.parametrize(
+        ("integration", "plan_path"),
+        [
+            ("codex", ".agents/skills/speckit-plan/SKILL.md"),
+            ("amp", ".agents/commands/speckit.plan.md"),
+            ("gemini", ".gemini/commands/speckit.plan.toml"),
+            ("goose", ".goose/recipes/speckit.plan.yaml"),
+            ("copilot", ".github/agents/speckit.plan.agent.md"),
+        ],
+    )
+    def test_repeated_init_reapplies_active_workflow_preset(
+        self,
+        tmp_path,
+        integration,
+        plan_path,
+    ):
+        """Repeated init must leave the active command at the Preset winner."""
+        from typer.testing import CliRunner
+        from specify_cli import app
+
+        project = tmp_path / f"repeat-init-{integration}"
+        project.mkdir()
+        args = [
+            "init",
+            "--here",
+            "--integration",
+            integration,
+            "--script",
+            "sh",
+            "--ignore-agent-tools",
+        ]
+
+        old_cwd = os.getcwd()
+        try:
+            os.chdir(project)
+            runner = CliRunner()
+            first = runner.invoke(app, args, catch_exceptions=False)
+            assert first.exit_code == 0, first.output
+
+            plan_file = project / plan_path
+            first_content = plan_file.read_text(encoding="utf-8")
+            assert "workflow-preset" in first_content
+            assert "Phase 0 Preflight" in first_content
+
+            second = runner.invoke(
+                app,
+                [*args, "--force"],
+                catch_exceptions=False,
+            )
+        finally:
+            os.chdir(old_cwd)
+
+        assert second.exit_code == 0, second.output
+        assert plan_file.read_text(encoding="utf-8") == first_content
+
+        registry = json.loads(
+            (project / ".specify" / "presets" / ".registry").read_text(
+                encoding="utf-8"
+            )
+        )
+        assert registry["presets"]["workflow-preset"]["enabled"] is True
+
     def test_git_default_keeps_community_defaults(self, tmp_path):
         """Bundled community defaults install alongside the default git extension."""
         from typer.testing import CliRunner

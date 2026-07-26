@@ -1,11 +1,13 @@
 """Tests for ``specify integration`` subcommand (list, install, uninstall, switch)."""
 
+import hashlib
 import json
 import os
 import shutil
 from pathlib import Path
 
 import pytest
+import yaml
 from typer.testing import CliRunner
 
 from specify_cli import app
@@ -57,6 +59,54 @@ def _copy_project_template(tmp_path, template):
     project = tmp_path / "proj"
     shutil.copytree(template, project)
     return project
+
+
+def _install_extension_command_preset(project, tmp_path):
+    """Install a preset that replaces a command supplied by the git extension."""
+    preset_dir = tmp_path / "extension-command-preset"
+    command_dir = preset_dir / "commands"
+    command_dir.mkdir(parents=True)
+    (preset_dir / "preset.yml").write_text(
+        yaml.safe_dump({
+            "schema_version": "1.0",
+            "preset": {
+                "id": "extension-command-preset",
+                "name": "Extension Command Preset",
+                "version": "1.0.0",
+                "description": "Test preset precedence over an extension command",
+                "author": "Spec Kit tests",
+                "repository": "https://example.com/extension-command-preset",
+                "license": "MIT",
+            },
+            "requires": {"speckit_version": ">=0.1.0"},
+            "provides": {
+                "templates": [{
+                    "type": "command",
+                    "name": "speckit.git.feature",
+                    "file": "commands/speckit.git.feature.md",
+                    "description": "Replace the git extension feature command",
+                    "replaces": "speckit.git.feature",
+                    "strategy": "replace",
+                }]
+            },
+            "tags": ["testing"],
+        }),
+        encoding="utf-8",
+    )
+    (command_dir / "speckit.git.feature.md").write_text(
+        "---\n"
+        "description: Preset wins over extension command\n"
+        "strategy: replace\n"
+        "---\n\n"
+        "PRESET-EXTENSION-WINNER\n",
+        encoding="utf-8",
+    )
+
+    result = _run_in_project(project, [
+        "preset", "add", "--dev", str(preset_dir),
+    ])
+    assert result.exit_code == 0, result.output
+    return "PRESET-EXTENSION-WINNER"
 
 
 @pytest.fixture(scope="module")
@@ -1231,6 +1281,48 @@ class TestIntegrationInstall:
         # Claude uses skills directory (not commands)
         assert (project / ".claude" / "skills" / "speckit-plan" / "SKILL.md").exists()
 
+    def test_first_active_install_reapplies_existing_preset(self, tmp_path):
+        project = _init_project(tmp_path, "claude")
+        uninstall = _run_in_project(project, [
+            "integration", "uninstall", "claude",
+        ])
+        assert uninstall.exit_code == 0, uninstall.output
+        assert (
+            project / ".specify" / "presets" / ".registry"
+        ).exists(), "preset registry should survive removing the only integration"
+
+        result = _run_in_project(project, [
+            "integration", "install", "codex",
+            "--script", "sh",
+        ])
+        assert result.exit_code == 0, result.output
+
+        plan = project / ".agents" / "skills" / "speckit-plan" / "SKILL.md"
+        content = plan.read_text(encoding="utf-8")
+        assert "source: preset:workflow-preset" in content
+        assert "Phase 0 Preflight" in content
+
+    def test_secondary_install_preserves_active_preset_projection(self, tmp_path):
+        project = _init_project(tmp_path, "amp")
+        active_plan = project / ".agents" / "commands" / "speckit.plan.md"
+        before = active_plan.read_bytes()
+        assert b"Phase 0 Preflight" in before
+
+        result = _run_in_project(project, [
+            "integration", "install", "codex",
+            "--script", "sh",
+            "--force",
+        ])
+        assert result.exit_code == 0, result.output
+
+        assert active_plan.read_bytes() == before
+        opts = json.loads(
+            (project / ".specify" / "init-options.json").read_text(
+                encoding="utf-8"
+            )
+        )
+        assert opts["ai"] == "amp"
+
     def test_install_bare_project_gets_shared_infra(self, tmp_path):
         """Installing into a bare project should create shared scripts and templates."""
         project = tmp_path / "bare"
@@ -1528,6 +1620,29 @@ class TestIntegrationUninstall:
         assert "/speckit-plan" in template.read_text(encoding="utf-8")
         assert "/speckit-plan" in script.read_text(encoding="utf-8")
 
+    def test_uninstall_default_reapplies_preset_to_fallback(self, tmp_path):
+        project = _init_project(tmp_path, "claude")
+        install = _run_in_project(project, [
+            "integration", "install", "codex",
+            "--script", "sh",
+        ])
+        assert install.exit_code == 0, install.output
+
+        use = _run_in_project(project, ["integration", "use", "codex"])
+        assert use.exit_code == 0, use.output
+
+        result = _run_in_project(project, [
+            "integration", "uninstall", "codex",
+        ])
+        assert result.exit_code == 0, result.output
+
+        fallback_plan = (
+            project / ".claude" / "skills" / "speckit-plan" / "SKILL.md"
+        )
+        content = fallback_plan.read_text(encoding="utf-8")
+        assert "source: preset:workflow-preset" in content
+        assert "Phase 0 Preflight" in content
+
     def test_uninstall_preserves_shared_infra(self, tmp_path):
         """Shared scripts and templates are not removed by integration uninstall."""
         project = _init_project(tmp_path, "claude")
@@ -1572,6 +1687,36 @@ class TestIntegrationUse:
         opts = json.loads((project / ".specify" / "init-options.json").read_text(encoding="utf-8"))
         assert opts["integration"] == "codex"
         assert opts["ai"] == "codex"
+
+    def test_use_reapplies_preset_to_new_active_integration(self, tmp_path):
+        project = _init_project(tmp_path, "claude")
+        install = _run_in_project(project, [
+            "integration", "install", "codex",
+            "--script", "sh",
+        ])
+        assert install.exit_code == 0, install.output
+
+        codex_plan = project / ".agents" / "skills" / "speckit-plan" / "SKILL.md"
+        assert "source: templates/commands/plan.md" in codex_plan.read_text(
+            encoding="utf-8"
+        )
+
+        result = _run_in_project(project, ["integration", "use", "codex"])
+        assert result.exit_code == 0, result.output
+        content = codex_plan.read_text(encoding="utf-8")
+        assert "source: preset:workflow-preset" in content
+        assert "Phase 0 Preflight" in content
+
+        preset_registry = json.loads(
+            (project / ".specify" / "presets" / ".registry").read_text(
+                encoding="utf-8"
+            )
+        )
+        registered = preset_registry["presets"]["workflow-preset"][
+            "registered_commands"
+        ]
+        assert "claude" not in registered
+        assert "codex" in registered
 
     def test_use_requires_installed_integration(self, tmp_path):
         project = _init_project(tmp_path, "claude")
@@ -1809,6 +1954,38 @@ class TestIntegrationSwitch:
         # integration.json updated
         data = json.loads((project / ".specify" / "integration.json").read_text(encoding="utf-8"))
         assert data["integration"] == "copilot"
+
+    def test_switch_new_target_reapplies_preset(self, tmp_path):
+        project = _init_project(tmp_path, "claude")
+
+        result = _run_in_project(project, [
+            "integration", "switch", "amp",
+            "--script", "sh",
+        ])
+        assert result.exit_code == 0, result.output
+
+        plan = project / ".agents" / "commands" / "speckit.plan.md"
+        content = plan.read_text(encoding="utf-8")
+        assert "Phase 0 Preflight" in content
+        assert "workflow-preset" in content
+
+    def test_switch_installed_target_reapplies_preset(self, tmp_path):
+        project = _init_project(tmp_path, "claude")
+        install = _run_in_project(project, [
+            "integration", "install", "codex",
+            "--script", "sh",
+        ])
+        assert install.exit_code == 0, install.output
+
+        result = _run_in_project(project, [
+            "integration", "switch", "codex",
+        ])
+        assert result.exit_code == 0, result.output
+
+        plan = project / ".agents" / "skills" / "speckit-plan" / "SKILL.md"
+        content = plan.read_text(encoding="utf-8")
+        assert "source: preset:workflow-preset" in content
+        assert "Phase 0 Preflight" in content
 
     def test_switch_migrates_extension_commands(self, tmp_path):
         """Switching should migrate extension commands to the new agent directory."""
@@ -2543,6 +2720,128 @@ class TestIntegrationUpgrade:
         ]["git"]["registered_commands"]
         assert "codex" in registered, "upgrade should re-register extension commands (#2886)"
         assert (agents_skills / "speckit-git-feature" / "SKILL.md").exists()
+
+    def test_upgrade_reapplies_preset_and_refreshes_manifest_hash(self, tmp_path):
+        project = _init_project(tmp_path, "codex")
+        plan = project / ".agents" / "skills" / "speckit-plan" / "SKILL.md"
+        manifest_path = (
+            project / ".specify" / "integrations" / "codex.manifest.json"
+        )
+        relative_plan = ".agents/skills/speckit-plan/SKILL.md"
+
+        for _ in range(2):
+            result = _run_in_project(project, [
+                "integration", "upgrade", "codex",
+            ])
+            assert result.exit_code == 0, result.output
+
+            content = plan.read_text(encoding="utf-8")
+            assert "source: preset:workflow-preset" in content
+            assert "Phase 0 Preflight" in content
+
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+            expected_hash = hashlib.sha256(plan.read_bytes()).hexdigest()
+            assert manifest["files"][relative_plan] == expected_hash
+
+    def test_upgrade_preserves_preset_precedence_over_extension(self, tmp_path):
+        project = _init_project(tmp_path, "amp")
+        marker = _install_extension_command_preset(project, tmp_path)
+        command = (
+            project / ".agents" / "commands" / "speckit.git.feature.md"
+        )
+        assert marker in command.read_text(encoding="utf-8")
+
+        result = _run_in_project(project, [
+            "integration", "upgrade", "amp",
+        ])
+        assert result.exit_code == 0, result.output
+        assert marker in command.read_text(encoding="utf-8")
+
+    @pytest.mark.parametrize(
+        ("preset_id", "command_path", "marker", "preset_only_path"),
+        [
+            (
+                "lean",
+                ".agents/commands/speckit.plan.md",
+                "Create a plan and store it in",
+                None,
+            ),
+            (
+                "self-test",
+                ".agents/commands/speckit.specify.md",
+                "preset:self-test",
+                None,
+            ),
+        ],
+    )
+    def test_upgrade_reapplies_other_bundled_presets(
+        self,
+        tmp_path,
+        preset_id,
+        command_path,
+        marker,
+        preset_only_path,
+    ):
+        project = _init_project(tmp_path, "amp")
+        add = _run_in_project(project, [
+            "preset", "add", preset_id,
+            "--priority", "1",
+        ])
+        assert add.exit_code == 0, add.output
+
+        command = project / command_path
+        assert marker in command.read_text(encoding="utf-8")
+        if preset_only_path:
+            preset_only = project / preset_only_path
+            before = preset_only.read_bytes()
+            assert b"preset:self-test" in before
+
+        result = _run_in_project(project, [
+            "integration", "upgrade", "amp",
+        ])
+        assert result.exit_code == 0, result.output
+        assert marker in command.read_text(encoding="utf-8")
+        if preset_only_path:
+            assert preset_only.read_bytes() == before
+
+    def test_upgrade_ignores_disabled_preset(self, tmp_path):
+        project = _init_project(tmp_path, "amp")
+        disable = _run_in_project(project, [
+            "preset", "disable", "workflow-preset",
+        ])
+        assert disable.exit_code == 0, disable.output
+
+        result = _run_in_project(project, [
+            "integration", "upgrade", "amp",
+        ])
+        assert result.exit_code == 0, result.output
+        plan = project / ".agents" / "commands" / "speckit.plan.md"
+        assert "Phase 0 Preflight" not in plan.read_text(encoding="utf-8")
+
+    def test_upgrade_warns_for_broken_preset_and_continues(self, tmp_path):
+        from specify_cli.presets import PresetManager
+
+        project = _init_project(tmp_path, "amp")
+        PresetManager(project).registry.add("broken-preset", {
+            "version": "1.0.0",
+            "source": "test",
+            "enabled": True,
+            "priority": 1,
+            "registered_commands": {},
+            "registered_skills": [],
+        })
+
+        with pytest.warns(
+            UserWarning,
+            match="broken-preset.*preset.yml is missing",
+        ):
+            result = _run_in_project(project, [
+                "integration", "upgrade", "amp",
+            ])
+
+        assert result.exit_code == 0, result.output
+        plan = project / ".agents" / "commands" / "speckit.plan.md"
+        assert "Phase 0 Preflight" in plan.read_text(encoding="utf-8")
 
     def test_upgrade_non_active_agent_preserves_active_agent_skills(self, tmp_path):
         """Upgrading a non-active agent must not touch the active agent's skills.

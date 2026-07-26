@@ -4757,6 +4757,7 @@ class TestBundledPresetLocator:
             'for extension_id in discovery inception intake preview repository-governance; do'
             in verify_run
         )
+        assert "test -f .specify/extensions/arch/extension.yml" not in verify_run
         assert (
             '/tmp/specify-community-smoke-venv/bin/specify extension remove "$extension_id" --force'
             in verify_run

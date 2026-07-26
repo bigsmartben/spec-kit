@@ -9,29 +9,15 @@ and this project adheres to  [Semantic Versioning](https://semver.org/spec/v2.0.
 
 ### Planned
 
-- Feature ideas for future versions
-- Enhancements
-- Bug fixes
+- Replace these entries with user-visible behavior changes.
 
 ## [1.0.0] - YYYY-MM-DD
 
 ### Added
 
 - Initial release of extension
-- Command: `/speckit.my-extension.example` - Example command functionality
-- Configuration system with template
-- Documentation and examples
-
-### Features
-
-- Feature 1 description
-- Feature 2 description
-- Feature 3 description
-
-### Requirements
-
-- Spec Kit: >=0.1.0
-- External dependencies (if any)
+- Command: `speckit.my-extension.example`
+- Contract, template, configuration schema, and focused tests
 
 ---
 

@@ -14,12 +14,24 @@ jobs:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
-          fetch-depth: 1
+          fetch-depth: 0
+
+      - name: Install uv
+        if: github.event_name == 'pull_request'
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
 
       - name: Set up Python
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6
         with:
           python-version: "3.11"
+
+      - name: Install component validator dependencies
+        if: github.event_name == 'pull_request'
+        run: uv sync
+
+      - name: Validate touched Preset and Extension packages
+        if: github.event_name == 'pull_request'
+        run: uv run python scripts/validate-component-standard.py --changed-from "${{ github.event.pull_request.base.sha }}"
 
       - name: Write PR body
         if: github.event_name == 'pull_request'

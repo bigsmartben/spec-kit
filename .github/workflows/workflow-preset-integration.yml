@@ -154,6 +154,11 @@ jobs:
           set -euo pipefail
           uv sync --all-extras --dev
 
+      - name: Validate workflow Preset coding standard
+        run: |
+          set -euo pipefail
+          uv run python scripts/validate-component-standard.py presets/workflow-preset
+
       - name: Check bundled workflow preset version
         env:
           EVENT_PRESET_VERSION: ${{ github.event.client_payload.preset_version || github.event.client_payload.version || inputs.preset_version }}

@@ -89,8 +89,8 @@ provides:
 
     # Command overrides (AI agent workflow prompts)
     # Presets can override both core and extension commands.
-    # Commands are automatically registered into all detected agent
-    # directories (.claude/commands/, .gemini/commands/, etc.)
+    # Commands remain agent-neutral here. Integration/Registrar projects them
+    # to each detected agent format.
 
     # Override a core command:
     - type: "command"

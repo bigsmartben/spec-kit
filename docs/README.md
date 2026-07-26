@@ -28,6 +28,7 @@ To build the documentation locally:
 - `toc.yml` - Table of contents configuration
 - `installation.md` - Installation guide
 - `quickstart.md` - Quick start guide
+- `preset-extension-coding-standard.md` - Maintainer coding standard for presets and extensions
 - `_site/` - Generated documentation output (ignored by git)
 
 ## Deployment

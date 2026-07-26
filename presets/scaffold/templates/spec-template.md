@@ -1,5 +1,9 @@
 # Feature Specification: [FEATURE NAME]
 
+Purpose: define testable feature intent without implementation detail.
+
+Consumer: planning and clarification stages.
+
 **Created**: [DATE]
 **Status**: Draft
 

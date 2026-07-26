@@ -40,12 +40,11 @@ requires:
   # Use >=X.Y.Z,<Y.0.0 for version range
   speckit_version: ">=0.1.0"
 
-  # CUSTOMIZE: Add MCP tools or other dependencies
-  # Remove if no external tools required
-  tools:
-    - name: "example-mcp-server"
-      version: ">=1.0.0"
-      required: true
+  # CUSTOMIZE: Add tools only when the capability cannot work without them.
+  # tools:
+  #   - name: "example-tool"
+  #     version: ">=1.0.0"
+  #     required: true
 
 # Commands provided by this extension
 provides:
@@ -53,8 +52,8 @@ provides:
     # CUSTOMIZE: Define your commands
     # Pattern: speckit.{extension-id}.{command-name}
     - name: "speckit.my-extension.example"
-      file: "commands/example.md"
-      description: "Example command that demonstrates functionality"
+      file: "commands/speckit.my-extension.example.md"
+      description: "Create one evidence-backed review report"
       # Optional: Add aliases in the same namespaced format
       aliases: ["speckit.my-extension.example-short"]
 
@@ -67,6 +66,7 @@ provides:
   config:
     - name: "my-extension-config.yml"
       template: "config-template.yml"
+      schema: "schemas/config.schema.json"
       description: "Extension configuration"
       required: true # Set to false if config is optional
 
@@ -92,8 +92,12 @@ hooks:
   # after_plan:
   #   - command: "speckit.my-extension.verify"
   #     priority: 5
+  #     optional: true
+  #     description: "Verify the plan."
   #   - command: "speckit.my-extension.report"
   #     priority: 10
+  #     optional: true
+  #     description: "Create the report."
 
 # CUSTOMIZE: Add relevant tags (2-5 recommended)
 # Used for discovery in catalog
@@ -108,6 +112,6 @@ defaults:
   # Example default values
   feature:
     enabled: true
-    auto_sync: false
+    report_mode: "concise"
 
   # ADD MORE: Any default settings for your extension

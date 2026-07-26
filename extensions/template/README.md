@@ -1,79 +1,59 @@
-# Extension Template
+# Extension Scaffold
 
-Starter template for creating a Spec Kit extension.
+Contract-first starter for a Spec Kit Extension.
 
 ## Quick Start
 
-1. **Copy this template**:
+1. Copy this directory:
 
    ```bash
    cp -r extensions/template my-extension
    cd my-extension
    ```
 
-2. **Customize `extension.yml`**:
-   - Change extension ID, name, description
-   - Update author and repository
-   - Define your commands
-
-3. **Create commands**:
-   - Add command files in `commands/` directory
-   - Use Markdown format with YAML frontmatter
-
-4. **Create config template**:
-   - Define configuration options
-   - Document all settings
-
-5. **Write documentation**:
-   - Update README.md with usage instructions
-   - Add examples
-
-6. **Test locally**:
+2. Rename every `my-extension` identifier and keep command filenames aligned
+   with their canonical IDs.
+3. Put workflow routing in `commands/`, stable semantics in `contracts/`,
+   persistent shapes in `templates/`, and machine structure in `schemas/`.
+4. Replace the example focused tests with tests for the actual contract and
+   lifecycle.
+5. Validate before installing:
 
    ```bash
-   cd /path/to/spec-kit-project
-   specify extension add --dev /path/to/my-extension
+   uv run python scripts/validate-component-standard.py extensions/my-extension
+   .venv/bin/python -m pytest extensions/my-extension/tests
    ```
 
-7. **Publish** (optional):
-   - Create GitHub repository
-   - Create release
-   - Submit to catalog (see EXTENSION-PUBLISHING-GUIDE.md)
+6. Test installation from a Spec Kit project:
+
+   ```bash
+   specify extension add /path/to/my-extension --dev
+   specify extension remove my-extension --force
+   ```
 
 ## Files in This Template
 
-- `extension.yml` - Extension manifest (CUSTOMIZE THIS)
-- `config-template.yml` - Configuration template (CUSTOMIZE THIS)
-- `commands/example.md` - Example command (REPLACE THIS)
-- `README.md` - Extension documentation (REPLACE THIS)
-- `LICENSE` - MIT License (REVIEW THIS)
-- `CHANGELOG.md` - Version history (UPDATE THIS)
-- `.gitignore` - Git ignore rules
+- `extension.yml`: package contract and canonical command declarations.
+- `commands/`: agent-neutral workflow prompts.
+- `contracts/`: stable domain semantics.
+- `templates/`: persistent artifact shapes.
+- `schemas/`: machine-readable structure.
+- `validators/`: deterministic cross-field readiness.
+- `tests/`: focused executable evidence.
+- `config-template.yml`: user configuration defaults.
+- `README.md`, `CHANGELOG.md`, `LICENSE`: release evidence.
 
 ## Customization Checklist
 
 - [ ] Update `extension.yml` with your extension details
-- [ ] Change extension ID to your extension name
-- [ ] Update author information
-- [ ] Define your commands
-- [ ] Create command files in `commands/`
-- [ ] Update config template
-- [ ] Write README with usage instructions
-- [ ] Add examples
-- [ ] Update LICENSE if needed
-- [ ] Test extension locally
-- [ ] Create git repository
-- [ ] Create first release
+- [ ] Keep command IDs and filenames in `speckit.<id>.<command>` form
+- [ ] Keep platform rendering out of command sources
+- [ ] Align Template, Schema, Validator, and tests
+- [ ] Cover install, repeated install, rollback, and removal as applicable
+- [ ] Update README, CHANGELOG, and LICENSE
+- [ ] Run component validation and focused tests
 
-## Need Help?
+## Normative Reference
 
-- **Development Guide**: See EXTENSION-DEVELOPMENT-GUIDE.md
-- **API Reference**: See EXTENSION-API-REFERENCE.md
-- **Publishing Guide**: See EXTENSION-PUBLISHING-GUIDE.md
-- **User Guide**: See EXTENSION-USER-GUIDE.md
-
-## Template Version
-
-- Version: 1.0.0
-- Last Updated: 2026-01-28
-- Compatible with Spec Kit: >=0.1.0
+See
+[`docs/preset-extension-coding-standard.md`](../../docs/preset-extension-coding-standard.md).

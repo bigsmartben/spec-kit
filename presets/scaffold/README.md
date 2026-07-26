@@ -1,6 +1,6 @@
-# My Preset
+# Preset Scaffold
 
-A custom preset for Spec Kit. Copy this directory and customize it to create your own.
+A contract-first starter for a custom Spec Kit Preset.
 
 ## Templates Included
 
@@ -14,15 +14,29 @@ A custom preset for Spec Kit. Copy this directory and customize it to create you
 ## Development
 
 1. Copy this directory: `cp -r presets/scaffold my-preset`
-2. Edit `preset.yml` — set your preset's ID, name, description, and templates
-3. Add or modify templates in `templates/`
-4. Test locally: `specify preset add --dev ./my-preset`
-5. Verify resolution: `specify preset resolve spec-template`
-6. Remove when done testing: `specify preset remove my-preset`
+2. Edit `preset.yml` and keep every declared file aligned with its role.
+3. Keep command routing in `commands/` and persistent shapes in `templates/`.
+4. Add `schemas/` and pure in-memory `validators/` for structured artifacts.
+5. Replace the example tests with focused contract and composition tests.
+6. Validate and test:
+
+   ```bash
+   uv run python scripts/validate-component-standard.py presets/my-preset
+   .venv/bin/python -m pytest presets/my-preset/tests
+   ```
+
+7. Test lifecycle and resolution:
+
+   ```bash
+   specify preset add ./my-preset --dev
+   specify preset resolve spec-template
+   specify preset remove my-preset
+   ```
 
 ## Manifest Reference (`preset.yml`)
 
 Required fields:
+
 - `schema_version` — always `"1.0"`
 - `preset.id` — lowercase alphanumeric with hyphens
 - `preset.name` — human-readable name
@@ -37,10 +51,13 @@ Required fields:
 - **command** — AI agent workflow prompts (e.g. speckit.specify, speckit.plan)
 - **script** — Custom scripts (reserved for future use)
 
-## Publishing
+Composition strategies:
 
-See the [Preset Publishing Guide](../PUBLISHING.md) for details on submitting to the catalog.
+- `replace`, `prepend`, `append`, and `wrap` for Template or Command.
+- `replace` and `wrap` only for Script.
+- `wrap` requires `{CORE_TEMPLATE}` or `$CORE_SCRIPT`.
 
-## License
+## Normative Reference
 
-MIT
+See
+[`docs/preset-extension-coding-standard.md`](../../docs/preset-extension-coding-standard.md).

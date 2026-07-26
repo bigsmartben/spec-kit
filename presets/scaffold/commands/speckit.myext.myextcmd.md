@@ -2,19 +2,39 @@
 description: "Override of the myext extension's myextcmd command"
 ---
 
-<!-- Preset override for speckit.myext.myextcmd -->
+## User Input
 
-You are following a customized version of the myext extension's myextcmd command.
+$ARGUMENTS
 
-When executing this command:
+## Goal
 
-1. Read the user's input from $ARGUMENTS
-2. Follow the standard myextcmd workflow
-3. Additionally, apply the following customizations from this preset:
-   - Add compliance checks before proceeding
-   - Include audit trail entries in the output
+Create one customized myext report with compliance evidence.
 
-> CUSTOMIZE: Replace the instructions above with your own.
-> This file overrides the command that the "myext" extension provides.
-> When this preset is installed, all agents (Claude, Gemini, Copilot, etc.)
-> will use this version instead of the extension's original.
+## Normative Authority
+
+- `templates/myext-template.md` defines the report shape.
+- The upstream evidence owns facts; this Preset only changes presentation.
+
+## Operating Boundaries
+
+- Read only paths supplied by the user.
+- Write only the resolved myext report.
+- Do not change the Extension source, configuration, or lifecycle state.
+
+## Procedure
+
+1. Resolve and read the supplied evidence.
+2. Render the report from `templates/myext-template.md`.
+3. Add compliance findings with source references.
+4. Preserve missing evidence as a gap.
+5. Validate required report sections.
+
+## Validation
+
+- `PASS`: every compliance finding cites readable evidence.
+- `BLOCKED`: required evidence is missing.
+- Use blocker code `PRESET_COMPLIANCE_EVIDENCE_MISSING`.
+
+## Report
+
+Return mode, changed paths, validation status, blocker codes, and gaps.

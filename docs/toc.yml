@@ -55,6 +55,8 @@
   items:
     - name: Local Development
       href: local-development.md
+    - name: Preset / Extension Coding Standard
+      href: preset-extension-coding-standard.md
     - name: Evolving Specs
       href: guides/evolving-specs.md
     - name: Monorepos

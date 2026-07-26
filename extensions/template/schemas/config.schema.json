@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/spec-kit/my-extension/config.schema.json",
+  "title": "My Extension configuration",
+  "type": "object",
+  "required": [
+    "feature"
+  ],
+  "properties": {
+    "feature": {
+      "type": "object",
+      "required": [
+        "enabled",
+        "report_mode"
+      ],
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "report_mode": {
+          "type": "string",
+          "enum": [
+            "concise",
+            "detailed"
+          ]
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

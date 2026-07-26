@@ -10,6 +10,17 @@
 - [ ] Ran existing tests with `uv sync && uv run pytest`
 - [ ] Tested with a sample project (if applicable)
 
+## Preset / Extension Contract
+
+<!-- Required when extensions/** or presets/** changes; otherwise enter n/a. -->
+
+- Component choice and boundary: <!-- Why Extension or Preset? -->
+- Contract split: <!-- Command / Template / Contract / Schema / Validator / Script -->
+- Platform neutrality: <!-- Evidence that source prompts contain no agent-specific rendering -->
+- Lifecycle evidence: <!-- install / repeat / rollback / enable-disable / remove, as applicable -->
+- Component validation: <!-- command and PASS/BLOCKED result -->
+- Prompt behavior evidence: <!-- real agent run for behavior changes, or n/a -->
+
 ## Community Catalog Submission
 
 <!-- Complete this section for community extension or preset catalog changes. -->

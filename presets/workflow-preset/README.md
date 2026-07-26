@@ -2,7 +2,7 @@
 
 This Spec Kit community preset combines behavior-first specification, design-aware planning, scoped change governance, and agent-native handoff orchestration.
 
-It wraps `/speckit.specify`, `/speckit.clarify`, `/speckit.checklist`, `/speckit.constitution`, `/speckit.plan`, `/speckit.tasks`, and `/speckit.analyze` with BDD, NFR, and applicable Visual Fidelity readiness gates, Change Scope Granularity and Architecture SSOT governance, Phase 0 behavior projection, optional design artifacts for internal object design and service sequencing, visual restoration traceability, and task-time validation strategy derivation. It replaces `/speckit.implement` with a Core Agent, Vertical Planner Agent, and Worker Agent orchestration contract that writes handoffs to disk.
+It wraps `/speckit.specify`, `/speckit.clarify`, `/speckit.checklist`, `/speckit.constitution`, `/speckit.plan`, `/speckit.tasks`, and `/speckit.analyze` with BDD, NFR, and UI/UX specification readiness gates, Change Scope Granularity and Architecture SSOT governance, Phase 0 behavior projection, optional design artifacts for internal object design and service sequencing, and task-time validation strategy derivation. It replaces `/speckit.implement` with a Core Agent, Vertical Planner Agent, and Worker Agent orchestration contract that writes handoffs to disk.
 
 ## Goal
 
@@ -10,7 +10,7 @@ It wraps `/speckit.specify`, `/speckit.clarify`, `/speckit.checklist`, `/speckit
 
 The preset has four goals:
 
-- Make BDD/NFR/applicable Visual Fidelity readiness explicit before planning by checking `spec.md` for observable, verifiable behavior, explicit non-functional requirement declarations, and design evidence when relevant.
+- Make BDD/NFR/UI/UX readiness explicit before planning by checking `spec.md` for observable, verifiable behavior, explicit non-functional requirement declarations, and complete UI/UX requirements when relevant.
 - Project accepted requirements into BDD, UIF intent, and fixture intent drafts during `/speckit.plan` Phase 0.
 - Preserve richer planning intent so downstream tasks and implementation do not lose object design, service-flow, or validation decisions.
 - Keep implementation scope explicit by applying Change Scope Granularity from planning onward: M + U boundaries are locked before execution maps them to concrete paths and O-level edits.
@@ -22,7 +22,7 @@ Large Spec Kit features can overload the implementation phase. A single `/specki
 
 `workflow-preset` reduces that failure mode in three complementary ways:
 
-- Requirement enhancement keeps product requirements in `spec.md` and gates planning with a BDD/NFR/applicable Visual Fidelity readiness checklist.
+- Requirement enhancement keeps product requirements in `spec.md` and gates planning with a BDD/NFR/UI/UX specification readiness checklist.
 - Scope governance keeps broad repository context from becoming implementation scope by applying the R/M/U/O model once planning begins.
 - Plan enhancement projects accepted behavior drafts, then gives object design, service sequencing, and validation intent stable homes before tasks are generated.
 - Implement handoff orchestration slices work by lifecycle and vertical capability, then gives each Worker Agent a compact digest, scoped paths, validation commands, and a receipt contract instead of the full planning corpus.
@@ -35,14 +35,13 @@ Requirement capabilities:
 
 - Wraps `/speckit.specify` so it produces or updates `spec.md` only.
 - Wraps `/speckit.clarify` so it resolves requirement ambiguity in `spec.md` only.
-- Consumes confirmed product facts, external intake facts, visual SSOT refs, HTML SSOT refs, structured IR refs, and evidence refs when projecting requirements into `spec.md`.
-- When external intake evidence or visual SSOT refs have already been projected into `spec.md`, `/speckit.clarify` clarifies evidence-derived gaps already written in `spec.md` and does not call provider tools.
-- Wraps `/speckit.checklist` to add `checklists/behavior-testability.md` as a BDD readiness gate, NFR readiness gate, and applicable Visual Fidelity readiness gate.
+- Adds a wrapping `spec-template` that owns the stable source-agnostic `UI/UX Specification` shape.
+- Assigns stable `UX-###` IDs to journeys, navigation, feedback, and usability outcomes and `UI-###` IDs to surfaces, states, responsive behavior, accessibility, content, and observable visual outcomes.
+- Wraps `/speckit.checklist` to add `checklists/behavior-testability.md` as a BDD readiness gate, NFR readiness gate, and UI/UX specification readiness gate.
 - Checks user stories, acceptance criteria, Given/When/Then readiness, roles, permissions, states, data, validation, boundary, exception, state_conflict behavior, and non-functional requirements directly from `spec.md`.
 - Adds a Case Coverage Matrix with one row per story or capability case type so positive, negative, boundary, permission, validation, and state_conflict cases are marked Required, Not Applicable, or Unknown before planning.
-- Checks visual requirements for source traceability, external intake readiness status when cited, HTML SSOT refs, structured IR refs, evidence refs, provider blocker status, and visual fidelity scope before planning.
-- Preserves stable visual SSOT refs, HTML SSOT refs, structured IR refs, and evidence refs through `spec.md` and the Visual Fidelity Evidence Matrix.
-- Records Client Asset Contract facts in `spec.md` for asset source strategy, required variants, fallback policy, and blocker status.
+- Adds a UI/UX Coverage Matrix that keeps requirement Applicability (`Required | Not Applicable | Unknown`) separate from specification Readiness (`Ready | Blocked`).
+- Checks experience goals, navigation, interaction feedback, UI states, responsive behavior, accessibility, content, visual hierarchy, and objective acceptance criteria before planning.
 - Requires NFR dimensions to be marked Required, Not Applicable, or Unknown in product language before planning.
 - Blocks planning when readiness gaps or missing or unverifiable NFR assumptions must return to `/speckit.clarify` or `/speckit.specify`.
 
@@ -58,11 +57,11 @@ Governance capabilities:
 Planning capabilities:
 
 - Wraps `/speckit.plan` to run Phase 0 preflight, Phase 0 behavior projection, and optional/contextual design artifacts when useful.
-- Requires the BDD, NFR, and applicable Visual Fidelity readiness gates to pass before planning.
+- Requires the BDD, NFR, and UI/UX specification readiness gates to pass before planning.
 - Treats Phase 0 preflight failures as report-only/no-write failures.
 - Writes `behavior/bdd.draft.feature`, `behavior/behavior-scenarios.draft.json`, `behavior/uif.intent.json`, and `behavior/data-fixtures.intent.json` during Phase 0 behavior projection.
 - Projects Required case coverage into `behavior/behavior-scenarios.draft.json` instead of allowing Required cases to disappear behind positive-only drafts.
-- Consumes Phase 0 behavior drafts and must formalize them into `contracts/bdd/`, `contracts/uif/`, and `contracts/behavior/` when the BDD, NFR, and applicable Visual Fidelity readiness gates have passed.
+- Consumes Phase 0 behavior drafts and must formalize them into `contracts/bdd/`, `contracts/uif/`, and `contracts/behavior/` when the BDD, NFR, and UI/UX specification readiness gates have passed.
 - Requires failure scenarios in `contracts/behavior/` to carry an explicit trigger, case kind, error code, failure feedback, and state invariant, rollback, or compensation assertion reference.
 - Records `N/A or blocker` and `case_coverage_blockers` when behavior drafts cannot be formalized.
 - Keeps `plan.md` focused on technical decisions and navigation.
@@ -70,8 +69,7 @@ Planning capabilities:
 - Stores internal object design in `class-diagram.md`.
 - Stores service, command, event, async, retry, rollback, and failure-path flows in `contracts/sequences.md`.
 - Records validation decisions in `research.md` and validation paths in `quickstart.md`.
-- When visual requirements are in scope, research.md carries forward visual/IR source refs, readiness inputs, accepted exceptions, related contract paths, and unresolved blockers; contracts formalize visual interaction and state constraints; contracts/sequences.md records visual state flow only when it affects cross-boundary sequencing.
-- For visual restoration work, visual SSOT refs carry requirement traceability while Client Asset Contract entries carry local asset binding expectations.
+- When UI/UX requirements are in scope, `research.md` records planning decisions, contracts formalize accepted interaction and state constraints, and `contracts/sequences.md` records UI state flow only when it affects cross-boundary sequencing.
 - Keeps product requirements in `spec.md`, domain facts in `data-model.md`, interface schemas in `contracts/`, and executable validation guidance in `quickstart.md`.
 
 Task generation capabilities:
@@ -80,10 +78,10 @@ Task generation capabilities:
 - Uses formal BDD, UIF, and behavior contracts to derive test-first fixture, acceptance test, implementation, and verification tasks.
 - Treats missing Required failure behavior scenarios as blockers instead of generating complete-looking happy-path-only tasks.
 - Performs test strategy derivation from BDD contracts, Expected UIF contracts, behavior contracts, interface contracts, `research.md`, and `quickstart.md` without writing a separate strategy artifact.
-- Derives paired UI implementation and acceptance tasks when UIF contracts, Visual Fidelity Readiness rows, visual acceptance requirements, or Client Asset Contract entries apply.
-- Preserves visual/IR traceability refs on UI implementation, asset binding, and non-visual acceptance tasks without generating visual validation, screenshot comparison, visual diff, baseline capture, or final visual review work.
+- Derives UI setup, implementation, accessibility, and acceptance tasks from Required and Ready `UI-###` / `UX-###` requirements.
+- Preserves UI/UX requirement IDs through implementation and acceptance tasks.
 - Uses design artifacts to derive implementation, integration, orchestration, failure-handling, and validation tasks.
-- Adds Final Code Review tasks for boundary, interface contract, visual, data side-effect, behavior contract, sequence consistency, and asset binding scopes when applicable.
+- Adds Final Code Review tasks for boundary, interface contract, UI/UX, data side-effect, behavior contract, and sequence consistency scopes when applicable.
 - Preserves the existing checklist format and user-story organization.
 
 Analysis capabilities:
@@ -105,8 +103,8 @@ Implementation capabilities:
 - Keeps manifest, handoff, and receipt JSON contracts in standalone schema files.
 - Splits implement gates into manifest structure, handoff structure, dispatch readiness, receipt structure, and commit readiness validation.
 - Requires behavior-linked `validation_evidence` in worker receipts when behavior contracts are in handoff context.
-- Requires Final Code Review receipts to include post-implementation data side-effect review, visual consistency review, and asset binding review of actual implementation diffs before task status commit when those scopes apply.
-- Requires Final Code Review receipts to reconcile implemented UI states, viewport behavior, visual/IR traceability refs, and Client Asset Contract bindings when UI or asset scopes apply.
+- Requires Final Code Review receipts to include post-implementation data side-effect review and UI/UX consistency review of actual implementation diffs before task status commit when those scopes apply.
+- Requires Final Code Review receipts to reconcile implemented journeys, UI states, viewport behavior, accessibility behavior, content, and visible results with accepted `UI-###` and `UX-###` requirements.
 - Assigns every handoff a lifecycle stage and vertical capability such as `domain-model`, `api-contract`, `persistence`, `service-flow`, `ui`, `test-validation`, `documentation`, `integration`, or `cleanup`.
 - Supports direct single-shard execution with `Use handoff JSON <path>`.
 - Blocks worker execution when generated context has unresolved `context_gaps`.
@@ -127,16 +125,16 @@ Context-load controls:
 1. `/speckit.constitution` preserves Change Scope Granularity and Architecture SSOT governance when the project constitution is created or updated.
 2. `/speckit.specify` keeps the core requirements output in `spec.md`.
 3. `/speckit.clarify` resolves requirement ambiguity in `spec.md`.
-4. `/speckit.checklist` checks BDD, NFR, and applicable Visual Fidelity readiness directly from `spec.md` and blocks planning when readiness gaps remain.
+4. `/speckit.checklist` checks BDD, NFR, and UI/UX specification readiness directly from `spec.md` and blocks planning when readiness gaps remain.
 5. `/speckit.plan` applies Change Scope Granularity, runs Phase 0 preflight, performs Phase 0 behavior projection, formalizes behavior drafts into contracts, and adds design artifacts when they help implementation.
-6. `/speckit.tasks` reads the core plan outputs, optional design artifacts, behavior contracts, interface contracts, `research.md`, and `quickstart.md`, then produces executable tasks with inline test level, data strategy, visual/IR traceability refs, asset binding, non-visual acceptance, and evidence requirements.
+6. `/speckit.tasks` reads the core plan outputs, optional design artifacts, behavior contracts, interface contracts, `research.md`, and `quickstart.md`, then produces executable tasks with inline test level, data strategy, UI/UX requirement IDs, acceptance criteria, and evidence requirements.
 7. `/speckit.analyze` checks vertical consistency across requirements, behavior drafts, contracts, and tasks.
 8. `/speckit.implement` enters Core Agent mode when no handoff path is provided.
 9. The Core Agent writes `context-index.json` and dispatches one Vertical Planner Agent per active vertical capability.
 10. Vertical Planner Agents produce shard plans, handoff drafts, context digest drafts, and allowed path derivations.
 11. The Core Agent assembles final handoffs and writes `handoff-manifest.json`.
 12. Worker Agents run only from persisted handoff JSON files and write receipts.
-13. Final Code Review checks boundary, contract, visual, asset binding, sequence, implementation data side effects, and real e2e readiness.
+13. Final Code Review checks boundary, contract, UI/UX consistency, sequence, implementation data side effects, and real e2e readiness.
 14. The Core Agent reviews receipts, updates `tasks.md`, runs integration verification, and reports closeout status.
 
 ## Non-Goals
@@ -177,42 +175,15 @@ Run the behavior-first workflow:
 /speckit.analyze
 ```
 
-### External Intake And Visual SSOT
+### Source-Agnostic UI/UX Requirements
 
-Source capture and provider-specific intake are owned by the separate `spec-kit-intake`
-extension. Install or run that extension when PRD, design, provider design, rendered HTML,
-or test-case evidence must be captured or validated before this preset projects
-requirements.
+`workflow-preset` accepts explicit product text and confirmed product decisions without depending on how those requirements were collected.
 
 ```text
-external intake evidence + visual SSOT refs + HTML SSOT refs + structured IR refs -> /speckit.specify -> baseline spec.md
+confirmed product requirements -> /speckit.specify -> UI/UX Specification in spec.md
 ```
 
-`/speckit.specify` does not perform intake, call provider tools, parse HTML SSOT bundles, re-parse structured IR artifacts, or decide provider source readiness. It consumes confirmed source-backed facts and preserves visual SSOT refs, HTML SSOT refs, structured IR refs, evidence refs, state/viewport refs,
-screenshots, visual proof refs, and Client Asset Contract facts in `spec.md`.
-Missing product decisions become `[NEEDS CLARIFICATION]`; missing provider or intake evidence for a feature that depends on that evidence becomes `[BLOCKED: PROVIDER_EVIDENCE]`; features that do not depend on HTML SSOT, structured IR, or provider evidence are `Not Applicable`.
-
-### Provider Evidence Refs
-
-Screenshots, visual proof refs, HTML SSOT refs, structured IR refs, and provider artifacts are evidence refs, not intake execution. This preset only references them through `spec.md` visual requirements and the Visual Fidelity Evidence Matrix.
-
-Evidence refs can support layout, density, state, viewport, asset, and visual facts when source-backed. They cannot upgrade product semantics such as permissions, business effects, validation rules, or data ownership into confirmed requirements.
-
-The Visual Fidelity Evidence Matrix is the single visual readiness record. It records requirement status, source refs, HTML SSOT refs, structured IR refs, other evidence refs, provider blocker status, accepted exception refs, Gate Status, and Blocking Items. It does not define visual validation work, screenshot comparison, visual diff, baseline capture, or final visual review.
-
-### Provider Design And HTML SSOT Input
-
-Use the `spec-kit-intake` extension for provider design, HTML SSOT, or structured IR capture:
-
-```text
-/speckit.intake.visual-design <source>
-/speckit.intake.figma2htmlssot <source-or-intake-dir>
-```
-
-The intake extension owns source capture, provider evidence, raw provider metadata,
-node inventory parity, rendered HTML visual SSOT bundles, structured IR artifacts,
-source-side readiness, and blocker codes. This preset consumes only the confirmed
-artifact refs, readiness inputs, blocker status, and traceability refs written or cited in `spec.md`.
+UI/UX Applicability uses `Required`, `Not Applicable`, or `Unknown`. The checklist evaluates specification Readiness separately as `Ready` or `Blocked`. Unresolved product decisions return to `/speckit.clarify`.
 
 Then run agent-native orchestrated implementation:
 
@@ -241,13 +212,6 @@ The core governance and planning workflow still owns its normal artifacts:
 This preset adds checklist artifacts:
 
 - `specs/<feature>/checklists/behavior-testability.md`
-
-Source intake artifacts and provider artifact instances are written by
-`spec-kit-intake` or another external intake extension. This preset consumes the
-qualified evidence refs from `spec.md` after `/speckit.specify` writes confirmed
-requirements or records `[BLOCKED: PROVIDER_EVIDENCE]`; it does not define or
-generate the artifact instances. Provider evidence blockers do not become
-`[NEEDS CLARIFICATION]`.
 
 This preset adds Phase 0 behavior artifacts:
 
@@ -292,16 +256,15 @@ Contract files packaged by the preset:
 Governance templates packaged by the preset:
 
 - `templates/constitution-template.md`
+- `templates/spec-template.md`
 
 Packaged contract validators:
 
 - `validators/speckit_implement_contract.py`
 
-Source intake templates, provider design contracts, visual requirements schemas, HTML SSOT bundle contracts, structured IR contracts, and source-side validators live in the `spec-kit-intake` extension.
-
 ## Artifact Roles
 
-`checklists/behavior-testability.md` is the BDD, NFR, and applicable Visual Fidelity readiness gate. It checks `spec.md` before planning so behavior, NFRs, visual SSOT refs, HTML SSOT refs, structured IR refs, external evidence refs, and product-side visual requirements such as pixel-perfect, brand-critical, responsive visual, or UI visual acceptance requirements are ready for behavior projection and planning. Its Case Coverage Matrix uses one row per story or capability case type; rows mark Required, Not Applicable, or Unknown, cite source sections, and list Blocker IDs while Scenario IDs remain a `/speckit.plan` output. Its Visual Fidelity Evidence Matrix uses one row per visual requirement and is the single visual readiness record for source section, requirement status, provider-evidence dependency, HTML SSOT refs, structured IR refs, other evidence refs, readiness input, blocking item ID, and accepted exception refs. Missing Required case coverage, Unknown case applicability, missing required provider evidence, or missing NFR criteria blocks planning when it affects downstream behavior projection or design.
+`checklists/behavior-testability.md` is the BDD, NFR, and UI/UX specification readiness gate. It checks `spec.md` before planning so behavior, NFRs, and source-agnostic UI/UX requirements are ready for behavior projection and planning. Its Case Coverage Matrix uses one row per story or capability case type; rows mark Required, Not Applicable, or Unknown, cite source sections, and list Blocker IDs while Scenario IDs remain a `/speckit.plan` output. Its UI/UX Coverage Matrix keeps Applicability separate from Readiness and checks states, responsive behavior, accessibility, content, visual hierarchy, and acceptance criteria. Missing Required case coverage, Unknown applicability, Blocked UI/UX readiness, or missing NFR criteria blocks planning when it affects downstream behavior projection or design.
 
 `behavior/bdd.draft.feature` captures Phase 0 behavior projection in readable Given/When/Then form. `behavior/behavior-scenarios.draft.json`, `behavior/uif.intent.json`, and `behavior/data-fixtures.intent.json` make the same draft behavior machine-readable enough for planning formalization.
 
@@ -311,11 +274,11 @@ Source intake templates, provider design contracts, visual requirements schemas,
 
 `contracts/sequences.md` captures service-call, command, event, external-system, retry, rollback, compensation, async, and failure-path sequencing. It is the flow design map that helps implementation preserve call order, service boundaries, async behavior, idempotency, compensation, and error propagation. Sequences always live at this path, even when there are no other contract files.
 
-For visual planning, research.md carries forward visual/IR source refs, readiness inputs, accepted exception refs, unresolved blocker refs, related contracts, and quickstart paths. contracts formalize visual interaction and state constraints by linking accepted visual items to Expected UIF, behavior scenarios, assertions, and supporting API/data schemas. contracts/sequences.md records visual state flow only when it affects cross-boundary sequencing, async results, retries, rollback, compensation, or error propagation; it does not redefine layout, tokens, screenshot matrices, visual readiness, or visual validation strategy.
+For UI/UX planning, `research.md` records implementation decisions needed by accepted `UI-###` and `UX-###` requirements. Contracts formalize observable interaction, feedback, state, responsive, and accessibility constraints. `contracts/sequences.md` records UI state flow only when it affects cross-boundary sequencing, async results, retries, rollback, compensation, or error propagation.
 
 Test strategy derivation happens during `/speckit.tasks`. The command derives unit, contract, integration, and end-to-end validation work from BDD contracts, Expected UIF contracts, behavior contracts, interface contracts, `research.md`, and `quickstart.md`, then writes the strategy inline on the relevant `tasks.md` checklist items. It also defines UI implementation, non-visual acceptance, contract validation, data-side-effect validation, integration/e2e validation, and scope-aware code review tasks in `tasks.md`; `/speckit.implement` executes those tasks and records receipt evidence without inventing validation strategy, changing requirements, updating contracts, or widening scope.
 
-The handoff context digest includes relevant design constraints, visual fidelity requirements, visual SSOT refs, HTML SSOT refs, structured IR refs, external evidence refs, readiness inputs, quickstart paths, and behavior contracts when present, so Worker Agents can preserve object boundaries, service flows, visual intent, and validation intent without reading full planning documents by default.
+The handoff context digest includes relevant design constraints, accepted UI/UX requirement IDs, required states, viewport behavior, accessibility behavior, quickstart paths, and behavior contracts when present, so Worker Agents can preserve object boundaries, service flows, user experience intent, and validation intent without reading full planning documents by default.
 
 See `commands/speckit.implement.md` for runtime handoff orchestration rules, and `schemas/` plus `validators/speckit_implement_contract.py` for the machine-checked manifest, handoff, receipt, dispatch, and commit contracts.
 

@@ -25,6 +25,12 @@ provides:
       the constitution template
     replaces: constitution-template
     strategy: wrap
+  - type: template
+    name: spec-template
+    file: templates/spec-template.md
+    description: Add source-agnostic UI/UX requirements to the feature specification
+    replaces: spec-template
+    strategy: wrap
   - type: command
     name: speckit.specify
     file: commands/speckit.specify.md
@@ -40,7 +46,7 @@ provides:
   - type: command
     name: speckit.checklist
     file: commands/speckit.checklist.md
-    description: Wrap core checklist generation with BDD, NFR, and Visual Fidelity
+    description: Wrap core checklist generation with BDD, NFR, and UI/UX specification
       readiness gate
     replaces: speckit.checklist
     strategy: wrap
@@ -103,7 +109,7 @@ provides:
   - type: template
     name: behavior-testability-checklist-template
     file: templates/behavior/behavior-testability-checklist.md
-    description: Template for BDD, NFR, and Visual Fidelity readiness gate output
+    description: Template for BDD, NFR, and UI/UX specification readiness gate output
     replaces: behavior-testability-checklist-template
     strategy: replace
   - type: template

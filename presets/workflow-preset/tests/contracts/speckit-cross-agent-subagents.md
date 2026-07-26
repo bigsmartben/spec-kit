@@ -70,7 +70,7 @@ Use `agent-runtime=<spec-kit-integration-key>` as a prompt hint. The manifest re
 - Write only allowed_write_paths; directory authorization includes files below the directory
 - Do not edit tasks.md
 - Do not dispatch workers
-- write receipt_path as speckit.implement.receipt.v1 with validation_evidence references to relevant BDD scenario, behavior assertion, API contract, quickstart path, Visual Item ID, Requirement Status, UIF path, visual SSOT ref, HTML SSOT ref, structured IR ref, Client Asset Contract entry, quickstart validation path, or captured command output
+- write receipt_path as speckit.implement.receipt.v1 with validation_evidence references to a relevant BDD scenario, behavior assertion, API contract, UIF path, `UI-###` or `UX-###` requirement ID, quickstart validation path, or captured command output
 - use empty completed_task_ids when the handoff is blocked, validation is deferred, required evidence is missing, or code review status is not approved
 
 ## Worker Prompts
@@ -119,7 +119,7 @@ vertical_capability: <capability>
 - one incomplete `tasks.md` checklist item maps to one candidate shard
 - ignore completed `[x]` checklist items
 - preserve `tasks.md` order
-- visual shard candidates must come only from `tasks.md` visual/UI task types `visual_setup`, `visual_implementation`, `ui_acceptance`, or `asset_binding`; preserve the Visual Fidelity Readiness `Requirement Status` filter from `/speckit.tasks`: only `Required` or `Required` plus an accepted exception is executable; do not create visual shards for `Not Applicable`, `Unknown`, or `[BLOCKED: PROVIDER_EVIDENCE]`; route `Unknown` back to `/speckit.clarify` and `[BLOCKED: PROVIDER_EVIDENCE]` to the external intake extension
+- UI/UX shard candidates must come only from `tasks.md` task types `ui_setup`, `ui_implementation`, `ui_accessibility`, or `ui_acceptance`; preserve the UI/UX Specification Readiness filter from `/speckit.tasks`: only Applicability `Required` plus Readiness `Ready` is executable; do not create UI/UX shards for `Not Applicable`, `Unknown`, or `Blocked`; route unresolved rows back to `/speckit.clarify` or `/speckit.checklist`
 - infer `vertical_capability` from task section heading, task text, referenced paths
 - group candidates only when lifecycle dependencies, vertical_capability, and allowed_write_paths match
 - serial shards with explicit dependencies may declare shared write paths; same dispatch layer must not overlap allowed_write_paths
@@ -130,9 +130,9 @@ vertical_capability: <capability>
 - include document headings from `context-index.json`
 - include only sections referenced by assigned task paths or vertical_capability
 - include relevant `class-diagram.md`, `contracts/sequences.md`, `contracts/bdd/`, `contracts/uif/`, and `contracts/behavior/` constraints, plus research.md validation decisions and quickstart.md validation paths from `research.md` and `quickstart.md`
-- include behavior contract constraints, visual fidelity requirements, Visual Item ID, Requirement Status, accepted exception rule, visual SSOT refs, HTML SSOT refs, structured IR refs, external evidence refs, and Client Asset Contract entries
-- asset binding maps only executable Required or accepted-exception Client Asset Contract items to local asset paths or code asset mappings; missing required client visual assets, mappings, variants, or fallbacks become `context_gaps`
-- visual `Requirement Status` mismatches, `Unknown`, `[BLOCKED: PROVIDER_EVIDENCE]`, missing required HTML SSOT refs, missing structured IR refs, missing asset variants, or missing fallback policy become `context_gaps`, not implementation scope
+- include behavior contract constraints, applicable `UI-###` and `UX-###` requirements, Applicability, Readiness, required states, viewport behavior, accessibility behavior, content rules, and acceptance criteria
+- UI/UX task context maps only Required and Ready requirements to implementation, test, fixture, configuration, and validation paths
+- UI/UX Applicability mismatches, `Unknown`, `Blocked`, missing required states, missing responsive behavior, missing accessibility behavior, or missing acceptance criteria become `context_gaps`, not implementation scope
 - record unresolved required context as `context_gaps`
 
 ## Path and Receipt Rules (Path Rules)
@@ -143,4 +143,4 @@ vertical_capability: <capability>
 - receipt changed_paths may equal an allowed write path or be inside an allowed directory
 - implementation changed_paths require at least one Code Review Receipt before task_commit
 - code review uses the union of all Code Review Receipts to cover implementation changed_paths
-- Receipt Rejection: mismatched `shard_id`; `task_ids` outside handoff; `completed_task_ids` outside handoff; non-empty `completed_task_ids` with `deferred_validation_todos`; non-empty `completed_task_ids` on Code Review Receipts whose `review_conclusion.status` is not approved; empty `validation_evidence` or missing relevant BDD scenario, behavior assertion, API contract, quickstart path, Visual Item ID, Requirement Status, UIF path, visual SSOT ref, HTML SSOT ref, structured IR ref, Client Asset Contract entry, quickstart/contract validation command evidence; receipt path not equal to handoff `task_status_update.receipt_path`; missing `task_type: code_review`, `review_conclusion.checked_sources`, `data_side_effect_review`, `consistency_repairs`, or needed `deferred_validation_todos`
+- Receipt Rejection: mismatched `shard_id`; `task_ids` outside handoff; `completed_task_ids` outside handoff; non-empty `completed_task_ids` with `deferred_validation_todos`; non-empty `completed_task_ids` on Code Review Receipts whose `review_conclusion.status` is not approved; empty `validation_evidence` or missing relevant BDD scenario, behavior assertion, API contract, UIF path, `UI-###` or `UX-###` requirement ID, quickstart/contract validation command evidence; receipt path not equal to handoff `task_status_update.receipt_path`; missing `task_type: code_review`, `review_conclusion.checked_sources`, `data_side_effect_review`, `consistency_repairs`, or needed `deferred_validation_todos`

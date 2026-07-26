@@ -11,6 +11,7 @@ Tests cover:
 """
 
 import pytest
+import hashlib
 import io
 import json
 import tempfile
@@ -4650,13 +4651,17 @@ class TestBundledPresetLocator:
 
         assert catalog_updated_at >= datetime(2026, 6, 18, tzinfo=timezone.utc)
         assert entry["bundled"] is True
-        assert entry["version"] == "2.0.0"
+        assert entry["version"] == "3.0.0"
         assert entry["version"] == manifest["preset"]["version"]
         assert entry["repository"] == manifest["preset"]["repository"]
         assert entry["requires"]["speckit_version"] == manifest["requires"]["speckit_version"]
         assert entry["provides"]["commands"] == command_count
         assert entry["provides"]["templates"] == template_count
+        assert command_count == 7
+        assert template_count == 24
         assert entry["tags"] == manifest["tags"]
+        assert len(entry["source_commit"]) == 40
+        assert entry["sha256"]
 
     def test_workflow_preset_community_catalog_matches_manifest(self):
         """workflow-preset community catalog entry matches the released preset."""
@@ -4680,10 +4685,70 @@ class TestBundledPresetLocator:
         assert entry["requires"]["speckit_version"] == manifest["requires"]["speckit_version"]
         assert entry["provides"]["commands"] == command_count
         assert entry["provides"]["templates"] == template_count
+        assert command_count == 7
+        assert template_count == 24
         assert entry["tags"] == manifest["tags"]
+        assert len(entry["source_commit"]) == 40
+        assert entry["sha256"]
+
+    def test_workflow_preset_snapshot_matches_release_manifest(self):
+        """Bundled files are an unmodified snapshot of the declared release."""
+        root = Path(__file__).parent.parent
+        snapshot_root = root / "presets" / "workflow-preset"
+        release_manifest = json.loads(
+            (root / "presets" / "workflow-preset.release.json").read_text(
+                encoding="utf-8"
+            )
+        )
+        bundled_catalog = json.loads(
+            (root / "presets" / "catalog.json").read_text(encoding="utf-8")
+        )["presets"]["workflow-preset"]
+        community_catalog = json.loads(
+            (root / "presets" / "catalog.community.json").read_text(
+                encoding="utf-8"
+            )
+        )["presets"]["workflow-preset"]
+
+        expected_hashes = {
+            entry["path"]: entry["sha256"]
+            for entry in release_manifest["files"]
+        }
+        actual_paths = {
+            path.relative_to(snapshot_root).as_posix()
+            for path in snapshot_root.rglob("*")
+            if path.is_file()
+            and "__pycache__" not in path.parts
+            and path.suffix not in {".pyc", ".pyo"}
+        }
+
+        assert actual_paths == set(expected_hashes)
+        for relative_path, expected_hash in expected_hashes.items():
+            assert (
+                hashlib.sha256((snapshot_root / relative_path).read_bytes()).hexdigest()
+                == expected_hash
+            )
+
+        manifest = yaml.safe_load(
+            (snapshot_root / "preset.yml").read_text(encoding="utf-8")
+        )
+        assert release_manifest["version"] == manifest["preset"]["version"]
+        assert release_manifest["source_repository"] == manifest["preset"]["repository"]
+        assert bundled_catalog["source_commit"] == release_manifest["source_commit"]
+        assert community_catalog["source_commit"] == release_manifest["source_commit"]
+        assert bundled_catalog["sha256"] == release_manifest["artifact"]["sha256"]
+        assert community_catalog["sha256"] == release_manifest["artifact"]["sha256"]
+
+        command_names = {
+            entry["name"]
+            for entry in manifest["provides"]["templates"]
+            if entry["type"] == "command"
+        }
+        assert len(command_names) == 7
+        assert "speckit.implement" not in command_names
+        assert not (snapshot_root / "commands" / "speckit.implement.md").exists()
 
     def test_workflow_preset_integration_release_payload_contract(self):
-        """Workflow preset release dispatch contract stays aligned with preset repo."""
+        """Workflow validates immutable release and bundled-install parity."""
         workflow_path = (
             Path(__file__).parent.parent
             / ".github"
@@ -4694,20 +4759,35 @@ class TestBundledPresetLocator:
         workflow = yaml.safe_load(workflow_text)
         on_config = workflow.get("on", workflow.get(True))
 
-        assert on_config["repository_dispatch"]["types"] == ["workflow-preset-release"]
-        assert "github.event.client_payload.preset_version" in workflow_text
-        assert "github.event.client_payload.preset_download_url" in workflow_text
+        assert "repository_dispatch" not in on_config
+        assert "workflow_dispatch" in on_config
+        assert "preset_manifest_url" in on_config["workflow_dispatch"]["inputs"]
         assert (
             "releases/download/v${preset_version}/"
             "spec-kit-workflow-preset-v${preset_version}.zip"
         ) in workflow_text
+        assert (
+            "releases/download/v${preset_version}/"
+            "spec-kit-workflow-preset-v${preset_version}.manifest.json"
+        ) in workflow_text
         assert "^[0-9]+\\.[0-9]+\\.[0-9]+$" in workflow_text
-        assert "/workflow-preset.zip" not in workflow_text
+        assert 'release_manifest["artifact"]["sha256"]' in workflow_text
+        assert 'entry["path"]: entry["sha256"]' in workflow_text
+        assert "diff -ru" in workflow_text
         assert "test -f .specify/presets/workflow-preset/templates/tasks-template.md" not in workflow_text
         assert "specify preset resolve tasks-template" in workflow_text
         assert 'grep -F "(top layer from: core)" preset-resolve-tasks-template.txt' in workflow_text
         assert "test -f .specify/templates/tasks-template.md" in workflow_text
-        assert "## Pre-Execution Checks" in workflow_text
+        assert "core_implement_sha" in workflow_text
+        assert (
+            'test "${core_implement_sha}" = "$(sha256sum '
+            ".claude/skills/speckit-implement/SKILL.md"
+            in workflow_text
+        )
+        assert (
+            "test ! -e .specify/presets/workflow-preset/commands/speckit.implement.md"
+            in workflow_text
+        )
         assert "speckit.implement.receipt.v1.schema.json" not in workflow_text
 
     def test_community_smoke_checks_wheel_assets_and_extension_dev_reinstall(self):

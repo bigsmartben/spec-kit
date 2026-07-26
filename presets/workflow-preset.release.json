@@ -1,0 +1,181 @@
+{
+  "artifact": {
+    "name": "spec-kit-workflow-preset-v3.0.0.zip",
+    "sha256": "3924817ded5c59649ea3ef685cd1a4572363f95e9379becd0eafe1d3757ee852"
+  },
+  "files": [
+    {
+      "path": "AGENTS.md",
+      "sha256": "a3e48054a1cdedfa8ef91c642fe7b166bf951df1916ed92bc3b370d7b1f64d48"
+    },
+    {
+      "path": "CHANGELOG.md",
+      "sha256": "b5500b5bdbe6febc33778e9bbf3dab0bb0426030788235bcf1c3d3bd154cf2e3"
+    },
+    {
+      "path": "LICENSE",
+      "sha256": "8c9a47687655839e45d596c67fb9a13a1c9cd39eca4aaa0846e7afd9a01f1ab1"
+    },
+    {
+      "path": "README.md",
+      "sha256": "b392ddb13c8cd4bf627da2d41e1ffb5ad13cf2a8c7ee6e69d1f460ecebf328eb"
+    },
+    {
+      "path": "commands/speckit.analyze.md",
+      "sha256": "4ee1593b26cf7bc96246a78c3d44409775c7715cdb250b98ba6924f8b667de0e"
+    },
+    {
+      "path": "commands/speckit.checklist.md",
+      "sha256": "931dc432b490f76dc4df80e8d087bbeb1468205fa986369870ed0fd85152c9e3"
+    },
+    {
+      "path": "commands/speckit.clarify.md",
+      "sha256": "cc893a93b96b2f1196540ad315cae25d0f4316651a3a1260396ed8cac3c95260"
+    },
+    {
+      "path": "commands/speckit.constitution.md",
+      "sha256": "a32ac47fb666bb2475d93d0d2ebb93426a2a5c70723ede8f5dd38005f87b0448"
+    },
+    {
+      "path": "commands/speckit.plan.md",
+      "sha256": "26bbc0ff6ba91b72b86c317c501cfd65cf22d0e9bfc67e55d722ce6cb95b2e9e"
+    },
+    {
+      "path": "commands/speckit.specify.md",
+      "sha256": "0e9a1c1521a2932d708ad34af5c67215b15d094691b12f9c6be501b20413e7c2"
+    },
+    {
+      "path": "commands/speckit.tasks.md",
+      "sha256": "7434d434f9092ab99ba02857e933f8426cbd731ffa61b24473c96382aeded219"
+    },
+    {
+      "path": "docs/extension-governance.md",
+      "sha256": "6f9d183ff3defb1abcfc6a25970feda8855e04f70e66cb98df96d33a030a3961"
+    },
+    {
+      "path": "preset.yml",
+      "sha256": "d6812ee256ac3719e5d5ea95704e7a97c46aae63cbe5a19eb7dbcf91068cd8d6"
+    },
+    {
+      "path": "requirements-dev.txt",
+      "sha256": "75bfdb680a26a97ba91e8089c6970962de9aefbaa102eb6a3445bd08e4b55322"
+    },
+    {
+      "path": "schemas/speckit.behavior.assertions.v1.schema.json",
+      "sha256": "8f39b5b1615172ee1d0ac15a72545b60b98355474695694cca60cf0615772fed"
+    },
+    {
+      "path": "schemas/speckit.behavior.data-fixtures.intent.v1.schema.json",
+      "sha256": "e43a3f4341b80507a8cee8e07949dd6cc0380c88655894c60c51ba0ac92873ed"
+    },
+    {
+      "path": "schemas/speckit.behavior.data-fixtures.v1.schema.json",
+      "sha256": "7b763ede880aff476746b5f9eb24c540d42bcbc4d24a33b002376bdecbbca5dd"
+    },
+    {
+      "path": "schemas/speckit.behavior.scenario-instances.v1.schema.json",
+      "sha256": "5f847f913b32829fd4c205cbef9e994e0e065a8596f8f8be525bb34f653f2191"
+    },
+    {
+      "path": "schemas/speckit.behavior.scenarios.draft.v1.schema.json",
+      "sha256": "b992e4e85d5854b777f37be7f7a309105526b6c8cd53ff7f58cc2e0fcd002fec"
+    },
+    {
+      "path": "schemas/speckit.behavior.uif.expected.v1.schema.json",
+      "sha256": "024653cfaef2255a1dec521feae52847e24c5e88782d2babbbdb3120e5bc81bc"
+    },
+    {
+      "path": "schemas/speckit.behavior.uif.intent.v1.schema.json",
+      "sha256": "f8600df13a610634330b736116f560b9b5ea72ba6f092dea096a7522e6a362ed"
+    },
+    {
+      "path": "templates/architecture-template.md",
+      "sha256": "9f8460ec74e6aeaef0cef686eec1ff3843aced4cd6e68ff2eb3e7291b87bcd40"
+    },
+    {
+      "path": "templates/behavior/assertions.json",
+      "sha256": "b47c06f6fc77bfbf76dd4fbfd1207d292196bfe5be16391e17fcbfb6e2df2bd6"
+    },
+    {
+      "path": "templates/behavior/bdd-contract.feature",
+      "sha256": "7b846ea7e4cdd0ff63245fb3da201df3da9742d6364c685a5a3583137607a810"
+    },
+    {
+      "path": "templates/behavior/bdd-draft.feature",
+      "sha256": "070262ee305e6fe5e053df4d47d6edf9d3cf215a8f6457f7ee2b309fee68310f"
+    },
+    {
+      "path": "templates/behavior/behavior-scenarios-draft.json",
+      "sha256": "6def3acc8d3a44b2023d60c3e7717d1183ef4e4b7ff7be8bfb9d1d8f4fbd451c"
+    },
+    {
+      "path": "templates/behavior/behavior-testability.md",
+      "sha256": "bbedd7a31c1ebb0b03ba1585401551f2910f3f297f62bcc3ded8d1e2b8057ad0"
+    },
+    {
+      "path": "templates/behavior/data-fixtures-intent.json",
+      "sha256": "52860246ad830f8a3d620fbb78773127777839d50cb72da25383677adf4aba17"
+    },
+    {
+      "path": "templates/behavior/data-fixtures.json",
+      "sha256": "aba3c98fd9d4a0332a2d5a57bc007885bf46279aa356e619e19b2a4ff9e47387"
+    },
+    {
+      "path": "templates/behavior/scenario-instances.json",
+      "sha256": "1bf2999050106565bbb5a0c0b93fdaabe3d64602643822b17c041db1afc2a120"
+    },
+    {
+      "path": "templates/behavior/uif-expected.json",
+      "sha256": "20c45e08817cfd926c9586f8ccdc7bf55eb7f2e08a57b783e41a4fb5efd97959"
+    },
+    {
+      "path": "templates/behavior/uif-intent.json",
+      "sha256": "66572ff70127e5fcb23c0815f902a0fc525081a3c1c0d1e0e87c4be4c19bbbad"
+    },
+    {
+      "path": "templates/constitution-template.md",
+      "sha256": "6763fba121628fa5b81b1c52ba8c6bc5485ce4c15ebb4653d88f3ebbd507391c"
+    },
+    {
+      "path": "templates/plan-template.md",
+      "sha256": "3ac5ca372aad14e8b2110aa7c48d36fbe5409646c8267444cf6fc59317b18da0"
+    },
+    {
+      "path": "templates/requirements/behavior-gate.md",
+      "sha256": "432c805d3f0f1e7feea6bc0171573a410bf20a64ccc16411de2c2cc9eb7628d6"
+    },
+    {
+      "path": "templates/requirements/domain-gate.md",
+      "sha256": "d79afadb37e0f95a2faf4f429c88d0577e536000f97f4126ae92194bef0c26e8"
+    },
+    {
+      "path": "templates/requirements/nfr-gate.md",
+      "sha256": "3aa029528263aae1f082822214301a39bb2008dd14a56f3c730959f63a50c79c"
+    },
+    {
+      "path": "templates/requirements/visual-gate.md",
+      "sha256": "0884437eba2d8e2f9ea49bc6027c721763987cee6ab63dc3806b50843cbc6974"
+    },
+    {
+      "path": "tests/contracts/speckit-cross-agent-protocol.md",
+      "sha256": "17c7b2dd55f4f4c775f3bd2ed8649afea2bd9620d182ced9feaeab1bca8b2aa8"
+    },
+    {
+      "path": "tests/test_preset_contract.py",
+      "sha256": "b513ee724b850f7e1d489bb1df2a3c50c24239c4a45697852cb2b50048268dea"
+    },
+    {
+      "path": "validators/__init__.py",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "validators/speckit_behavior_contract.py",
+      "sha256": "988131eb3138cc6a4a21a5ef3c936534aeceea17fe866be822ef0a3f09476ac9"
+    }
+  ],
+  "preset_id": "workflow-preset",
+  "schema_version": "1.0",
+  "source_commit": "c35c96cec18c280445ea4f9f73c929e5b61f8393",
+  "source_repository": "https://github.com/bigsmartben/spec-kit-workflow-preset",
+  "version": "3.0.0"
+}

@@ -1070,6 +1070,8 @@ class TestGitExtensionDefaultInstall:
         assert (preset_dir / ".composed" / "speckit.plan.md").exists()
         assert (preset_dir / ".composed" / "speckit.tasks.md").exists()
         assert (preset_dir / ".composed" / "speckit.analyze.md").exists()
+        assert not (preset_dir / "commands" / "speckit.implement.md").exists()
+        assert not (preset_dir / ".composed" / "speckit.implement.md").exists()
 
         preset_registry = json.loads((project / ".specify" / "presets" / ".registry").read_text())
         workflow_entry = preset_registry["presets"]["workflow-preset"]
@@ -1086,7 +1088,6 @@ class TestGitExtensionDefaultInstall:
             "speckit.analyze",
             "speckit.plan",
             "speckit.tasks",
-            "speckit.implement",
         }
         assert set(workflow_entry["registered_commands"]["claude"]) == expected_preset_commands
 

@@ -2,14 +2,39 @@
 
 ## Unreleased
 
-- Added a wrapping `spec-template` as the single owner of the source-agnostic
-  `UI/UX Specification` structure, including stable `UI-###` and `UX-###`
-  requirements.
-- Removed design-provider and intake-evidence dependencies from runtime
-  commands, templates, validators, protocols, and public documentation.
-- Separated UI/UX Applicability (`Required`, `Not Applicable`, `Unknown`) from
-  specification Readiness (`Ready`, `Blocked`) across checklist, planning,
-  task, implementation, and receipt contracts.
+## 2.0.0 - 2026-07-26
+
+- Moved project Architecture generation into `/speckit.constitution`, which now
+  manages separate `constitution.md` and single-file `architecture.md`
+  lifecycles for greenfield, brownfield, and amendment runs.
+- Added an explicit user-selected input agreement; UC, README, repository files,
+  and other conventional paths are no longer assumed prerequisites or evidence.
+- Removed 4+1 reasoning from the target Architecture shape and added the
+  boundary -> concept -> technical evidence -> planning guardrail chain.
+- Required `/speckit.plan` to project Architecture decisions, concepts,
+  boundaries, constraints, gaps, and validation implications into its normal
+  research, data model, contracts, plan, and quickstart outputs.
+
+## 1.4.1 - 2026-07-26
+
+- Raised the minimum Spec Kit version to `0.12.7.dev0`, the first core version
+  that provides the requirement-gate Planning Readiness preflight consumed by
+  this preset.
+- Restored runnable contract coverage for current wrapper, planning, template,
+  visual-readiness, documentation, and governance invariants.
+
+## 1.4.0 - 2026-07-26
+
+- Separated requirement-stage Planning Readiness from plan-stage Behavior
+  Testability without adding commands or a `planning-readiness.md` artifact.
+- Replaced the legacy combined behavior-testability checklist with
+  requirements, behavior, UX, security, NFR, and visual domain gates.
+- Added BDD Plan closeout output at
+  `behavior/behavior-testability.md`; tasks now require its current READY
+  decision and derive fixture → validation/test → implementation → evidence
+  chains.
+- Preserved provider-evidence blockers as intake responsibilities and made
+  legacy `checklists/behavior-testability.md` non-authoritative.
 
 ## 1.3.12 - 2026-07-01
 

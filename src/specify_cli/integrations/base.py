@@ -35,15 +35,15 @@ _HOOK_COMMAND_NOTE = (
 )
 
 _CORE_COMMAND_TEMPLATE_ORDER = (
-    "analyze",
-    "clarify",
     "constitution",
+    "specify",
+    "checklist",
+    "clarify",
+    "plan",
+    "tasks",
+    "analyze",
     "implement",
     "converge",
-    "plan",
-    "checklist",
-    "specify",
-    "tasks",
     "taskstoissues",
 )
 _CORE_COMMAND_TEMPLATE_RANK = {

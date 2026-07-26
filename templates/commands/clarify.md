@@ -56,7 +56,12 @@ You **MUST** consider the user input before proceeding (if not empty).
 
 Goal: Detect and reduce ambiguity or missing decision points in the active feature specification and record the clarifications directly in the spec file.
 
-Note: This clarification workflow is expected to run (and be completed) BEFORE invoking `__SPECKIT_COMMAND_PLAN__`. If the user explicitly states they are skipping clarification (e.g., exploratory spike), you may proceed, but must warn that downstream rework risk increases.
+This command is also the repair tool for requirement-stage gates. Planning
+Readiness is aggregated from metadata-bearing checklists; it is never written
+to `planning-readiness.md`.
+
+Note: This clarification workflow is expected to run after
+`__SPECKIT_COMMAND_CHECKLIST__` and before `__SPECKIT_COMMAND_PLAN__`.
 
 Execution steps:
 
@@ -69,7 +74,16 @@ Execution steps:
 
 2. **IF EXISTS**: Load `/memory/constitution.md` for project principles and governance constraints.
 
-3. Load the current spec file. Perform a structured ambiguity & coverage scan using this taxonomy. For each category, mark status: Clear / Partial / Missing. Produce an internal coverage map used for prioritization (do not output raw map unless no questions will be asked).
+3. Load all `FEATURE_DIR/checklists/*.md` files carrying:
+   `Stage: requirements`, `Gate: planning-readiness`, and `Status: BLOCKED`.
+   - Prioritize unchecked `[blocker:product-decision]` items as clarification
+     candidates.
+   - Never turn `[blocker:provider-evidence]` items into product questions.
+     Keep them BLOCKED and report their `[return:intake]` route.
+   - Treat the legacy `checklists/behavior-testability.md` as
+     non-authoritative even if it contains similar wording.
+
+4. Load the current spec file. Perform a structured ambiguity & coverage scan using this taxonomy. For each category, mark status: Clear / Partial / Missing. Produce an internal coverage map used for prioritization (do not output raw map unless no questions will be asked).
 
    Functional Scope & Behavior:
    - Core user goals & success criteria
@@ -125,7 +139,7 @@ Execution steps:
    - Clarification would not materially change implementation or validation strategy
    - Information is better deferred to planning phase (note internally)
 
-4. Generate (internally) a prioritized queue of candidate clarification questions (maximum 5). Do NOT output them all at once. Apply these constraints:
+5. Generate (internally) a prioritized queue of candidate clarification questions (maximum 5). Do NOT output them all at once. Apply these constraints:
     - Maximum of 5 total questions across the whole session.
     - Each question must be answerable with EITHER:
        - A short multiple‑choice selection (2–5 distinct, mutually exclusive options), OR
@@ -136,7 +150,7 @@ Execution steps:
     - Favor clarifications that reduce downstream rework risk or prevent misaligned acceptance tests.
     - If more than 5 categories remain unresolved, select the top 5 by (Impact * Uncertainty) heuristic.
 
-5. Sequential questioning loop (interactive):
+6. Sequential questioning loop (interactive):
     - Present EXACTLY ONE question at a time.
     - For multiple‑choice questions:
        - **Analyze all options** and determine the **most suitable option** based on:
@@ -172,7 +186,7 @@ Execution steps:
     - Never reveal future queued questions in advance.
     - If no valid questions exist at start, immediately report no critical ambiguities.
 
-6. Integration after EACH accepted answer (incremental update approach):
+7. Integration after EACH accepted answer (incremental update approach):
     - Maintain in-memory representation of the spec (loaded once at start) plus the raw file contents.
     - For the first integrated answer in this session:
        - Ensure a `## Clarifications` section exists (create it just after the highest-level contextual/overview section per the spec template if missing).
@@ -190,7 +204,7 @@ Execution steps:
     - Preserve formatting: do not reorder unrelated sections; keep heading hierarchy intact.
     - Keep each inserted clarification minimal and testable (avoid narrative drift).
 
-7. Validation (performed after EACH write plus final pass):
+8. Validation (performed after EACH write plus final pass):
    - Clarifications session contains exactly one bullet per accepted answer (no duplicates).
    - Total asked (accepted) questions ≤ 5.
    - Updated sections contain no lingering vague placeholders the new answer was meant to resolve.
@@ -198,9 +212,9 @@ Execution steps:
    - Markdown structure valid; only allowed new headings: `## Clarifications`, `### Session YYYY-MM-DD`.
    - Terminology consistency: same canonical term used across all updated sections.
 
-8. Write the updated spec back to `FEATURE_SPEC`.
+9. Write the updated spec back to `FEATURE_SPEC`.
 
-9. **Re-validate Spec Quality Checklist** (if it exists):
+10. **Re-validate the baseline Spec Quality Checklist** (if it exists):
    - Check if `FEATURE_DIR/checklists/requirements.md` exists.
    - If it does NOT exist, skip this step silently.
    - If it exists:
@@ -218,6 +232,26 @@ Execution steps:
         - **Regressions**: items that changed from checked to unchecked.
         - **Still unchecked**: items that remain unchecked.
      8. Record the before/after pass counts as checked/total checkbox items (e.g., "12/16 → 15/16 items passing").
+
+11. **Recompute requirement gates and aggregate Planning Readiness**:
+    - Compute the SHA-256 digest of the exact updated `spec.md` bytes as
+      `sha256:<lowercase-hex>`.
+    - Recompute the generated content, blocker set, applicability, and status
+      for every gate affected by the accepted answers.
+    - For other requirement gates, verify that their referenced requirements
+      remain unchanged before stamping the new `Spec Revision`. If that cannot
+      be established, recompute that gate too.
+    - Update by stable CHK ID. Replace generated status/blocker sections
+      atomically; do not append duplicate IDs, old blockers, or repeated Gate
+      Status sections.
+    - Provider-evidence blockers remain unchecked and keep the aggregate
+      BLOCKED until the provider/intake workflow supplies evidence.
+    - PASS requires every standard domain to be evaluated, every gate to carry
+      the current spec revision, every applicable planning gate to be PASS, and
+      every NOT_APPLICABLE result to include a reason.
+    - Advisory checklists do not affect the aggregate.
+    - Report the aggregate in memory. Do not create
+      `planning-readiness.md`.
 
 Behavior rules:
 
@@ -275,10 +309,15 @@ Report completion (after questioning loop ends or early termination):
 - Coverage summary table listing each taxonomy category with Status: Resolved (was Partial/Missing and addressed), Deferred (exceeds question quota or better suited for planning), Clear (already sufficient), Outstanding (still Partial/Missing but low impact).
 - If any Outstanding or Deferred remain, recommend whether to proceed to `__SPECKIT_COMMAND_PLAN__` or run `__SPECKIT_COMMAND_CLARIFY__` again later post-plan.
 - Suggested next command.
+- Planning Readiness aggregate, with product-decision and provider-evidence
+  blockers reported separately.
 
 ## Done When
 
 - [ ] Spec ambiguities identified and clarifications integrated into spec file
 - [ ] Spec quality checklist re-validated against updated spec (if `FEATURE_DIR/checklists/requirements.md` exists)
+- [ ] Affected requirement gates recomputed with stable IDs and current spec revision
+- [ ] Provider-evidence blockers preserved and routed to intake
+- [ ] Planning Readiness aggregated without creating a summary file
 - [ ] Extension hooks dispatched or skipped according to the rules in Mandatory Post-Execution Hooks above
 - [ ] Completion reported to user with questions answered, sections touched, checklist status, and coverage summary

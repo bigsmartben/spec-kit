@@ -670,22 +670,24 @@
     "workflow-preset": {
       "name": "Workflow Preset",
       "id": "workflow-preset",
-      "version": "1.3.12",
+      "version": "2.0.0",
       "description": "Behavior-first specification, design artifacts, and agent-native handoff orchestration",
       "author": "bigsmartben",
       "repository": "https://github.com/bigsmartben/spec-kit-workflow-preset",
-      "download_url": "https://github.com/bigsmartben/spec-kit-workflow-preset/releases/download/v1.3.12/spec-kit-workflow-preset-v1.3.12.zip",
+      "download_url": "https://github.com/bigsmartben/spec-kit-workflow-preset/releases/download/v2.0.0/spec-kit-workflow-preset-v2.0.0.zip",
       "homepage": "https://github.com/bigsmartben/spec-kit-workflow-preset",
       "documentation": "https://github.com/bigsmartben/spec-kit-workflow-preset/blob/main/README.md",
       "license": "MIT",
       "requires": {
-        "speckit_version": ">=0.8.10.dev0"
+        "speckit_version": ">=0.12.7.dev0"
       },
       "provides": {
-        "templates": 23,
+        "templates": 27,
         "commands": 8
       },
       "tags": [
+        "architecture",
+        "constitution",
         "behavior",
         "bdd",
         "planning",

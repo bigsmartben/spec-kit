@@ -241,22 +241,7 @@ specs/<feature>/behavior/behavior-testability.md
 /speckit.implement
 ```
 
-中大型功能会进入 Core/Vertical Planner/Worker 三层 handoff 编排，常见输出：
-
-```text
-specs/<feature>/handoffs/implement/<run-id>/handoff-manifest.json
-specs/<feature>/handoffs/implement/<run-id>/<shard>.json
-specs/<feature>/handoffs/implement/<run-id>/<shard>.context.md
-specs/<feature>/handoffs/implement/<run-id>/results/<shard>.json
-```
-
-如果当前 agent runtime 不支持隔离 subagent，按输出的新 worker 指令在干净会话中执行单个 handoff：
-
-```text
-/speckit.implement Use handoff JSON specs/<feature>/handoffs/implement/<run-id>/<shard>.json
-```
-
-Final Code Review 会以 `task_type: code_review` receipt 记录已检查的设计、sequence、contract、quickstart 来源、数据副作用审查、授权范围内的一致性修复和真实 e2e 缺口。
+`/speckit.implement` 使用标准单会话流程读取完整任务和规划上下文，按阶段执行 `tasks.md`、运行验证，并标记完成项目。
 
 ## 9. 收敛验证
 

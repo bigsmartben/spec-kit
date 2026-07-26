@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Replaced implement-stage subagent orchestration and persisted handoff contracts with the upstream single-session `/speckit.implement` workflow.
 - Added a wrapping `spec-template` as the single owner of the source-agnostic
   `UI/UX Specification` structure, including stable `UI-###` and `UX-###`
   requirements.

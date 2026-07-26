@@ -3,8 +3,8 @@ preset:
   id: workflow-preset
   name: Workflow Preset
   version: 1.3.12
-  description: Behavior-first specification, design artifacts, and agent-native handoff
-    orchestration
+  description: Behavior-first specification, design-aware planning, and scoped change
+    governance
   author: bigsmartben
   repository: https://github.com/bigsmartben/spec-kit-workflow-preset
   license: MIT
@@ -79,7 +79,7 @@ provides:
   - type: command
     name: speckit.implement
     file: commands/speckit.implement.md
-    description: Run agent-native handoff orchestration or execute one worker handoff
+    description: Execute the implementation plan defined in tasks.md
     replaces: speckit.implement
     strategy: replace
   - type: template
@@ -184,27 +184,8 @@ provides:
     description: Schema for formal behavior assertions
     replaces: speckit-behavior-assertions-v1-schema
     strategy: replace
-  - type: template
-    name: speckit-implement-manifest-v1-schema
-    file: schemas/speckit.implement.manifest.v1.schema.json
-    description: Decouple the handoff manifest JSON contract
-    replaces: speckit-implement-manifest-v1-schema
-    strategy: replace
-  - type: template
-    name: speckit-implement-handoff-v2-schema
-    file: schemas/speckit.implement.handoff.v2.schema.json
-    description: Decouple the handoff JSON contract
-    replaces: speckit-implement-handoff-v2-schema
-    strategy: replace
-  - type: template
-    name: speckit-implement-receipt-v1-schema
-    file: schemas/speckit.implement.receipt.v1.schema.json
-    description: Decouple the receipt JSON contract
-    replaces: speckit-implement-receipt-v1-schema
-    strategy: replace
 tags:
 - behavior
 - bdd
 - planning
 - implementation
-- handoff

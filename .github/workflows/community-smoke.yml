@@ -82,9 +82,6 @@ jobs:
           test -f .specify/presets/workflow-preset/schemas/speckit.behavior.scenario-instances.v1.schema.json
           test -f .specify/presets/workflow-preset/schemas/speckit.behavior.data-fixtures.v1.schema.json
           test -f .specify/presets/workflow-preset/schemas/speckit.behavior.assertions.v1.schema.json
-          test -f .specify/presets/workflow-preset/schemas/speckit.implement.manifest.v1.schema.json
-          test -f .specify/presets/workflow-preset/schemas/speckit.implement.handoff.v2.schema.json
-          test -f .specify/presets/workflow-preset/schemas/speckit.implement.receipt.v1.schema.json
           test -f .specify/presets/workflow-preset/.composed/speckit.specify.md
           test -f .specify/presets/workflow-preset/.composed/speckit.clarify.md
           test -f .specify/presets/workflow-preset/.composed/speckit.checklist.md
@@ -118,9 +115,8 @@ jobs:
           grep -q "Change Scope Granularity" .claude/skills/speckit-constitution/SKILL.md
           grep -q "Phase 0 Behavior Projection" .claude/skills/speckit-plan/SKILL.md
           grep -q "Validation Task Derivation" .claude/skills/speckit-tasks/SKILL.md
-          grep -q "Core Agent" .claude/skills/speckit-implement/SKILL.md
-          grep -q "Vertical Planner Agent" .claude/skills/speckit-implement/SKILL.md
-          grep -q "Worker Agent" .claude/skills/speckit-implement/SKILL.md
+          grep -q "## Pre-Execution Checks" .claude/skills/speckit-implement/SKILL.md
+          grep -q "mark the task off as \[X\] in the tasks file" .claude/skills/speckit-implement/SKILL.md
 
           for extension_id in arch discovery inception intake preview repository-governance; do
             /tmp/specify-community-smoke-venv/bin/specify extension remove "$extension_id" --force

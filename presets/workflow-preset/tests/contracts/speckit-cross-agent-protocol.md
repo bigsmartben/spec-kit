@@ -11,7 +11,7 @@ Every command profile defines these fields:
 - `input_scope`: exact artifacts, sections, IDs, or path families assigned to the stage.
 - `allowed_reads`: files, directories, or scoped excerpts the role may inspect.
 - `allowed_writes`: files, directories, or artifact families the role may create or update.
-- `output_contract`: draft, finding, blocker, receipt, manifest, or final artifact shape.
+- `output_contract`: draft, finding, blocker, or final artifact shape.
 - `validation_gate`: schema, validator, checklist, or blocker-code gate before the next stage.
 - `stop_conditions`: deterministic blockers that stop the current role.
 - `fallback`: sequential simulation or manual queue behavior when delegated agents are unavailable.
@@ -62,16 +62,5 @@ Every command profile defines these fields:
 - `stop_conditions`: missing source artifact, broken traceability, or first blocker that proves a downstream link cannot close.
 - `fallback`: sequential read-only review; no durable artifact writes.
 
-### `speckit.implement.persistent_handoff_orchestration`
-- `stage`: implement lifecycle from context indexing through closeout.
-- `owner_agent`: Core Agent for orchestration and task commit; Vertical Planner Agent for drafts; Worker Agent for one handoff.
-- `input_scope`: incomplete `tasks.md` items, context index, planner outputs, handoffs, context digests, receipts, and validation evidence.
-- `allowed_reads`: role-scoped handoff inputs and digest paths.
-- `allowed_writes`: Core writes manifest and task status; planners write drafts; workers write only authorized implementation paths and receipts.
-- `output_contract`: manifest, shard handoffs, context digests, worker receipts, code review receipts, and closeout.
-- `validation_gate`: `validate_manifest_structure()`, `validate_handoff_structure()`, `validate_dispatch_ready()`, `validate_receipt_structure()`, and `validate_commit_ready()`.
-- `stop_conditions`: schema mismatch, unlisted handoff, non-empty dispatch `context_gaps`, or current role writing outside authorized paths.
-- `fallback`: when isolated subagents are unavailable, Core emits a `Manual Worker Queue` ordered by manifest `dispatch_order`.
-
 ## Permission Boundary
-Profiles inherit the scheduling protocol, not execution permissions. A command must reference only its own profile. Persistent handoff orchestration, handoff manifests, receipts, allowed write paths, and manual worker queues belong only to `speckit.implement.persistent_handoff_orchestration`.
+Profiles inherit the scheduling protocol, not execution permissions. A command must reference only its own profile.

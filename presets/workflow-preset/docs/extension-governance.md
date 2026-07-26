@@ -45,9 +45,9 @@ Stage ownership:
 - `/speckit.plan`: Phase 0 behavior projection, planning artifacts, and formal contracts.
 - `/speckit.tasks`: `tasks.md` only.
 - `/speckit.analyze`: vertical consistency checks across requirements, behavior drafts, contracts, and tasks only.
-- `/speckit.implement`: implementation handoff execution only.
+- `/speckit.implement`: standard implementation task execution only.
 
-`/speckit.tasks` owns implementation, UI/UX acceptance, contract validation, data-side-effect validation, integration/e2e validation, and code review task definition in `tasks.md`. `/speckit.implement` may execute those tasks and record receipt evidence, but it must not invent validation strategy, lifecycle roles, requirements, contract updates, or wider scope during execution.
+`/speckit.tasks` owns implementation, UI/UX acceptance, contract validation, data-side-effect validation, integration/e2e validation, and code review task definition in `tasks.md`. `/speckit.implement` executes those tasks and marks completed items, but it must not invent validation strategy, requirements, contract updates, or wider scope during execution.
 
 The wrapping `spec-template` owns the stable `UI/UX Specification` shape.
 `/speckit.specify` decides applicability and fills that shape; it must not
@@ -73,16 +73,6 @@ Test coverage for shared multi-agent behavior belongs in `tests/contracts/specki
 Commands may reference only their own profile. A profile inherits scheduling
 protocol fields, not execution permissions from another command.
 Commands must not reference `tests/` or `docs/` paths as runtime contract sources.
-
-Persistent handoff orchestration belongs only to `/speckit.implement`.
-Manifest files, handoff files, receipts, `allowed_write_paths`, dispatch
-readiness, commit readiness, and manual worker queues must not be introduced
-into `/speckit.specify`, `/speckit.plan`, `/speckit.tasks`, or
-`/speckit.analyze`.
-
-The implement handoff runtime profile lives in `commands/speckit.implement.md`;
-test coverage lives in `tests/contracts/speckit-cross-agent-subagents.md`.
-Both must stay aligned with the implement schemas and validator gates.
 
 ## Behavior-first extension rule
 
@@ -128,21 +118,6 @@ feedback, state, responsive, and accessibility constraints.
 cross-boundary sequencing, async callbacks, retry, rollback, compensation, or
 error propagation; it must not define visual style, typography, color, spacing,
 or layout details.
-
-## Handoff Extension Rules
-
-Handoff extensions must update schema, validator, command, and cross-agent documentation together.
-Any new implementation-stage artifact that Worker
-Agents may read or write must be reflected in:
-
-- `schemas/speckit.implement.*.schema.json` when the JSON contract changes.
-- `validators/speckit_implement_contract.py` when cross-field validation changes.
-- `commands/speckit.implement.md` when Core, Vertical Planner, or Worker
-  behavior changes.
-- `tests/contracts/speckit-cross-agent-protocol.md` when shared profile behavior changes.
-- `tests/contracts/speckit-cross-agent-subagents.md` when implement worker prompts,
-  context digest rules, shard rules, or path rules change.
-- `tests/test_preset_contract.py` for all of the above.
 
 ## Release Discipline
 

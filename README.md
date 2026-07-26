@@ -259,8 +259,7 @@ specs/<feature>/preview/wireflow.html
 - `/speckit.constitution` 增加 Change Scope Granularity 治理。
 - `/speckit.plan` 增加 Phase 0 行为投影、BDD/UIF/data fixture intent 和可选设计产物。
 - `/speckit.tasks` 从行为契约、接口契约、`research.md`、`quickstart.md` 派生验证策略。
-- `/speckit.implement` 使用 Core Agent、Vertical Planner、Worker 的 handoff 编排。
-- 最终实现阶段包含 code review receipt，记录 checked sources、数据副作用审查、授权修复和延期验证 todo。
+- `/speckit.implement` 使用上游标准单会话流程执行 `tasks.md`，在每个阶段验证并标记完成任务。
 
 典型产物：
 
@@ -268,10 +267,7 @@ specs/<feature>/preview/wireflow.html
 specs/<feature>/contracts/bdd/
 specs/<feature>/contracts/uif/
 specs/<feature>/contracts/behavior/
-specs/<feature>/handoffs/implement/<run-id>/
 ```
-
-实现 handoff 相关 schema 由 `presets/workflow-preset/schemas/` 提供。
 
 ## 社区资源
 
@@ -466,16 +462,6 @@ specify bundle build --path ./my-bundle
 /speckit.implement
 ```
 
-### 大型或跨模块实现
-
-保留默认 `workflow-preset`，让 `/speckit.implement` 生成 handoff manifest、context digest、worker handoff 和 receipt。
-
-重点查看：
-
-```text
-specs/<feature>/handoffs/implement/<run-id>/
-```
-
 ### 小功能或实验
 
 ```bash
@@ -517,7 +503,6 @@ specify extension add bug
 | `specs/<feature>/contracts/bdd/` | `workflow-preset` | BDD 行为契约。 |
 | `specs/<feature>/contracts/uif/` | `workflow-preset` | UI flow / interface fidelity 契约。 |
 | `specs/<feature>/contracts/behavior/` | `workflow-preset` | 行为场景、fixture、assertion 等正式契约。 |
-| `specs/<feature>/handoffs/implement/<run-id>/` | `workflow-preset` | implement 阶段多 agent handoff、context digest、receipt。 |
 | `.specify/bugs/<slug>/` | `bug` | 单个 bug 的 assess/fix/test 报告。 |
 | `.specify/extensions/git/git-config.yml` | `git` | Git 分支和自动提交配置。 |
 

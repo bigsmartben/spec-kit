@@ -1063,7 +1063,7 @@ class TestGitExtensionDefaultInstall:
 
         preset_dir = project / ".specify" / "presets" / "workflow-preset"
         assert (preset_dir / "preset.yml").exists()
-        assert (preset_dir / "schemas" / "speckit.implement.handoff.v2.schema.json").exists()
+        assert not (preset_dir / "schemas" / "speckit.implement.handoff.v2.schema.json").exists()
         assert (preset_dir / "templates" / "constitution-template.md").exists()
         assert (preset_dir / "templates" / "behavior" / "bdd-draft.feature").exists()
         assert (preset_dir / ".composed" / "speckit.constitution.md").exists()
@@ -1101,10 +1101,10 @@ class TestGitExtensionDefaultInstall:
         assert "Phase 0 Behavior Projection" in plan_skill.read_text(encoding="utf-8")
         assert "validation task derivation" in tasks_skill.read_text(encoding="utf-8").lower()
         implement_text = implement_skill.read_text(encoding="utf-8")
-        assert "Core Agent" in implement_text
-        assert "Vertical Planner Agent" in implement_text
-        assert "Worker Agent" in implement_text
-        assert "speckit.implement.handoff.v2" in implement_text
+        assert "## Pre-Execution Checks" in implement_text
+        assert "## Mandatory Post-Execution Hooks" in implement_text
+        assert "mark the task off as [X] in the tasks file" in implement_text
+        assert "speckit.implement.handoff.v2" not in implement_text
 
     @pytest.mark.parametrize(
         ("integration", "plan_path"),

@@ -30,7 +30,7 @@
       "name": "Workflow Preset",
       "id": "workflow-preset",
       "version": "2.0.0",
-      "description": "Behavior-first specification, design artifacts, and agent-native handoff orchestration",
+      "description": "Constitution-managed architecture, behavior-first specification, design artifacts, and scoped change governance",
       "author": "bigsmartben",
       "repository": "https://github.com/bigsmartben/spec-kit-workflow-preset",
       "license": "MIT",
@@ -40,7 +40,7 @@
       },
       "provides": {
         "commands": 8,
-        "templates": 27
+        "templates": 24
       },
       "tags": [
         "architecture",

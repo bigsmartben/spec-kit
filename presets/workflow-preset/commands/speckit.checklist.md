@@ -1,40 +1,104 @@
 ---
-description: Wrap core checklist generation with BDD, NFR, and UI/UX specification readiness gates.
+description: Wrap core checklist generation with multi-domain requirement gates.
 strategy: wrap
 ---
 
-## Checklist Purpose: "Unit Tests for English"
+## Multi-Domain Requirement Gate
 
-This wrapper must not redefine core-owned User Input, Pre-Execution Checks, extension hooks, base path resolution, or core file handling.
+This wrapper extends the core spec-only checklist contract. It must not read
+`plan.md` or `tasks.md`, create planning artifacts, redefine extension hooks,
+or introduce a new command.
 
-Checklists validate whether requirements are complete, clear, consistent, measurable, and ready for downstream planning. NOT for verification/testing: do not test implementation behavior, code execution, UI rendering, API responses, or whether the built system works.
+Use `$ARGUMENTS` only to prioritize requirement-quality focus. The standard
+domain evaluation is always:
 
-CORE PRINCIPLE - Test the Requirements, Not the Implementation. Checklist questions must use requirement-quality forms such as "Are ... specified?", "Is ... quantified?", "Can ... be objectively verified?", or "Are ... requirements consistent?"
+| Domain | Output | Template |
+|---|---|---|
+| requirements | `checklists/requirements.md` | core baseline |
+| behavior | `checklists/behavior.md` | `requirement-behavior-gate-template` |
+| UX | `checklists/ux.md` | `requirement-domain-gate-template` |
+| security | `checklists/security.md` | `requirement-domain-gate-template` |
+| NFR | `checklists/nfr.md` | `requirement-nfr-gate-template` |
+| visual | `checklists/visual.md` | `requirement-visual-gate-template` |
 
-Use `$ARGUMENTS` as checklist intent. Generate dynamic clarifying questions with no pre-baked catalog only when the answer changes BDD, NFR, or UI/UX specification checklist content. Use Q1/Q2/Q3 for initial questions and Q4/Q5 only for justified follow-up gaps.
+Every standard domain must be written as `APPLICABLE` or
+`NOT_APPLICABLE` with a concrete reason. Every file uses the core
+`Stage/Domain/Gate/Applicability/Status/Spec Revision` metadata contract.
+Planning Readiness is aggregated in memory; do not create
+`planning-readiness.md`.
 
-For `checklists/behavior-testability.md`, create the file when absent; otherwise append or update without deleting existing checklist content. Resolve `behavior-testability-checklist-template` through the normal template stack and treat it as the only stable authority for checklist headings, item wording, matrices, columns, and status enums. Do not reproduce those structures in this command.
+The legacy `checklists/behavior-testability.md` is not an input or output of
+this command. Preserve an existing legacy file for migration history but never
+update it or treat it as a current Gate.
 
-## Readiness Gate Behavior
+## Behavior Requirement Gate
 
-Populate the resolved checklist template directly from `spec.md`. The checklist is the plan-entry quality gate and must not depend on behavior drafts or implementation artifacts.
+Write behavior requirement quality and the Case Coverage Matrix to
+`checklists/behavior.md`.
 
-Evaluate:
+- Evaluate user-story readiness, observable acceptance behavior, and Given,
+  When, and Then requirement readiness.
+- Use one row per story/capability and case type.
+- Cover positive, negative, boundary, permission, validation, and
+  state_conflict.
+- Use stable Case IDs.
+- Status is `Required|Not Applicable|Unknown`.
+- Required rows cite a `spec.md` section.
+- Not Applicable requires rationale.
+- Unknown becomes `[blocker:product-decision]` and blocks PASS.
+- Scenario IDs and `case_coverage_blockers` remain `/speckit.plan` outputs.
 
-- observable and independently testable user-story behavior;
-- primary, alternate, exception, boundary, permission, validation, and state-conflict coverage when applicable;
-- explicit Given starting conditions, When triggers, and Then outcomes;
-- product-level non-functional requirement applicability and verifiability;
-- UI/UX requirement applicability, observable acceptance criteria, required states, responsive behavior, accessibility, content, and visual hierarchy.
+This gate checks whether behavior requirements are projectable. It does not
+decide test level, fixtures, assertions, contracts, or Task Readiness.
 
-For UI/UX rows, keep requirement applicability (`Required | Not Applicable | Unknown`) separate from specification readiness (`Ready | Blocked`). Use the stable `UI-###` or `UX-###` requirement ID from `spec.md`. `Unknown` applicability and incomplete Required requirements must appear in Blocking Items when they prevent downstream planning.
+## NFR Requirement Gate
 
-Set `Gate Status: PASS` only when every applicable readiness item is checked and `Blocking Items: none`. Otherwise set `Gate Status: BLOCKED` and list each requirement-quality gap that prevents behavior projection or planning.
+Write NFR readiness to `checklists/nfr.md`. Evaluate performance, security and
+privacy, reliability and recovery, accessibility, compliance and auditability,
+observability, compatibility, data lifecycle, and cost or operational
+constraints.
 
-Unchecked readiness items that prevent downstream planning return to `/speckit.clarify` or `/speckit.specify`. Do not repair requirements inside the checklist command and do not proceed to `/speckit.plan`.
+Each dimension is `Required`, `Not Applicable`, or `Unknown`. Required items
+need verifiable product-level criteria. Not Applicable needs a rationale.
+Unknown items affecting planning are product-decision blockers. Do not require
+technical designs or invent architecture.
+
+## Visual Requirement Gate
+
+Write visual readiness and the only Visual Fidelity Evidence Matrix to
+`checklists/visual.md`.
+
+Apply the gate when `spec.md` contains a Visual & UI Specification, visual
+requirements, visual/HTML/structured-IR SSOT refs, external intake refs,
+provider blockers, pixel-perfect/brand-critical requirements, responsive
+visual requirements, or UI visual acceptance requirements.
+
+Every visual item is `Required`, `Not Applicable`, `Unknown`, or
+`[BLOCKED: PROVIDER_EVIDENCE]`.
+
+- Unknown product semantics become `[blocker:product-decision]`.
+- Missing provider proof remains `[blocker:provider-evidence] [return:intake]`.
+- Provider blockers must not be converted into clarify questions.
+- Required items need source traceability and observable requirement text.
+- The matrix records source refs, provider dependency, visual SSOT refs, HTML
+  SSOT refs, structured IR refs, other evidence refs, readiness input,
+  accepted exceptions, and blocker IDs.
+- Responsive visual requirements block PASS only when required source-backed
+  state or viewport evidence is missing for a feature that depends on provider
+  evidence.
+
+Do not call provider tools, rebuild intake evidence, parse provider or HTML
+artifacts, define screenshot comparison, visual diff, baseline capture, or
+final visual review.
+
+## Recompute and Reporting
+
+Recompute generated sections using stable CHK/CASE/NFR/VIS IDs. Never append
+duplicate status blocks, stale blockers, or repeated matrix rows. Preserve
+unrelated manual notes.
+
+Report per-domain applicability/status, current spec revision, the in-memory
+Planning Readiness aggregate, product-decision blockers, and provider-evidence
+blockers separately.
 
 {CORE_TEMPLATE}
-
-## Behavior Checklist Reporting
-
-Before finishing, report the full checklist path, item count, update mode, focus areas, depth level, actor/timing, must-have items, BDD/NFR/UI/UX readiness status, Gate Status, and Blocking Items.

@@ -1,6 +1,6 @@
 # 快速开始
 
-这份指南面向本仓库分发版的 Spec Kit。它保留核心 Spec-Driven Development 流程，同时默认带上架构规划契约、仓库治理、BDD/UIF 行为契约、HTML 预览、实现期 handoff 和最终 code review receipt。
+这份指南面向本仓库分发版的 Spec Kit。它保留核心 Spec-Driven Development 流程，同时默认带上 Constitution 托管的单文件项目架构、仓库治理、BDD/UIF 行为契约、HTML 预览、实现期 handoff 和最终 code review receipt。
 
 > [!NOTE]
 > 自动化脚本同时提供 Bash (`.sh`) 和 PowerShell (`.ps1`) 版本。`specify` CLI 会按系统自动选择，也可以通过 `--script sh|ps` 显式指定。
@@ -13,10 +13,8 @@
 生产功能建议使用默认增强链路：
 
 ```text
-/speckit.constitution
-/speckit.inception.product
-/speckit.inception.arch
-/speckit.arch.generate
+/speckit.inception.product        # 可选；仅在用户选择其产物作为输入时
+/speckit.constitution             # 同时托管 constitution.md 与 architecture.md
 /speckit.repository-governance.generate
 /speckit.specify
 /speckit.checklist
@@ -31,7 +29,7 @@
 
 `/speckit.checklist` 在规划前根据 `spec.md` 生成多领域需求门禁；`/speckit.clarify` 修复其中的产品决策缺口并重评门禁。Planning Readiness 是运行时聚合结果，不会生成独立文件。`/speckit.analyze` 在实现前检查 spec、plan 和 tasks 的一致性；`/speckit.converge` 在实现后对照 feature artifacts 检查剩余缺口。如果 converge 追加了新任务，继续运行 `/speckit.implement` 并再次 converge，直到功能收敛。
 
-接手旧仓库时，把 `/speckit.arch.generate` 换成 `/speckit.arch.reverse`，先从仓库证据反向生成架构规划契约。
+接手旧仓库时仍运行 `/speckit.constitution`，但明确指定 brownfield（老项目）模式、允许检查的仓库范围，以及每项证据的角色。代码、README、Git 历史或约定路径不会自动成为架构事实。
 
 小实验可以安装 `lean` 预设后走轻量路径：
 
@@ -105,11 +103,21 @@ specify integration list
 
 ## 3. 建立项目原则与治理
 
-在编码助手中先建立项目原则：
+在编码助手中先建立项目原则和独立的项目架构：
 
 ```text
-/speckit.constitution This project uses behavior-first requirements, keeps architecture decisions explicit, and requires validation evidence before tasks are marked complete.
+/speckit.constitution Greenfield. Use this conversation as the selected source, exclude repository scaffolding, and update both Constitution and Architecture.
 ```
+
+`/speckit.constitution` 会先确认输入协议：新项目/老项目/修订模式、目标、用户选择的来源、排除来源、仓库检查范围，以及本轮允许更新 Constitution、Architecture 或两者。`uc.md` 只是可选外部输入之一，不是门槛。
+
+架构产物固定为一个文件：
+
+```text
+.specify/memory/architecture.md
+```
+
+其推理顺序是 System Boundary（系统边界）→ Conceptual Model（概念模型）→ Technical Decisions & Evidence（技术决策与证据）→ Planning Guardrails & Gaps（规划守则与缺口），不再生成 4+1、多视图或 PoC 目录。
 
 生成或更新仓库治理规范：
 
@@ -125,19 +133,9 @@ specify integration list
 
 它用于约束 SSOT 读取顺序、目录责任、agent 平台适配和仓库事实证据。
 
-## 4. 生成架构规划契约
+## 4. 确认项目架构
 
-新项目或架构正在重塑时：
-
-```text
-/speckit.arch.generate
-```
-
-接手已有仓库时：
-
-```text
-/speckit.arch.reverse
-```
+项目架构已在 `/speckit.constitution` 阶段创建或修订。开始 feature（功能）规格前，确认该文件已经表达架构目标、用户授权来源，以及至少一个明确的责任边界：
 
 主要产物：
 
@@ -145,7 +143,7 @@ specify integration list
 .specify/memory/architecture.md
 ```
 
-后续 `/speckit.plan` 会基于这份唯一架构文件中的边界、约束、反模式、开放问题和 review checklist 进行规划。
+后续 `/speckit.plan` 必须读取它：`research.md` 遵循已有技术决策和证据，`data-model.md` 保留概念及不变量，`contracts/` 保留系统边界和依赖方向，`plan.md` 与 `quickstart.md` 继续携带适用约束和缺口。若 feature 需要改变项目架构，停止 plan 并返回 `/speckit.constitution`。
 
 ## 5. 创建、检查并澄清规格
 

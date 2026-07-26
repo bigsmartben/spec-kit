@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- Move project Architecture into the Constitution-managed single-file lifecycle,
+  retire architecture inception as a write-free compatibility command, and
+  remove the duplicate inception plus arch-generate workflow from quickstart.
+
 <!-- insert new changelog below this comment -->
 
 ## [0.12.6] - 2026-07-06

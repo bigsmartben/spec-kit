@@ -72,8 +72,8 @@
     "inception": {
       "name": "SDD Inception",
       "id": "inception",
-      "version": "1.0.0",
-      "description": "Guide pre-iteration product and architecture inception through conversational workflows before formal Spec Kit stages",
+      "version": "2.0.0",
+      "description": "Guide optional product inception and redirect retired architecture inception to the Constitution stage",
       "author": "bigsmartben",
       "repository": "https://github.com/bigsmartben/spec-kit",
       "license": "MIT",
@@ -88,7 +88,7 @@
         "inception",
         "sdd",
         "product",
-        "architecture",
+        "migration",
         "workflow"
       ]
     },

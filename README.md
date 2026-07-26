@@ -24,7 +24,7 @@
 
 如果你只是想知道这个仓库相比基础流程多了什么，可以先看这三件事：
 
-- 默认扩展：`arch`、`discovery`、`inception`、`intake`、`preview`、`repository-governance`。
+- 默认扩展：`discovery`、`inception`、`intake`、`preview`、`repository-governance`。
 - 默认预设：`workflow-preset`。
 - 自动上下文扩展：`agent-context`。
 
@@ -64,13 +64,12 @@ specify init my-project --integration codex --ignore-agent-tools
 | 类型 | ID | 来源目录 | 作用 |
 | --- | --- | --- | --- |
 | 自动扩展 | `agent-context` | `extensions/agent-context` | 维护 AGENTS、CLAUDE、Copilot 等 agent context 文件里的 Spec Kit 受管段。 |
-| 默认扩展 | `arch` | `extensions/arch` | 生成或反向生成面向 `/speckit.plan` 的架构规划契约。 |
 | 默认扩展 | `discovery` | `extensions/discovery` | 在正式计划前做可行性、技术选型、旧代码评估、接口理解、PoC 和场景化技术决策。 |
-| 默认扩展 | `inception` | `extensions/inception` | 在正式 SDD 前通过对话收敛产品 UC、wireflow、架构边界和真实 API POC 证据。 |
+| 默认扩展 | `inception` | `extensions/inception` | 在正式 SDD 前通过对话收敛可选的产品 UC 和 wireflow；旧架构入口仅提供迁移提示。 |
 | 默认扩展 | `intake` | `extensions/intake` | 把 PRD、设计稿、Figma、最终静态 HTML 交付、测试用例等来源归一化为 SDD 可消费的证据包。 |
 | 默认扩展 | `preview` | `extensions/preview` | 从规格和计划生成低、中、高保真 Markdown 或自包含 HTML 预览。 |
 | 默认扩展 | `repository-governance` | `extensions/repository-governance` | 生成仓库治理 SSOT，帮助 agent 明确目录责任、读取顺序和事实证据。 |
-| 默认预设 | `workflow-preset` | `presets/workflow-preset` | 强化 BDD、NFR、UIF、设计产物、任务验证策略和 implement handoff 编排。 |
+| 默认预设 | `workflow-preset` | `presets/workflow-preset` | 由 Constitution 阶段托管单文件项目架构，并强化 BDD、NFR、UIF、设计产物、任务验证策略和 implement handoff 编排。 |
 
 默认扩展列表在 `src/specify_cli/commands/init.py` 的 `DEFAULT_BUNDLED_EXTENSIONS` 中维护。默认预设列表在同文件的 `DEFAULT_BUNDLED_PRESETS` 中维护。
 
@@ -78,13 +77,12 @@ specify init my-project --integration codex --ignore-agent-tools
 
 ### `inception`
 
-`inception` 是正式规格化和工程迭代之前的启动设计阶段。它通过对话确认推进，不新增 workflow 命名层；命令会引导用户确认产品和架构前置材料，并用模板生成 `/inception/` 下的产物。
+`inception` 是正式规格化之前的可选产品启动阶段。它通过对话确认产品材料，并用模板生成 `inception/product/` 下的产物。
 
-常用命令：
+产品命令：
 
 ```text
 /speckit.inception.product
-/speckit.inception.arch
 ```
 
 主要产物：
@@ -93,24 +91,18 @@ specify init my-project --integration codex --ignore-agent-tools
 inception/product/uc.md
 inception/product/wireflow-medium.html
 inception/product/wireflow-high.html
-inception/arch/api-capability.md
-inception/arch/api-poc.md
-inception/arch/system-boundary.md
-inception/arch/domain-model.md
-inception/arch/arch.md
-inception/arch/api-poc-runs/
 ```
 
 使用建议：
 
-- 先跑 `/speckit.inception.product`，把产品想法收敛成 UC 和 medium/high wireflow。
-- 再跑 `/speckit.inception.arch`，只从 UC 出发做能力、边界、领域和架构前置设计。
-- API POC 不是伪代码；运行前必须确认目标能力、验证假设、环境、依赖、配置、样例输入、外部访问、允许副作用和停止条件，运行资产只写入 `inception/arch/api-poc-runs/`。
+- 仅在需要产品启动材料时运行 `/speckit.inception.product`。
+- `uc.md` 只有在用户后续明确选择时才成为 Constitution 或 Architecture 输入。
+- `/speckit.inception.arch` 已退役，只返回迁移提示，不读取 UC、生成架构或运行 PoC。
 - `inception` 不生成 `spec.md`、`plan.md`、`tasks.md`、OpenAPI、数据库 schema、生产代码或测试套件变更。
 
 ### `arch`
 
-`arch` 给项目补一层架构记忆。它不是 feature 计划，也不是实现设计；它负责把项目级边界、约束、已定决策、禁止方向、开放问题和 plan review checklist 写成唯一的规划契约。
+`arch` v3 是可选迁移扩展，不再生成项目架构。旧命令名保留为无写入入口，统一指向 `workflow-preset` 的 `/speckit.constitution`。
 
 常用命令：
 
@@ -119,17 +111,11 @@ inception/arch/api-poc-runs/
 /speckit.arch.reverse
 ```
 
-主要产物：
-
-```text
-.specify/memory/architecture.md
-```
-
 使用建议：
 
-- 新项目跑 `/speckit.arch.generate`，把目标架构约束整理成下游 plan 可消费的契约。
-- 旧仓库跑 `/speckit.arch.reverse`，从真实文件、入口、配置、测试和部署线索反推可证据支撑的规划规则。
-- 每条规则都应带 `Source / Basis`；开放问题用 `BLOCKS_PLAN` 或 `CAN_PROCEED_WITH_GUARDRAIL` 标明对规划的影响。
+- 新工作流直接运行 `/speckit.constitution`。
+- `/speckit.arch.generate` 和 `/speckit.arch.reverse` 只返回 `ARCH_COMMAND_RETIRED`。
+- 团队文档完成迁移后可以卸载 `arch`。
 
 ### `discovery`
 
@@ -431,12 +417,11 @@ specify bundle build --path ./my-bundle
 ### 新项目
 
 ```text
-/speckit.constitution
-/speckit.inception.product
-/speckit.inception.arch
-/speckit.arch.generate
+/speckit.inception.product   # 可选
+/speckit.constitution        # greenfield；用户指定输入和更新范围
 /speckit.specify
 /speckit.clarify
+/speckit.checklist
 /speckit.discovery.feasibility
 /speckit.plan
 /speckit.preview.wireflow mid
@@ -448,11 +433,11 @@ specify bundle build --path ./my-bundle
 ### 旧仓库接入
 
 ```text
-/speckit.constitution
 /speckit.discovery.codebase
-/speckit.arch.reverse
+/speckit.constitution        # brownfield；显式授权仓库证据范围
 /speckit.repository-governance.generate
 /speckit.specify
+/speckit.checklist
 /speckit.plan
 /speckit.tasks
 /speckit.implement
@@ -524,10 +509,9 @@ specify extension add bug
 
 | 目录或文件 | 来源 | 含义 |
 | --- | --- | --- |
-| `.specify/memory/architecture.md` | `arch` | 面向 `/speckit.plan` 的架构规划契约。 |
+| `.specify/memory/architecture.md` | `workflow-preset` 的 `/speckit.constitution` | 项目级边界、概念、技术证据、规划约束和缺口。 |
 | `.specify/memory/repository-governance.md` | `repository-governance` | 内部仓库治理 SSOT。 |
 | `inception/product/` | `inception` | 产品 UC 和 medium/high wireflow 启动设计产物。 |
-| `inception/arch/` | `inception` | 架构前置设计、真实 API POC 证据和运行资产。 |
 | `specs/<feature>/intake/` | `intake` | PRD、视觉设计、测试用例的结构化证据包。 |
 | `specs/<feature>/preview/` | `preview` | 单一自包含 HTML wireflow 预览。 |
 | `specs/<feature>/contracts/bdd/` | `workflow-preset` | BDD 行为契约。 |

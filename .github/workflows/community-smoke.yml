@@ -93,11 +93,6 @@ jobs:
           test -f .specify/presets/workflow-preset/.composed/speckit.plan.md
           test -f .specify/presets/workflow-preset/.composed/speckit.tasks.md
 
-          for arch_skill in \
-            speckit-arch-generate \
-            speckit-arch-reverse; do
-            test -f ".claude/skills/$arch_skill/SKILL.md"
-          done
           test -f .claude/skills/speckit-preview-wireflow/SKILL.md
           test -f .claude/skills/speckit-discovery-contract/SKILL.md
           test -f .claude/skills/speckit-inception-product/SKILL.md
@@ -122,13 +117,10 @@ jobs:
           grep -q "Vertical Planner Agent" .claude/skills/speckit-implement/SKILL.md
           grep -q "Worker Agent" .claude/skills/speckit-implement/SKILL.md
 
-          for extension_id in arch discovery inception intake preview repository-governance; do
+          for extension_id in discovery inception intake preview repository-governance; do
             /tmp/specify-community-smoke-venv/bin/specify extension remove "$extension_id" --force
             test ! -d ".specify/extensions/$extension_id"
             case "$extension_id" in
-              arch)
-                test "$(find .claude/skills -maxdepth 1 -type d -name 'speckit-arch-*' | wc -l)" -eq 0
-                ;;
               preview)
                 test ! -d .claude/skills/speckit-preview-wireflow
                 ;;
@@ -167,7 +159,7 @@ jobs:
                 test -f .claude/skills/speckit-inception-product/SKILL.md
                 test -f .claude/skills/speckit-inception-arch/SKILL.md
                 grep -q "Conversation Workflow" .claude/skills/speckit-inception-product/SKILL.md
-                grep -q "API POC Workflow" .claude/skills/speckit-inception-arch/SKILL.md
+                grep -q "INCEPTION_ARCH_COMMAND_RETIRED" .claude/skills/speckit-inception-arch/SKILL.md
                 ;;
               intake)
                 test -f .claude/skills/speckit-intake-visual-design/SKILL.md

@@ -17,9 +17,11 @@ from ..integration_state import (
 from ._commands import integration_app, integration_catalog_app
 from ._helpers import (
     _read_integration_json,
+    _reconcile_presets_for_active_agent,
     _register_extensions_for_agent,
     _resolve_integration_options,
     _set_default_integration_or_exit,
+    _unregister_presets_for_agent,
 )
 
 
@@ -243,10 +245,27 @@ def integration_use(
             f"[cyan]specify integration use {key} --force[/cyan]."
         ),
     )
+    previous_default = _default_integration_key(current)
+    if previous_default and previous_default != key:
+        _unregister_presets_for_agent(
+            project_root,
+            previous_default,
+            continuing=(
+                "The integration was selected, but old preset artifacts may "
+                "need manual cleanup."
+            ),
+        )
     _register_extensions_for_agent(
         project_root,
         key,
         continuing="The integration was selected, but installed extensions may need re-registration.",
+    )
+    _reconcile_presets_for_active_agent(
+        project_root,
+        continuing=(
+            "The integration was selected, but enabled presets may need "
+            "manual re-registration."
+        ),
     )
     console.print(f"[green]✓[/green] Default integration set to [bold]{key}[/bold].")
 

@@ -25,11 +25,14 @@ from ._helpers import (
     _cli_phase_label,
     _get_speckit_version,
     _read_integration_json,
+    _reconcile_presets_for_active_agent,
     _refresh_init_options_speckit_version,
+    _register_extensions_for_agent,
     _remove_integration_json,
     _resolve_integration_options,
     _resolve_script_type,
     _set_default_integration_or_exit,
+    _unregister_presets_for_agent,
     _update_init_options_for_integration,
     _write_integration_json,
 )
@@ -188,6 +191,14 @@ def integration_install(
         )
         raise typer.Exit(1)
 
+    _reconcile_presets_for_active_agent(
+        project_root,
+        continuing=(
+            "The integration was installed, but enabled presets may need "
+            "manual re-registration."
+        ),
+    )
+
     name = (integration.config or {}).get("name", key)
     console.print(f"\n[green]✓[/green] Integration '{name}' installed successfully")
     if default_key:
@@ -223,6 +234,15 @@ def integration_uninstall(
 
     manifest_path = project_root / ".specify" / "integrations" / f"{key}.manifest.json"
     if not manifest_path.exists():
+        if default_key == key:
+            _unregister_presets_for_agent(
+                project_root,
+                key,
+                continuing=(
+                    "Continuing with integration uninstall; old preset artifacts "
+                    "may need manual cleanup."
+                ),
+            )
         console.print(f"[yellow]No manifest found for integration '{key}'. Nothing to uninstall.[/yellow]")
         remaining = [installed for installed in installed_keys if installed != key]
         new_default = default_key if default_key != key else (remaining[0] if remaining else None)
@@ -239,6 +259,21 @@ def integration_uninstall(
                     remaining,
                     raw_options=raw_options,
                     parsed_options=parsed_options,
+                )
+                _register_extensions_for_agent(
+                    project_root,
+                    new_default,
+                    continuing=(
+                        "The fallback integration was selected, but installed "
+                        "extensions may need re-registration."
+                    ),
+                )
+                _reconcile_presets_for_active_agent(
+                    project_root,
+                    continuing=(
+                        "The fallback integration was selected, but enabled "
+                        "presets may need manual re-registration."
+                    ),
                 )
             else:
                 _write_integration_json(
@@ -262,6 +297,16 @@ def integration_uninstall(
         )
         console.print(f"[dim]Details:[/dim] {exc}")
         raise typer.Exit(1)
+
+    if default_key == key:
+        _unregister_presets_for_agent(
+            project_root,
+            key,
+            continuing=(
+                "Continuing with integration uninstall; old preset artifacts "
+                "may need manual cleanup."
+            ),
+        )
 
     if not integration:
         console.print(
@@ -287,6 +332,21 @@ def integration_uninstall(
                 remaining,
                 raw_options=raw_options,
                 parsed_options=parsed_options,
+            )
+            _register_extensions_for_agent(
+                project_root,
+                new_default,
+                continuing=(
+                    "The fallback integration was selected, but installed "
+                    "extensions may need re-registration."
+                ),
+            )
+            _reconcile_presets_for_active_agent(
+                project_root,
+                continuing=(
+                    "The fallback integration was selected, but enabled presets "
+                    "may need manual re-registration."
+                ),
             )
         else:
             _write_integration_json(

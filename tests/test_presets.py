@@ -4804,6 +4804,10 @@ class TestBundledPresetLocator:
             in verify_run
         )
         assert (
+            'grep -q "ARCH_COMMAND_RETIRED" .claude/skills/speckit-arch-generate/SKILL.md'
+            in verify_run
+        )
+        assert (
             'test -f .claude/skills/speckit-discovery-contract/SKILL.md'
             in verify_run
         )

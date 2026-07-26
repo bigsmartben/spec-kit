@@ -10,7 +10,6 @@ from specify_cli.integrations import get_integration
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_EXTENSION_IDS = (
-    "arch",
     "discovery",
     "git",
     "inception",
@@ -19,8 +18,6 @@ DEFAULT_EXTENSION_IDS = (
     "repository-governance",
 )
 DEFAULT_EXTENSION_COMMANDS = (
-    "speckit.arch.generate",
-    "speckit.arch.reverse",
     "speckit.discovery.contract",
     "speckit.git.feature",
     "speckit.git.validate",

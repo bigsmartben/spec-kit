@@ -1,5 +1,5 @@
 ---
-description: Wrap core clarification with spec-only ambiguity resolution.
+description: Wrap core clarification with product-decision gate repair.
 strategy: wrap
 ---
 
@@ -7,9 +7,16 @@ strategy: wrap
 
 This wrapper must not redefine core-owned User Input, Pre-Execution Checks, extension hooks, base path resolution, or core file handling.
 
-Use `spec.md` as the clarification source. Ask and record clarification only for requirement ambiguity that affects product behavior, constraints, non-functional requirement assumptions, UI/UX applicability, acceptance criteria, user roles, permissions, entity states, data semantics, exceptions, validation rules, or boundaries.
+Use `spec.md` as the clarification source. Ask and record clarification only for requirement ambiguity that affects product behavior, constraints, non-functional requirement assumptions, visual/UI requirement coverage status, acceptance criteria, user roles, permissions, entity states, data semantics, exceptions, validation rules, or boundaries.
 
-Do not read or update behavior draft artifacts. Product requirements stay in `spec.md`; update `spec.md` only after user-provided answers make the requirement clear.
+Also read unchecked blockers from all metadata-bearing
+`checklists/*.md` files with `Stage: requirements`,
+`Gate: planning-readiness`, and `Status: BLOCKED`.
+Prioritize `[blocker:product-decision]` items as the repair queue. Never ask a
+question for `[blocker:provider-evidence]`; preserve its `[return:intake]`
+route and keep Planning Readiness BLOCKED.
+
+Do not read or update behavior draft artifacts. Do not use behavior drafts as clarification inputs, and do not open a separate behavior-question channel. Product requirements stay in `spec.md`; update `spec.md` only after user-provided answers make the requirement clear.
 
 ## Wrapper Input Additions
 
@@ -21,46 +28,57 @@ Load the active `spec.md` through the core command. Official hooks still apply: 
 
 ## Wrapper Outline Additions
 
-### UI/UX Requirement Clarification Strategy
+## Design Requirement Clarification Strategy
 
-Scan `spec.md` first for `[NEEDS CLARIFICATION]`, UI/UX Applicability `Unknown`, and incomplete `UI-###` or `UX-###` requirements.
+When `spec.md` was created from external intake evidence or visual SSOT refs, prioritize clarification questions for evidence-derived gaps already written in `spec.md`. Scan `spec.md` first for `[NEEDS CLARIFICATION]`, visual/UI coverage status `Unknown`, and gaps about provider-unprovided states, responsive behavior, business rules, permissions, and error handling.
 
-Ask at most 5 high-impact questions whose answers materially affect requirements, implementation planning, or validation readiness. Present exactly one question at a time and do not reveal future queued questions.
+Do not call provider tools. Do not re-extract design facts, re-parse provider design links, parse HTML SSOT bundles, re-parse structured IR artifacts, or turn clarification into an intake step. External intake owns source capture and provider readiness; `/speckit.specify` only projects confirmed evidence-backed requirements and trace refs into `spec.md`. `/speckit.clarify` only selects high-impact questions from existing `spec.md` product-decision gaps and records confirmed answers. Do not ask the user to fix provider extraction artifacts.
 
-Format recommendations as `**Recommended:** Option [X] - <brief rationale>` when a discrete 2-5 option choice is available. For short-answer gaps, use `Suggested` and constrain answers to `<=5 words`. Accept `yes`, `recommended`, or `suggested` as approval of the shown recommendation.
+Ask at most 5 high-impact questions whose answers materially affect requirements, implementation planning, or validation readiness. Maximum of 5 total questions. Present EXACTLY ONE question at a time. Do NOT output them all at once. Never reveal future queued questions.
 
-Prioritize questions in this order:
+Format recommendations as `**Recommended:** Option [X] - <brief rationale>` when a discrete 2-5 option choice is available. Keep the rationale short and decision-focused. For short-answer gaps, use `Suggested` and constrain answers to `<=5 words`. Accept `yes`, `recommended`, or `suggested` as approval of the shown recommendation. Question selection order:
 
-1. UI/UX applicability: Required, Not Applicable, or Unknown.
-2. Target users, experience goals, and critical journeys.
-3. Information architecture, navigation, and recovery paths.
-4. Required default, loading, empty, error, disabled, success, hover, and focus states.
-5. Interaction feedback, validation behavior, and error semantics.
-6. Responsive reflow, scrolling, safe areas, viewport support, and long-content handling.
-7. Keyboard, focus, semantics, contrast, announcements, and other accessibility behavior.
-8. Required copy, visual hierarchy, iconography, imagery, and numeric or date formatting.
-9. Objective UI/UX acceptance criteria.
+1. Visual/UI coverage status: Required, Not Applicable, Unknown, or `[BLOCKED: PROVIDER_EVIDENCE]`.
+2. Required frames, states, and breakpoints for acceptance.
+3. visual fidelity scope: pixel-perfect, design-system faithful, or functional equivalent.
+4. missing UI states such as loading, empty, error, disabled, hover, and focus.
+5. responsive behavior, scrolling, safe areas, and long-copy handling.
+6. required component reuse constraints explicitly stated in `spec.md`.
+7. data semantics for mock copy, API-backed copy, and interface-driven values.
+8. Prototype-uncovered navigation, dialogs, recovery paths, and failure handling.
+9. product-side acceptance evidence and accepted exception approval flow.
 
-After each accepted answer, write confirmed answers back into the relevant `spec.md` requirement, scenario, acceptance criterion, assumption, or UI/UX section. Update Applicability when the answer resolves an `Unknown` decision. Ensure `## Clarifications`, `### Session YYYY-MM-DD`, and one `- Q: ... -> A: ...` bullet exist for the session. Save `spec.md` after each accepted answer.
+After each accepted answer, write confirmed answers back into `spec.md` in the relevant Requirements, User Scenarios, Acceptance Criteria, Assumptions, Open Questions, or Visual & UI Specification, visual/responsive/state sections. Update affected visual/UI coverage status when the answer resolves an `Unknown` item. Ensure `## Clarifications`, `### Session YYYY-MM-DD`, and one `- Q: ... -> A: ...` bullet exist for the session. Save `spec.md` after each accepted answer. Do not create a separate provider-specific clarification document.
 
-Do not generate checklist artifacts. `/speckit.checklist` remains responsible for checking requirement text quality and readiness.
+Do not generate visual restoration checklists. Clarification fills requirement gaps in `spec.md`; `/speckit.checklist` remains responsible for checking requirement text quality and readiness.
 
 ## Validation after each write
 
-Run validation after each write plus a final pass. Confirm the accepted answer appears once in `spec.md`, no more than 5 questions were asked, the targeted ambiguity is removed or replaced, no contradictory earlier statement remains, and heading structure is preserved.
+Run validation after EACH write plus final pass. Confirm the accepted answer appears once in `spec.md`, Total asked questions is at most 5, the targeted ambiguity is removed or replaced, no contradictory earlier statement remains, and heading structure is preserved.
 
-Do not update checklist artifacts. Report checklist impact as unresolved readiness context for `/speckit.checklist`.
+After each `spec.md` write, recompute affected requirement gates by stable
+CHK/CASE/NFR/VIS IDs. Verify unaffected gate sources before stamping every gate
+with the new spec SHA-256 revision. Replace generated status and blocker
+sections; do not append duplicate IDs or stale blockers. Aggregate Planning
+Readiness in memory and never create `planning-readiness.md`.
+
+Do not read or update the legacy `checklists/behavior-testability.md`.
 
 {CORE_TEMPLATE}
 
 ## Completion Report
 
-Before finishing, report answered questions, `spec.md` sections updated, and any unresolved requirement ambiguity that still blocks checklist readiness.
+Before finishing, report answered questions, `spec.md` sections updated,
+recomputed gate files, aggregate Planning Readiness, and unresolved
+product-decision versus provider-evidence blockers separately.
 
 ## Done When
 
 - [ ] No more than 5 high-impact questions were asked.
 - [ ] Each accepted answer was written back to `spec.md`.
-- [ ] Any answered UI/UX applicability decision was updated in `spec.md`.
+- [ ] Any answered visual/UI coverage status was updated in `spec.md`.
 - [ ] Validation after each write found no duplicate or contradictory clarification.
-- [ ] Completion reported sections touched and remaining blockers.
+- [ ] Affected requirement gates were recomputed using stable IDs and current spec revision.
+- [ ] Provider-evidence blockers were preserved and routed to intake.
+- [ ] No Planning Readiness summary artifact was created.
+- [ ] Completion reported with sections touched and remaining blockers.

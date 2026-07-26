@@ -322,6 +322,24 @@ class IntegrationManifest:
                 modified.append(rel)
         return modified
 
+    def refresh_existing_hashes(self) -> None:
+        """Refresh hashes for tracked files that currently exist on disk.
+
+        Integration setup writes the core command artifacts first, after which
+        enabled extensions and presets may legitimately project their winning
+        command content onto the same paths.  The manifest must describe those
+        final managed bytes so a later upgrade does not mistake the projection
+        for a user customization.
+
+        Only paths already tracked by this manifest are refreshed.  Preset-only
+        and extension-only artifacts therefore remain owned by their respective
+        registries.
+        """
+        for rel_path in list(self._files):
+            abs_path = self.project_root / rel_path
+            if abs_path.is_file():
+                self.record_existing(rel_path)
+
     # -- Uninstall --------------------------------------------------------
 
     def uninstall(

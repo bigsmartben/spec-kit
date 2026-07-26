@@ -21,12 +21,12 @@ Every command profile defines these fields:
 ### `speckit.specify.single_core`
 - `stage`: requirement projection.
 - `owner_agent`: Specify Core Agent.
-- `input_scope`: user prompt, product notes, confirmed product decisions, and existing requirement context selected by core Spec Kit behavior.
+- `input_scope`: user prompt, product notes, confirmed external intake refs, visual SSOT refs, HTML SSOT refs, structured IR refs, screenshots, and visual proof refs.
 - `allowed_reads`: command inputs and existing requirement context selected by core Spec Kit behavior.
 - `allowed_writes`: `spec.md` only.
-- `output_contract`: stakeholder-readable requirements with explicit assumptions, UI/UX Applicability, stable `UI-###` and `UX-###` IDs, and observable acceptance criteria.
+- `output_contract`: stakeholder-readable requirements with explicit source-backed facts, assumptions, visual/UI status, and provider blockers.
 - `validation_gate`: specification quality validation in `/speckit.specify`.
-- `stop_conditions`: missing feature description, unsupported inference, or unresolved product decisions that prevent a testable specification.
+- `stop_conditions`: missing feature description, unsupported inference, or provider evidence treated as product semantics.
 - `fallback`: single-core execution; no persistent handoff, receipt, or worker queue.
 
 ### `speckit.plan.stage_local_planning`
@@ -43,12 +43,12 @@ Every command profile defines these fields:
 ### `speckit.tasks.stage_local_derivation`
 - `stage`: task derivation.
 - `owner_agent`: Tasks Core Agent.
-- `input_scope`: user stories, behavior contracts, interface contracts, research decisions, quickstart validation paths, ready UI/UX requirement rows, and review scopes.
+- `input_scope`: user stories, behavior contracts, interface contracts, research decisions, quickstart validation paths, visual readiness rows, visual/IR traceability refs, and review scopes.
 - `allowed_reads`: scoped derivation payloads; no full artifact tree unless the payload explicitly lists it.
 - `allowed_writes`: `tasks.md` only.
 - `output_contract`: task candidates, evidence refs, source refs, blockers, and `context_gaps`.
 - `validation_gate`: task-derivation blocker aggregation and existing checklist format.
-- `stop_conditions`: missing Required case coverage, Blocked or Unknown UI/UX readiness, or unresolved task-derivation `context_gaps`.
+- `stop_conditions`: missing Required case coverage, missing required provider evidence, or unresolved task-derivation `context_gaps`.
 - `fallback`: Tasks Core Agent processes one assigned scope at a time; no handoff, receipt, write-path metadata, or worker dispatch.
 
 ### `speckit.analyze.read_only_parallel_review`

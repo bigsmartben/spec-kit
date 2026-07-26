@@ -231,7 +231,7 @@ class TestExtensionManifest:
 
     @pytest.mark.parametrize("extension_id", ("arch", "preview", "repository-governance"))
     def test_bundled_default_catalogs_match_manifest(self, extension_id):
-        """Bundled default extension packages, catalogs, and command lists stay aligned."""
+        """Bundled extension packages, catalogs, and default command lists stay aligned."""
         from tests.integrations.community_defaults import DEFAULT_EXTENSION_COMMANDS
 
         repo_root = Path(__file__).resolve().parent.parent
@@ -260,7 +260,12 @@ class TestExtensionManifest:
             assert entry["provides"]["commands"] == len(manifest.commands)
 
         assert community_entry["download_url"].endswith(f"/refs/tags/v{manifest.version}.zip")
-        assert default_commands == manifest_commands
+        if extension_id == "arch":
+            # Architecture remains an opt-in extension; catalog parity does not
+            # imply that init registers its commands by default.
+            assert default_commands == ()
+        else:
+            assert default_commands == manifest_commands
 
     def test_bundled_inception_catalog_matches_manifest(self):
         """Inception is bundled locally but not mirrored into the community catalog."""

@@ -4650,7 +4650,7 @@ class TestBundledPresetLocator:
 
         assert catalog_updated_at >= datetime(2026, 6, 18, tzinfo=timezone.utc)
         assert entry["bundled"] is True
-        assert entry["version"] == "1.3.12"
+        assert entry["version"] == "2.0.0"
         assert entry["version"] == manifest["preset"]["version"]
         assert entry["repository"] == manifest["preset"]["repository"]
         assert entry["requires"]["speckit_version"] == manifest["requires"]["speckit_version"]
@@ -4749,14 +4749,29 @@ class TestBundledPresetLocator:
         assert "registry_version == manifest_version" in verify_run
         assert "speckit.implement.receipt.v1.schema.json" not in verify_run
         assert (
+            "test ! -e .specify/presets/workflow-preset/templates/behavior/"
+            "behavior-testability-checklist.md"
+        ) in verify_run
+        assert (
+            "test -f .specify/presets/workflow-preset/templates/behavior/"
+            "behavior-testability.md"
+        ) in verify_run
+        for template in (
+            "behavior-gate.md",
+            "domain-gate.md",
+            "nfr-gate.md",
+            "visual-gate.md",
+        ):
+            assert f"templates/requirements/{template}" in verify_run
+        assert (
             'for extension_id in arch discovery inception intake preview repository-governance; do'
             in verify_run
         )
+        assert "test -f .specify/extensions/arch/extension.yml" not in verify_run
         assert (
             '/tmp/specify-community-smoke-venv/bin/specify extension remove "$extension_id" --force'
             in verify_run
         )
-        assert "find .claude/skills -maxdepth 1 -type d -name 'speckit-arch-*'" in verify_run
         assert "find .claude/skills -maxdepth 1 -type d -name 'speckit-discovery-*'" in verify_run
         assert "find .claude/skills -maxdepth 1 -type d -name 'speckit-inception-*'" in verify_run
         assert "find .claude/skills -maxdepth 1 -type d -name 'speckit-intake-*'" in verify_run
@@ -4784,6 +4799,10 @@ class TestBundledPresetLocator:
             in verify_run
         )
         assert (
+            'grep -q "ARCH_COMMAND_RETIRED" .claude/skills/speckit-arch-generate/SKILL.md'
+            in verify_run
+        )
+        assert (
             'test -f .claude/skills/speckit-discovery-contract/SKILL.md'
             in verify_run
         )
@@ -4796,7 +4815,7 @@ class TestBundledPresetLocator:
             in verify_run
         )
         assert (
-            'grep -q "API POC Workflow" .claude/skills/speckit-inception-arch/SKILL.md'
+            'grep -q "INCEPTION_ARCH_COMMAND_RETIRED" .claude/skills/speckit-inception-arch/SKILL.md'
             in verify_run
         )
         assert (

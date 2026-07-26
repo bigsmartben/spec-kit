@@ -29,24 +29,27 @@
     "workflow-preset": {
       "name": "Workflow Preset",
       "id": "workflow-preset",
-      "version": "1.3.12",
-      "description": "Behavior-first specification, design-aware planning, and scoped change governance",
+      "version": "2.0.0",
+      "description": "Constitution-managed architecture, behavior-first specification, design artifacts, and scoped change governance",
       "author": "bigsmartben",
       "repository": "https://github.com/bigsmartben/spec-kit-workflow-preset",
       "license": "MIT",
       "bundled": true,
       "requires": {
-        "speckit_version": ">=0.8.10.dev0"
+        "speckit_version": ">=0.12.7.dev0"
       },
       "provides": {
         "commands": 8,
-        "templates": 20
+        "templates": 24
       },
       "tags": [
+        "architecture",
+        "constitution",
         "behavior",
         "bdd",
         "planning",
-        "implementation"
+        "implementation",
+        "handoff"
       ]
     }
   }

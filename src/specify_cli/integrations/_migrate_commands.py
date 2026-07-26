@@ -26,6 +26,7 @@ from ._helpers import (
     _cli_phase_label,
     _get_speckit_version,
     _read_integration_json,
+    _reconcile_presets_for_active_agent,
     _refresh_init_options_speckit_version,
     _register_extensions_for_agent,
     _remove_integration_json,
@@ -35,6 +36,7 @@ from ._helpers import (
     _set_default_integration,
     _set_default_integration_or_exit,
     _unregister_extensions_for_agent,
+    _unregister_presets_for_agent,
     _update_init_options_for_integration,
     _write_integration_json,
 )
@@ -90,6 +92,13 @@ def integration_switch(
                 parsed_options=parsed_options,
                 refresh_templates_force=True,
             )
+            _reconcile_presets_for_active_agent(
+                project_root,
+                continuing=(
+                    "Shared infrastructure was refreshed, but enabled presets "
+                    "may need manual re-registration."
+                ),
+            )
             console.print(
                 f"\n[green]✓[/green] Default integration remains [bold]{target}[/bold]; "
                 "shared infrastructure refreshed."
@@ -122,12 +131,28 @@ def integration_switch(
             parsed_options=parsed_options,
             refresh_templates_force=force,
         )
+        if installed_key:
+            _unregister_presets_for_agent(
+                project_root,
+                installed_key,
+                continuing=(
+                    "The integration switch succeeded, but old preset artifacts "
+                    "may need manual cleanup."
+                ),
+            )
         _register_extensions_for_agent(
             project_root,
             target,
             continuing=(
                 "The integration switch succeeded, but installed extensions may "
                 "need re-registration."
+            ),
+        )
+        _reconcile_presets_for_active_agent(
+            project_root,
+            continuing=(
+                "The integration switch succeeded, but enabled presets may "
+                "need manual re-registration."
             ),
         )
         console.print(f"\n[green]✓[/green] Default integration set to [bold]{target}[/bold].")
@@ -152,6 +177,14 @@ def integration_switch(
                     f"run [cyan]specify integration uninstall {installed_key}[/cyan], then retry."
                 )
                 raise typer.Exit(1)
+            _unregister_presets_for_agent(
+                project_root,
+                installed_key,
+                continuing=(
+                    "Continuing with integration switch; old preset artifacts "
+                    "may need manual cleanup."
+                ),
+            )
             removed, skipped = current_integration.teardown(
                 project_root, old_manifest, force=force,
             )
@@ -164,6 +197,14 @@ def integration_switch(
             console.print(f"Uninstalling unknown integration '{installed_key}' via manifest")
             try:
                 old_manifest = IntegrationManifest.load(installed_key, project_root)
+                _unregister_presets_for_agent(
+                    project_root,
+                    installed_key,
+                    continuing=(
+                        "Continuing with integration switch; old preset artifacts "
+                        "may need manual cleanup."
+                    ),
+                )
                 removed, skipped = old_manifest.uninstall(project_root, force=force)
                 if removed:
                     console.print(f"  Removed {len(removed)} file(s)")
@@ -326,6 +367,13 @@ def integration_switch(
         project_root,
         target,
         continuing="The integration switch succeeded, but installed extensions may need re-registration.",
+    )
+    _reconcile_presets_for_active_agent(
+        project_root,
+        continuing=(
+            "The integration switch succeeded, but enabled presets may need "
+            "manual re-registration."
+        ),
     )
 
     name = (target_integration.config or {}).get("name", target)
@@ -501,6 +549,13 @@ def integration_upgrade(
         project_root,
         key,
         continuing="The integration was upgraded, but installed extensions may need re-registration.",
+    )
+    _reconcile_presets_for_active_agent(
+        project_root,
+        continuing=(
+            "The integration was upgraded, but enabled presets may need "
+            "manual re-registration."
+        ),
     )
 
     name = (integration.config or {}).get("name", key)

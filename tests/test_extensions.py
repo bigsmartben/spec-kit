@@ -260,7 +260,12 @@ class TestExtensionManifest:
             assert entry["provides"]["commands"] == len(manifest.commands)
 
         assert community_entry["download_url"].endswith(f"/refs/tags/v{manifest.version}.zip")
-        assert default_commands == manifest_commands
+        if extension_id == "arch":
+            # Architecture remains an opt-in extension; catalog parity does not
+            # imply that init registers its commands by default.
+            assert default_commands == ()
+        else:
+            assert default_commands == manifest_commands
 
     def test_bundled_inception_catalog_matches_manifest(self):
         """Inception is bundled locally but not mirrored into the community catalog."""

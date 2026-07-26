@@ -1148,7 +1148,7 @@ class TestGitExtensionDefaultInstall:
             plan_file = project / plan_path
             first_content = plan_file.read_text(encoding="utf-8")
             assert "workflow-preset" in first_content
-            assert "Phase 0 Preflight" in first_content
+            assert "Phase 0 preflight" in first_content
 
             second = runner.invoke(
                 app,

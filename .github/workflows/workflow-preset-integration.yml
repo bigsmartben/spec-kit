@@ -4,8 +4,6 @@ permissions:
   contents: read
 
 on:
-  repository_dispatch:
-    types: ["workflow-preset-release"]
   workflow_dispatch:
     inputs:
       preset_version:
@@ -14,6 +12,9 @@ on:
       preset_download_url:
         description: "Optional workflow preset release ZIP URL"
         required: false
+      preset_manifest_url:
+        description: "Optional workflow preset release manifest URL"
+        required: false
       require_bundled_version_match:
         description: "Require bundled preset version to match preset_version"
         required: false
@@ -21,7 +22,7 @@ on:
         default: false
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event.client_payload.preset_version || github.event.client_payload.version || inputs.preset_version || 'unknown-version' }}-${{ github.run_id }}
+  group: ${{ github.workflow }}-${{ inputs.preset_version || 'unknown-version' }}-${{ github.run_id }}
   cancel-in-progress: false
 
 jobs:
@@ -50,8 +51,9 @@ jobs:
       - name: Resolve workflow preset release
         id: release
         env:
-          EVENT_PRESET_VERSION: ${{ github.event.client_payload.preset_version || github.event.client_payload.version || inputs.preset_version }}
-          EVENT_PRESET_DOWNLOAD_URL: ${{ github.event.client_payload.preset_download_url || github.event.client_payload.download_url || inputs.preset_download_url }}
+          EVENT_PRESET_VERSION: ${{ inputs.preset_version }}
+          EVENT_PRESET_DOWNLOAD_URL: ${{ inputs.preset_download_url }}
+          EVENT_PRESET_MANIFEST_URL: ${{ inputs.preset_manifest_url }}
         run: |
           set -euo pipefail
           write_github_output() {
@@ -72,7 +74,7 @@ jobs:
 
           preset_version="${EVENT_PRESET_VERSION}"
           if [ -z "$preset_version" ]; then
-            echo "preset_version is required from repository_dispatch payload or workflow_dispatch input" >&2
+            echo "preset_version is required from workflow_dispatch input" >&2
             exit 1
           fi
           if ! printf '%s\n' "$preset_version" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$'; then
@@ -84,20 +86,65 @@ jobs:
           if [ -z "$preset_download_url" ]; then
             preset_download_url="https://github.com/bigsmartben/spec-kit-workflow-preset/releases/download/v${preset_version}/spec-kit-workflow-preset-v${preset_version}.zip"
           fi
+          preset_manifest_url="${EVENT_PRESET_MANIFEST_URL}"
+          if [ -z "$preset_manifest_url" ]; then
+            preset_manifest_url="https://github.com/bigsmartben/spec-kit-workflow-preset/releases/download/v${preset_version}/spec-kit-workflow-preset-v${preset_version}.manifest.json"
+          fi
 
           write_github_output "version" "$preset_version"
           write_github_output "download_url" "$preset_download_url"
+          write_github_output "manifest_url" "$preset_manifest_url"
 
       - name: Install and verify external workflow preset
         env:
           PRESET_VERSION: ${{ steps.release.outputs.version }}
           PRESET_DOWNLOAD_URL: ${{ steps.release.outputs.download_url }}
+          PRESET_MANIFEST_URL: ${{ steps.release.outputs.manifest_url }}
         run: |
           set -euo pipefail
-          project_dir="$(mktemp -d)"
-          cd "$project_dir"
+          release_dir="$(mktemp -d)"
+          curl --fail --location --silent --show-error "$PRESET_DOWNLOAD_URL" \
+            --output "$release_dir/workflow-preset.zip"
+          curl --fail --location --silent --show-error "$PRESET_MANIFEST_URL" \
+            --output "$release_dir/workflow-preset.manifest.json"
+          /tmp/specify-workflow-preset-venv/bin/python - "$release_dir" <<'PY'
+          import hashlib
+          import json
+          import sys
+          import zipfile
+          from pathlib import Path
 
+          release_dir = Path(sys.argv[1])
+          zip_path = release_dir / "workflow-preset.zip"
+          release_manifest = json.loads(
+              (release_dir / "workflow-preset.manifest.json").read_text(
+                  encoding="utf-8"
+              )
+          )
+          assert (
+              hashlib.sha256(zip_path.read_bytes()).hexdigest()
+              == release_manifest["artifact"]["sha256"]
+          )
+          with zipfile.ZipFile(zip_path) as archive:
+              actual = {
+                  name: hashlib.sha256(archive.read(name)).hexdigest()
+                  for name in archive.namelist()
+              }
+          expected = {
+              entry["path"]: entry["sha256"]
+              for entry in release_manifest["files"]
+          }
+          assert actual == expected
+          PY
+
+          bundled_project="$(mktemp -d)"
+          cd "$bundled_project"
           /tmp/specify-workflow-preset-venv/bin/specify init --here --ai claude --script sh --ignore-agent-tools
+
+          external_project="$(mktemp -d)"
+          cd "$external_project"
+          /tmp/specify-workflow-preset-venv/bin/specify init --here --ai claude --script sh --ignore-agent-tools
+          core_implement_sha="$(sha256sum .claude/skills/speckit-implement/SKILL.md | awk '{print $1}')"
           /tmp/specify-workflow-preset-venv/bin/specify preset remove workflow-preset
           /tmp/specify-workflow-preset-venv/bin/specify preset add --from "$PRESET_DOWNLOAD_URL"
 
@@ -121,15 +168,17 @@ jobs:
           test -f .specify/presets/workflow-preset/commands/speckit.constitution.md
           test -f .specify/presets/workflow-preset/commands/speckit.plan.md
           test -f .specify/presets/workflow-preset/commands/speckit.tasks.md
-          test -f .specify/presets/workflow-preset/commands/speckit.implement.md
+          test ! -e .specify/presets/workflow-preset/commands/speckit.implement.md
 
           test -f .claude/skills/speckit-constitution/SKILL.md
           test -f .claude/skills/speckit-plan/SKILL.md
           test -f .claude/skills/speckit-tasks/SKILL.md
           test -f .claude/skills/speckit-implement/SKILL.md
           grep -F "Change Scope Granularity" .claude/skills/speckit-constitution/SKILL.md
-          grep -F "## Pre-Execution Checks" .claude/skills/speckit-implement/SKILL.md
-          grep -F "mark the task off as [X] in the tasks file" .claude/skills/speckit-implement/SKILL.md
+          test "${core_implement_sha}" = "$(sha256sum .claude/skills/speckit-implement/SKILL.md | awk '{print $1}')"
+          diff -ru \
+            "$bundled_project/.specify/presets/workflow-preset" \
+            "$external_project/.specify/presets/workflow-preset"
 
   bundled-regression:
     runs-on: ubuntu-latest
@@ -159,8 +208,8 @@ jobs:
 
       - name: Check bundled workflow preset version
         env:
-          EVENT_PRESET_VERSION: ${{ github.event.client_payload.preset_version || github.event.client_payload.version || inputs.preset_version }}
-          REQUIRE_BUNDLED_VERSION_MATCH: ${{ github.event.client_payload.require_bundled_version_match || inputs.require_bundled_version_match || 'false' }}
+          EVENT_PRESET_VERSION: ${{ inputs.preset_version }}
+          REQUIRE_BUNDLED_VERSION_MATCH: ${{ inputs.require_bundled_version_match || 'false' }}
         run: |
           set -euo pipefail
           if [ "$REQUIRE_BUNDLED_VERSION_MATCH" != "true" ]; then

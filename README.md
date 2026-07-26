@@ -69,7 +69,7 @@ specify init my-project --integration codex --ignore-agent-tools
 | 默认扩展 | `intake` | `extensions/intake` | 把 PRD、设计稿、Figma、最终静态 HTML 交付、测试用例等来源归一化为 SDD 可消费的证据包。 |
 | 默认扩展 | `preview` | `extensions/preview` | 从规格和计划生成低、中、高保真 Markdown 或自包含 HTML 预览。 |
 | 默认扩展 | `repository-governance` | `extensions/repository-governance` | 生成仓库治理 SSOT，帮助 agent 明确目录责任、读取顺序和事实证据。 |
-| 默认预设 | `workflow-preset` | `presets/workflow-preset` | 由 Constitution 阶段托管单文件项目架构，并强化 BDD、NFR、UIF、设计产物、任务验证策略和 implement handoff 编排。 |
+| 默认预设 | `workflow-preset` | `presets/workflow-preset` | 从 Specify 引入 UI/UX 需求，从 Plan 引入 BDD、集成与 E2E 测试设计，由 Tasks 映射为执行清单，最终交给标准 Core Implement。 |
 
 默认扩展列表在 `src/specify_cli/commands/init.py` 的 `DEFAULT_BUNDLED_EXTENSIONS` 中维护。默认预设列表在同文件的 `DEFAULT_BUNDLED_PRESETS` 中维护。
 
@@ -238,7 +238,7 @@ specs/<feature>/preview/wireflow.html
 
 ### `workflow-preset`
 
-`workflow-preset` 是这个本地分发版的核心增强预设。它包装或替换核心命令，让规格驱动流程更适合复杂功能和多 agent 实现。
+`workflow-preset` 是这个本地分发版的核心增强预设。它包装规格、检查、规划和任务阶段；实现阶段始终使用当前 Spec Kit core 命令。
 
 它会增强这些命令：
 
@@ -250,7 +250,6 @@ specs/<feature>/preview/wireflow.html
 /speckit.analyze
 /speckit.plan
 /speckit.tasks
-/speckit.implement
 ```
 
 主要增强：
@@ -258,8 +257,8 @@ specs/<feature>/preview/wireflow.html
 - `/speckit.checklist` 增加 BDD、NFR、视觉保真 readiness gate。
 - `/speckit.constitution` 增加 Change Scope Granularity 治理。
 - `/speckit.plan` 增加 Phase 0 行为投影、BDD/UIF/data fixture intent 和可选设计产物。
-- `/speckit.tasks` 从行为契约、接口契约、`research.md`、`quickstart.md` 派生验证策略。
-- `/speckit.implement` 使用上游标准单会话流程执行 `tasks.md`，在每个阶段验证并标记完成任务。
+- `/speckit.tasks` 从行为契约、接口契约、`research.md`、`quickstart.md` 映射实现、验证、集成/E2E 和最终 Code Review 清单。
+- `/speckit.implement` 不由 preset 复制或覆盖；当前 core 命令按顺序执行 `tasks.md`，其中 Final Code Review 是最后的强制阶段。
 
 典型产物：
 

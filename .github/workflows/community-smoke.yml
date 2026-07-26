@@ -93,6 +93,8 @@ jobs:
           test -f .specify/presets/workflow-preset/.composed/speckit.analyze.md
           test -f .specify/presets/workflow-preset/.composed/speckit.plan.md
           test -f .specify/presets/workflow-preset/.composed/speckit.tasks.md
+          test ! -e .specify/presets/workflow-preset/commands/speckit.implement.md
+          test ! -e .specify/presets/workflow-preset/.composed/speckit.implement.md
 
           test -f .claude/skills/speckit-preview-wireflow/SKILL.md
           test -f .claude/skills/speckit-discovery-contract/SKILL.md

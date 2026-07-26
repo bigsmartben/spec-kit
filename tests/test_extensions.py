@@ -231,7 +231,7 @@ class TestExtensionManifest:
 
     @pytest.mark.parametrize("extension_id", ("arch", "preview", "repository-governance"))
     def test_bundled_default_catalogs_match_manifest(self, extension_id):
-        """Bundled default extension packages, catalogs, and command lists stay aligned."""
+        """Bundled extension packages, catalogs, and default command lists stay aligned."""
         from tests.integrations.community_defaults import DEFAULT_EXTENSION_COMMANDS
 
         repo_root = Path(__file__).resolve().parent.parent

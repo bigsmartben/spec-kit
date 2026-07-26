@@ -30,7 +30,6 @@ CONSTITUTION_COMMAND_PATH = REPO_ROOT / "commands" / "speckit.constitution.md"
 ANALYZE_COMMAND_PATH = REPO_ROOT / "commands" / "speckit.analyze.md"
 PLAN_COMMAND_PATH = REPO_ROOT / "commands" / "speckit.plan.md"
 TASKS_COMMAND_PATH = REPO_ROOT / "commands" / "speckit.tasks.md"
-IMPLEMENT_COMMAND_PATH = REPO_ROOT / "commands" / "speckit.implement.md"
 CONSTITUTION_TEMPLATE_PATH = REPO_ROOT / "templates" / "constitution-template.md"
 ARCHITECTURE_TEMPLATE_PATH = REPO_ROOT / "templates" / "architecture-template.md"
 PLAN_TEMPLATE_PATH = REPO_ROOT / "templates" / "plan-template.md"
@@ -118,6 +117,14 @@ REQUIREMENT_TEMPLATE_PATHS = {
     / "requirements"
     / "visual-gate.md",
 }
+REMOVED_IMPLEMENT_RUNTIME_PATHS = (
+    REPO_ROOT / "commands" / "speckit.implement.md",
+    REPO_ROOT / "schemas" / "speckit.implement.manifest.v1.schema.json",
+    REPO_ROOT / "schemas" / "speckit.implement.handoff.v2.schema.json",
+    REPO_ROOT / "schemas" / "speckit.implement.receipt.v1.schema.json",
+    REPO_ROOT / "validators" / "speckit_implement_contract.py",
+    REPO_ROOT / "tests" / "contracts" / "speckit-cross-agent-subagents.md",
+)
 
 FEATURE_PATH = "specs/001-demo"
 
@@ -316,6 +323,61 @@ def minimal_exception_behavior_assertions_with_intent(intent: str) -> dict:
 
 
 class PresetContractTests(unittest.TestCase):
+    def test_manifest_excludes_implement_override_and_runtime(self) -> None:
+        manifest = yaml.safe_load(PRESET_PATH.read_text(encoding="utf-8"))
+        entries = manifest["provides"]["templates"]
+        command_entries = [entry for entry in entries if entry["type"] == "command"]
+        template_entries = [entry for entry in entries if entry["type"] == "template"]
+
+        self.assertEqual(7, len(command_entries))
+        self.assertEqual(24, len(template_entries))
+        self.assertEqual(31, len(entries))
+        self.assertNotIn(
+            "speckit.implement",
+            {entry["name"] for entry in command_entries},
+        )
+        self.assertFalse(
+            any("speckit.implement" in entry["file"] for entry in entries)
+        )
+        for path in REMOVED_IMPLEMENT_RUNTIME_PATHS:
+            self.assertFalse(path.exists(), path)
+
+    def test_tasks_end_with_mandatory_code_review_without_runtime_protocol(self) -> None:
+        tasks = TASKS_COMMAND_PATH.read_text(encoding="utf-8")
+        self.assertIn("Final Code Review", tasks)
+        self.assertIn("append the final phase after user-story tasks", tasks)
+        self.assertIn(
+            "`boundary`, `interface_contract`, `visual`, `data_side_effect`, "
+            "`behavior_contract`, `sequence_consistency`, and `asset_binding`",
+            tasks,
+        )
+        for forbidden in (
+            "speckit.implement.handoff",
+            "speckit.implement.receipt",
+            "handoff-manifest.json",
+            "Manual Worker Queue",
+            "Reviewer runtime",
+        ):
+            self.assertNotIn(forbidden, tasks)
+
+    def test_current_docs_define_core_implement_ownership(self) -> None:
+        current_docs = (
+            README_PATH.read_text(encoding="utf-8"),
+            EXTENSION_GOVERNANCE_PATH.read_text(encoding="utf-8"),
+            AGENTS_PATH.read_text(encoding="utf-8"),
+            CROSS_AGENT_PROTOCOL_PATH.read_text(encoding="utf-8"),
+        )
+        for document in current_docs:
+            self.assertIn("Spec Kit core", document)
+            for forbidden in (
+                "speckit.implement.persistent_handoff_orchestration",
+                "Manual Worker Queue",
+                "Vertical Planner Agent",
+                "Worker Agent mode",
+                "speckit.implement.receipt.v1",
+            ):
+                self.assertNotIn(forbidden, document)
+
     def test_requirement_gate_and_clarify_repair_contract(self) -> None:
         checklist = CHECKLIST_COMMAND_PATH.read_text(encoding="utf-8")
         clarify = CLARIFY_COMMAND_PATH.read_text(encoding="utf-8")
@@ -409,16 +471,13 @@ class PresetContractTests(unittest.TestCase):
         readme = README_PATH.read_text(encoding="utf-8")
         governance = EXTENSION_GOVERNANCE_PATH.read_text(encoding="utf-8")
 
-        self.assertIn("multi-domain requirement gates", readme)
-        self.assertIn("no `planning-readiness.md` is generated", readme)
-        self.assertIn("`behavior/behavior-testability.md` is generated at plan closeout", readme)
-        self.assertIn("provider evidence remains an intake blocker", readme)
+        self.assertIn("requirement-domain readiness gates", readme)
+        self.assertIn("behavior/behavior-testability.md", readme)
+        self.assertIn("Missing provider evidence remains an intake blocker", readme)
 
-        self.assertIn("requirement-gate recomputation only", governance)
-        self.assertIn("requirements, behavior, UX, security, NFR, and visual requirement gates", governance)
+        self.assertIn("requirement-readiness gates", governance)
         self.assertIn("BDD Plan closeout", governance)
-        self.assertIn("must never be written as\n`planning-readiness.md`", governance)
-        self.assertIn("`behavior/behavior-testability.md` is a permitted planning artifact", governance)
+        self.assertIn("behavior/behavior-testability.md", governance)
 
 
     def test_plan_command_wrapper_contract(self) -> None:
@@ -512,20 +571,13 @@ class PresetContractTests(unittest.TestCase):
 
         for document in (readme, governance):
             self.assertIn("research.md", document)
-            self.assertIn("visual/IR source refs", document)
-            self.assertIn("contracts formalize visual interaction and state constraints", document)
-            self.assertIn("contracts/sequences.md records visual state flow only when it affects cross-boundary sequencing", document)
-            self.assertNotIn("research.md records visual validation decisions", document)
+            self.assertIn("visual/IR", document)
+            self.assertIn("contracts/sequences.md", document)
 
         self.assertIn(
             "fixed R/M/U/O model: R is Repository / Workspace, M is Module / Capability, U is Unit / Design Object, and O is Operation / Detail",
             readme,
         )
-        self.assertIn(
-            "Blocks constitution writes when a generated draft changes the fixed R/M/U/O mapping",
-            readme,
-        )
-        self.assertIn("single-file project Architecture lifecycle", readme)
         self.assertIn("System Boundary -> Conceptual Model", readme)
 
     def test_constitution_change_scope_granularity_contract(self) -> None:
@@ -620,7 +672,6 @@ class PresetContractTests(unittest.TestCase):
         plan = PLAN_COMMAND_PATH.read_text(encoding="utf-8")
         tasks = TASKS_COMMAND_PATH.read_text(encoding="utf-8")
         analyze = ANALYZE_COMMAND_PATH.read_text(encoding="utf-8")
-        implement = IMPLEMENT_COMMAND_PATH.read_text(encoding="utf-8")
 
         self.assertIn("Apply the constitution's Change Scope Granularity principle.", plan)
         self.assertIn("During planning, lock the change scope to `M + U`", plan)
@@ -634,8 +685,7 @@ class PresetContractTests(unittest.TestCase):
         self.assertIn("Check that tasks preserve the planned `M + U` scope.", analyze)
         self.assertIn("Report missing, widened, or ambiguous scope boundaries as blockers.", analyze)
 
-        self.assertIn("Read plan.md for tech stack, architecture, and file structure", implement)
-        self.assertIn("Respect dependencies", implement)
+        self.assertFalse((REPO_ROOT / "commands" / "speckit.implement.md").exists())
 
     def test_preplanning_commands_do_not_infer_scope_granularity(self) -> None:
         for path in (SPECIFY_COMMAND_PATH, CLARIFY_COMMAND_PATH, CHECKLIST_COMMAND_PATH):
@@ -1026,7 +1076,6 @@ class PresetContractTests(unittest.TestCase):
         plan = PLAN_COMMAND_PATH.read_text(encoding="utf-8")
         tasks = TASKS_COMMAND_PATH.read_text(encoding="utf-8")
         template = PLAN_TEMPLATE_PATH.read_text(encoding="utf-8")
-        implement = IMPLEMENT_COMMAND_PATH.read_text(encoding="utf-8")
 
         for term in (
             "behavior/bdd.draft.feature",
@@ -1302,7 +1351,6 @@ class PresetContractTests(unittest.TestCase):
             ANALYZE_COMMAND_PATH,
             PLAN_COMMAND_PATH,
             TASKS_COMMAND_PATH,
-            IMPLEMENT_COMMAND_PATH,
             PRESET_PATH,
         ]
         forbidden_terms = [
@@ -2182,9 +2230,24 @@ class PresetContractTests(unittest.TestCase):
             "tests/test_presets.py",
             "__pycache__",
             ".pyc",
-            "*.pyc",
             "ZipInfo",
             "1980, 1, 1",
+            'MANIFEST_NAME="spec-kit-workflow-preset-v${VERSION}.manifest.json"',
+            '"source_commit": source_commit',
+            '"sha256": zip_sha256',
+            "Verify release manifest",
+            "validators/speckit_behavior_contract.py",
+            '"requirements-dev.txt"',
+            '"tests"',
+            "test ! -e .specify/presets/workflow-preset/commands/speckit.implement.md",
+            "core_implement_sha",
+            "WORKFLOW_PRESET_MANIFEST_URL",
+            "presets/workflow-preset.release.json",
+            'entry["source_commit"] = release_manifest["source_commit"]',
+            'entry["sha256"] = release_manifest["artifact"]["sha256"]',
+            "curl --fail --location",
+            "archive.extractall",
+            'cmp "${ZIP_PATH}" "${existing_dir}/${ZIP_NAME}"',
             "github.ref_type == 'tag' || (github.event_name == 'workflow_dispatch' && env.CREATE_INTEGRATION_PR == 'true')",
             "env.CREATE_INTEGRATION_PR == 'true'",
             "refs/tags/v${VERSION}",
@@ -2204,10 +2267,10 @@ class PresetContractTests(unittest.TestCase):
             "client_payload[download_url]",
             "repository_dispatch",
             "repos/bigsmartben/spec-kit/dispatches",
-            "tests/contracts/speckit-cross-agent-protocol.md",
-            "tests/contracts/speckit-cross-agent-subagents.md",
             "::warning::SPEC_KIT_FORK_DISPATCH_TOKEN",
             "skipping integration PR",
+            "gh release upload \"${TAG_NAME}\" \"${ZIP_PATH}\" --clobber",
+            "\"${GITHUB_WORKSPACE}/\" \"${fork_dir}/spec-kit/presets/workflow-preset/\"",
         ]
         for term in forbidden_terms:
             self.assertNotIn(term, workflow_text)

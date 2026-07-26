@@ -149,7 +149,7 @@ jobs:
               arch)
                 test -f .claude/skills/speckit-arch-generate/SKILL.md
                 test -f .claude/skills/speckit-arch-reverse/SKILL.md
-                grep -q "architecture planning contract" .claude/skills/speckit-arch-generate/SKILL.md
+                grep -q "ARCH_COMMAND_RETIRED" .claude/skills/speckit-arch-generate/SKILL.md
                 ;;
               preview)
                 test -f .claude/skills/speckit-preview-wireflow/SKILL.md

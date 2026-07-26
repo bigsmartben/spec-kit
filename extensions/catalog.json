@@ -18,10 +18,10 @@
       ]
     },
     "arch": {
-      "name": "Architecture Planning Contract",
+      "name": "Architecture Command Migration",
       "id": "arch",
-      "version": "2.0.0",
-      "description": "Generate or reverse a planning-focused architecture contract that guides downstream Spec Kit plans",
+      "version": "3.0.1",
+      "description": "Redirect retired architecture commands to the Constitution-managed project Architecture lifecycle",
       "author": "bigsmartben",
       "repository": "https://github.com/bigsmartben/spec-kit-arch",
       "license": "MIT",
@@ -34,9 +34,9 @@
       },
       "tags": [
         "architecture",
-        "planning-contract",
-        "workflow",
-        "design"
+        "migration",
+        "deprecated",
+        "constitution"
       ]
     },
     "bug": {

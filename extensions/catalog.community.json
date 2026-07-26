@@ -219,12 +219,12 @@
       "updated_at": "2026-05-07T00:00:00Z"
     },
     "arch": {
-      "name": "Architecture Planning Contract",
+      "name": "Architecture Command Migration",
       "id": "arch",
-      "description": "Generate or reverse a planning-focused architecture contract that guides downstream Spec Kit plans",
+      "description": "Redirect retired architecture commands to the Constitution-managed project Architecture lifecycle",
       "author": "bigsmartben",
-      "version": "2.0.0",
-      "download_url": "https://github.com/bigsmartben/spec-kit-arch/archive/refs/tags/v2.0.0.zip",
+      "version": "3.0.1",
+      "download_url": "https://github.com/bigsmartben/spec-kit-arch/archive/refs/tags/v3.0.1.zip",
       "repository": "https://github.com/bigsmartben/spec-kit-arch",
       "homepage": "https://github.com/bigsmartben/spec-kit-arch",
       "documentation": "https://github.com/bigsmartben/spec-kit-arch/blob/main/README.md",
@@ -241,15 +241,15 @@
       },
       "tags": [
         "architecture",
-        "planning-contract",
-        "workflow",
-        "design"
+        "migration",
+        "deprecated",
+        "constitution"
       ],
       "verified": false,
       "downloads": 0,
       "stars": 0,
       "created_at": "2026-05-14T00:00:00Z",
-      "updated_at": "2026-07-06T00:00:00Z"
+      "updated_at": "2026-07-26T00:00:00Z"
     },
     "architect-preview": {
       "name": "Architect Impact Previewer",

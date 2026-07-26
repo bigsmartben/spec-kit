@@ -1,11 +1,22 @@
 # Changelog
 
-## Unreleased
+## v3.0.1 - 2026-07-26
 
-- Strengthen the planning contract quality gate with required `Source / Basis` support on rule-bearing sections.
-- Add open-question planning status validation with `BLOCKS_PLAN` and `CAN_PROCEED_WITH_GUARDRAIL`.
-- Block implementation-level conclusions such as source file edits, API schemas, database schemas, task lists, runbooks, and deployment manifests from passing planning readiness.
-- Tighten the JSON working-model schema with per-section record contracts.
+- Replace platform-specific slash command references in compatibility prompts
+  with Spec Kit command placeholders so every agent integration resolves the
+  Constitution handoff correctly.
+
+## v3.0.0 - 2026-07-26
+
+- Retire standalone Architecture generation and move the project Architecture
+  lifecycle into `workflow-preset` `/speckit.constitution`.
+- Keep `/speckit.arch.generate` and `/speckit.arch.reverse` only as write-free
+  compatibility entrypoints that return `ARCH_COMMAND_RETIRED`.
+- Remove 4+1 reasoning, the nine-section planning contract, setup scripts,
+  working-model Schema, Bash/PowerShell Markdown Validators, and artifact
+  templates from the extension package.
+- Document explicit brownfield input authorization and v2
+  `ARCH_LEGACY_FORMAT` migration through the Constitution stage.
 
 ## v2.0.0 - 2026-07-06
 

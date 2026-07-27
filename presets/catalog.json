@@ -29,7 +29,7 @@
     "workflow-preset": {
       "name": "Workflow Preset",
       "id": "workflow-preset",
-      "version": "3.1.0",
+      "version": "3.1.1",
       "description": "Constitution-managed architecture, behavior-first specification, design artifacts, and execution-ready task mapping",
       "author": "bigsmartben",
       "repository": "https://github.com/bigsmartben/spec-kit-workflow-preset",
@@ -52,8 +52,8 @@
         "planning",
         "implementation"
       ],
-      "source_commit": "e20dcafde5a1b031643156db49eb3e988e322bf9",
-      "sha256": "9f92d3820ce5365a80a3816890850fb9cc190006fd3ad025ff941baa90165fcb"
+      "source_commit": "393db34fb4e6a2a20e03038b774594a0b2edd6bd",
+      "sha256": "418b28ddca87a1e105df700c9063262d3a77d815cd6ac6fa6dd864e7b13d6768"
     }
   }
 }

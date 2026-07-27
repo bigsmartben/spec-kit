@@ -1,224 +1,151 @@
 # Workflow Preset
 
-`workflow-preset` extends Spec Kit with Constitution-managed project
-Architecture, behavior-first requirements and planning, UI/UX delivery
-contracts, and an execution-ready task mapping.
+`workflow-preset` 是一个 Spec Kit 社区预设（community preset），把需求、
+架构、设计、测试条件与任务映射成一条可审计的 SDD（Specification-Driven
+Development，规格驱动开发）链路。
 
-It deliberately does **not** provide `speckit.implement`. After installation,
-`/speckit.implement` always resolves to the implementation command supplied by
-the currently installed Spec Kit core.
+它不提供或替换 `/speckit.implement`。实现执行始终由当前安装的 Spec Kit
+core（核心命令）负责。
 
-## Ownership Model
+## 命令所有权
 
-| Stage | What this preset adds | Primary output |
+| 命令 | 本预设的职责 | 写入边界 |
 |---|---|---|
-| Specify | behavior, visual, and UI/UX requirement ownership | `spec.md` |
-| Checklist | requirement-domain readiness gates | `checklists/*.md` |
-| Plan | Architecture consumption, BDD/UIF contracts, validation design | `plan.md`, `research.md`, `quickstart.md`, `contracts/`, behavior artifacts |
-| Tasks | mapping of upstream artifacts to ordered implementation, validation, e2e, and review work | `tasks.md` |
-| Implement | no preset override; standard core behavior | execution of `tasks.md` |
+| `/speckit.constitution` | 分离治理规则与仓库技术架构 | `constitution.md`、`architecture.md` |
+| `/speckit.specify` | 编写完整 WHAT/WHY 需求 | `spec.md` |
+| `/speckit.clarify` | 按影响 × 不确定性消除产品歧义 | 仅 `spec.md` |
+| `/speckit.checklist` | 用问题形式检查需求写作质量 | `checklists/*.md` |
+| `/speckit.plan` | 在 Core Plan 生命周期内完成 X0–X4 | Plan 设计产物 |
+| `/speckit.tasks` | 把已批准的 Plan 记录映射成可执行任务 | 仅 `tasks.md` |
+| `/speckit.analyze` | 只读审计跨命令追踪链 | 不写文件 |
+| `/speckit.implement` | 由 Spec Kit core 执行 `tasks.md` | 本预设无覆盖 |
 
-The lifecycle is:
-
-```text
-spec requirements and UI/UX intent
-    -> requirement readiness gates
-    -> plan, behavior/UI contracts, and validation design
-    -> tasks.md execution checklist
-    -> standard core implement
-```
-
-## Commands
-
-The preset packages seven command wrappers:
-
-1. `/speckit.specify`
-2. `/speckit.clarify`
-3. `/speckit.checklist`
-4. `/speckit.constitution`
-5. `/speckit.plan`
-6. `/speckit.tasks`
-7. `/speckit.analyze`
-
-`speckit.implement` is intentionally absent from `preset.yml` and `commands/`.
-This prevents the preset from freezing or shadowing a core implementation
-command.
-
-## UI/UX From Specify
-
-UI/UX is a requirement concern before it is an implementation concern.
-`/speckit.specify` records applicable visual and interaction needs in
-`spec.md`, including states, viewport behavior, source/evidence refs, and Client
-Asset Contract expectations. `/speckit.checklist` decides whether those
-requirements are ready for planning.
-
-External provider capture stays outside the preset. Confirmed visual SSOT refs,
-HTML SSOT refs, structured IR refs, screenshots, and visual proof refs may be
-consumed after an intake extension has projected them into the specification.
-Missing provider evidence remains an intake blocker; it is not converted into a
-product clarification.
-
-Example:
+## 生命周期
 
 ```text
-Requirement: Checkout shows loading, success, validation-error, and
-payment-declined states at desktop and mobile viewports.
+Constitution + Architecture
+            ↓
+     Spec → Clarify → Checklist
+            ↓
+   Core Plan（内含 X0–X4）
+            ↓
+ Tasks（T0–T5 纯映射）
+            ↓
+   Core Implement
 ```
 
-The Visual Fidelity Evidence Matrix in `checklists/visual.md` records the
-planning-readiness status of that requirement. It does not define screenshot
-comparison, visual diff, baseline capture, or final visual review work.
+### 需求层
 
-## Validation Design From Plan
+授权来源投影完成后，`spec.md` 是当前功能的产品需求唯一事实源（SSOT,
+Single Source of Truth）。功能需求、非功能需求、UX/UI、视觉、安全隐私、
+数据、集成、依赖、边界、假设和排除项都使用可选载体；不适用时明确写
+N/A。
 
-`/speckit.plan` consumes checklist-approved requirements and creates the
-technical and validation contracts required for task derivation:
+`/speckit.specify` 与 `/speckit.clarify` 不生成或修改 checklist。
+`/speckit.checklist` 只提出可回答的问题，不把实现方案写回需求。
 
-- `research.md` records validation decisions, test levels, fixture strategy,
-  and external-system strategy.
-- `quickstart.md` records executable validation paths and real-system
-  integration/e2e scenarios.
-- `behavior/bdd.draft.feature`, `behavior/uif.intent.json`, and
-  `behavior/data-fixtures.intent.json` provide Phase 0 projections.
-- `contracts/bdd/`, `contracts/uif/`, and `contracts/behavior/` contain formal
-  behavior contracts.
-- `behavior/behavior-testability.md` closes the BDD Plan with a READY or
-  BLOCKED decision.
-- `class-diagram.md` and `contracts/sequences.md` are optional contextual design
-  artifacts.
+例如：退款需求可以同时声明 `FR-001`（退款规则）、`NFR-001`（响应时间）和
+`UI-001`（加载/成功/失败状态）；若已授权的设计说明缺少结账失败态证据，
+就在对应 `SRC-*` 行记录本地阻塞，不把它混成产品澄清问题。
 
-This is broader than unit testing. Applicable plans cover unit, contract,
-integration, UI acceptance, and real-system e2e validation.
+### 来源中立契约
 
-Example:
+自然语言、需求文档、可执行视觉引用和技术证据统一进入现有
+Source Reference Contract（来源引用契约）：
 
 ```text
-quickstart.md: a buyer submits a refund against a sandbox payment service and
-observes the persisted refund plus the user-visible confirmation state.
+SRC ref | role | opaque locator/description | revision/identity
+| authorized scope/facts | projected requirement refs | status/blocker
 ```
 
-That path is a source for integration/e2e tasks, not an implementation detail
-invented later by Tasks or Implement.
+| 角色 | 含义 | 例子 |
+|---|---|---|
+| `requirement-input` | 可投影已确认、已切片的 WHAT/WHY | 当前对话中的退款规则 |
+| `visual-input` | 只可投影 `UI-*` / `VIS-*` | 结账错误态的可执行页面引用 |
+| `technical-evidence` | 可引用，但不升级成产品需求 | 性能测量报告 |
+| `context-only` | 只作背景，不授权规范性事实 | 竞品介绍 |
 
-## Tasks Is A Mapping Stage
+定位符（locator）、路径、版本、摘要或文字描述都按不透明来源信息保存。
+预设不会因为看到一个引用就打开、执行或验证它，也不会推断相邻目录或要求
+上游工具。宽泛来源必须先确定当前功能切片；无法安全切片时只记录本地阻塞
+或待澄清项，不默认整份导入。
 
-`/speckit.tasks` produces only `tasks.md`. It maps upstream deliverables into
-the core checklist format and user-story organization.
+本地链路是：
 
-For each applicable story, it derives:
+```text
+SRC-* + 本地需求
+        ↓
+spec.md（本功能 WHAT/WHY SSOT）
+        ↓
+X2-B: ui-ux-design.md → UIF
+        ↓
+Tasks 只做实现映射；Analyze 只做本地引用审计
+```
 
-- fixtures and environment setup;
-- unit and contract validation;
-- UI implementation and UI acceptance;
-- implementation work;
-- data-side-effect validation;
-- integration and real-system e2e validation;
-- evidence collection and blocker reporting.
+### Plan：X0–X4
 
-Task text binds the work to concrete source, test, fixture, configuration, and
-asset paths plus upstream scenario, contract, visual/IR, or quickstart refs.
-Tasks does not create a second plan, execution manifest, transfer file, worker
-result file, write-path protocol, or execution queue.
+X0–X4 是嵌套在原有 Core Plan 流程中的内部里程碑，不替换 Core 的 setup、
+Phase 0、Phase 1 或 Constitution re-check。
 
-Example mapping:
+| 里程碑 | 目标 | 主要产物 |
+|---|---|---|
+| X0 | 输入、门禁和架构修订对齐 | `plan.md` |
+| X1 | 研究并关闭技术/验证未知项 | `research.md` |
+| X2-A | 领域、对象和接口设计 | `data-model.md`、`contracts/`，按需生成 class/sequence |
+| X2-B | UI/UX 交付就绪设计 | `ui-ux-design.md` |
+| X2-C | 测试与验收设计 | `contracts/test/test-conditions.json` 及可选技术子契约 |
+| X3 | 定义可执行验证路径 | `quickstart.md` 中的 `VAL-*` |
+| X4 | 汇总测试/任务交接 | `test-readiness.md`、`PLAN_OUTPUT_READY` |
 
-| Upstream product | `tasks.md` result |
-|---|---|
-| `SCN-ERR-001` permission failure | fixture + BDD/contract test + implementation + evidence tasks |
-| Expected UIF submit event and error feedback | UI implementation + UI acceptance tasks |
-| `quickstart.md` sandbox refund path | integration/e2e environment + execution + evidence tasks |
-| persistence update rules | implementation + data-side-effect validation tasks |
+`contracts/test/test-conditions.json` 是测试条件父契约。BDD、场景、fixture
+（测试数据）和 assertion（断言）只有在技术适用时才生成；非 UI 功能和
+无 fixture 场景可以记录明确理由。
 
-## Mandatory Final Code Review
+UI/UX 像素级交付准备可以在 Plan 中完成，但 Tasks 不得生成像素还原、
+截图对比、visual diff（视觉差异）、baseline（基线）、视觉恢复或渲染审查
+任务。
 
-Tasks appends **Final Code Review** after all user-story, integration, and
-validation work. It is a mandatory final phase in `tasks.md`, so the standard
-core implementation command executes it in normal checklist order.
+### Tasks 与 Analyze
 
-The phase includes applicable checks for:
+`/speckit.tasks` 只消费 `PLAN_OUTPUT_READY`，按 T0–T5 映射已存在的设计对象、
+路径、依赖、测试条件和 `VAL-*`。必需的 `TC-*` 会覆盖 Core 模板中“测试可选”
+的默认提示；最后一个强制阶段始终是 **Final Code Review**。
 
-- the planned `M + U` boundary;
-- interface and behavior contracts;
-- implemented UI states and viewport behavior;
-- visual/IR traceability refs and Client Asset Contract bindings;
-- field-level and runtime data side effects;
-- cross-boundary sequence consistency;
-- integration/e2e evidence and unresolved blockers.
+`/speckit.analyze` 一次读取 Constitution、Architecture、Spec、Plan 与 Tasks，
+输出稳定 finding ID、严重级别、证据和第一个阻塞点。它负责检查
+Architecture → Plan、Plan → Tasks、M + U 范围，以及数据模型的幂等、提供方
+绑定、重试、恢复和生命周期投影；同时检查 `SRC-*` 的本地存在性、角色和
+X2-B/UIF 投影。它不会访问外部定位符、修文件或发明新的 Plan 策略。
 
-Code Review is not a separate command, reviewer runtime, or orchestration
-protocol. Completion means the review checklist items pass; failures remain
-open tasks or explicit blockers.
+## 安装
 
-## Architecture And Scope
-
-`/speckit.constitution` manages separate project-level artifacts:
-
-- `.specify/memory/constitution.md`
-- `.specify/memory/architecture.md`
-
-The Architecture follows the System Boundary -> Conceptual Model -> Technical
-Decisions & Evidence -> Planning Guardrails & Gaps chain.
-
-Change Scope Granularity uses the fixed R/M/U/O model: R is Repository / Workspace, M is Module / Capability, U is Unit / Design Object, and O is Operation / Detail. Planning locks `M + U`; Tasks maps those design objects to concrete executable paths without widening the planned boundary.
-
-## Behavior Contracts
-
-The preset packages separate templates and JSON schemas for behavior drafts,
-Expected UIF, scenario instances, fixtures, and assertions.
-`validators/speckit_behavior_contract.py` checks cross-field relationships such
-as scenario-to-fixture references, exception-case structure, Expected UIF
-steps, and required-case coverage.
-
-The behavior validator is independent of implementation execution. There are no
-implementation manifest, transfer, or worker-result schemas in this package.
-
-## Install
-
-Development checkout:
+开发目录：
 
 ```bash
 specify preset add --dev /path/to/spec-kit-workflow-preset
 ```
 
-Published release:
+已发布版本：
 
 ```bash
-specify preset add --from https://github.com/bigsmartben/spec-kit-workflow-preset/releases/download/v3.0.0/spec-kit-workflow-preset-v3.0.0.zip
+specify preset add --from https://github.com/bigsmartben/spec-kit-workflow-preset/releases/download/v3.1.0/spec-kit-workflow-preset-v3.1.0.zip
 ```
 
-After installation, resolve a preset-owned wrapper:
+安装后可检查预设信息：
 
 ```bash
-specify preset resolve speckit.tasks
+specify preset info workflow-preset
 ```
 
-Resolve implementation through the normal command surface. Because the preset
-does not declare it, `speckit.implement` comes from the active Spec Kit core.
-
-## Release Integrity
-
-A source release is immutable. The integration fork must record:
-
-- source repository URL;
-- release version;
-- source commit SHA;
-- release download URL;
-- release artifact SHA-256;
-- per-file hashes from the release manifest.
-
-The fork extracts the release snapshot without edits. Bundled installation and
-installation from the same release must produce identical preset files and
-manifest content. Any functional change requires a new source version; a
-published version is never modified in place.
-
-## Development
-
-Install test requirements and run the contract suite:
+## 开发与验证
 
 ```bash
 python3 -m pip install -r requirements-dev.txt
 python3 -m unittest tests/test_preset_contract.py
 ```
 
-Repository extension rules are in
-[`docs/extension-governance.md`](docs/extension-governance.md).
+扩展规则见
+[`docs/extension-governance.md`](docs/extension-governance.md)。发布产物必须
+记录源仓库、版本、source commit SHA、下载地址、压缩包 SHA-256 和逐文件
+哈希；下游集成先进入 `bigsmartben/spec-kit`，不得从本仓库直接写入
+`github/spec-kit`。

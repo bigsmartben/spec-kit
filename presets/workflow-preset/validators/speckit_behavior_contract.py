@@ -28,6 +28,29 @@ def _require_non_empty_list(item: dict[str, Any], *, key: str, context: str) -> 
 
 def _validate_expected_uif_contract(uif_contract: dict[str, Any]) -> None:
     uif_id = uif_contract.get("id", "<unknown>")
+    source_refs = uif_contract.get("source_refs")
+    if not isinstance(source_refs, list) or not source_refs:
+        raise ValueError(
+            f"expected UIF contract {uif_id} must include non-empty source_refs"
+        )
+    if any(not str(ref).startswith("SRC-") for ref in source_refs):
+        raise ValueError(
+            f"expected UIF contract {uif_id} has invalid source_refs"
+        )
+
+    requirement_refs = uif_contract.get("requirement_refs")
+    if not isinstance(requirement_refs, list) or not requirement_refs:
+        raise ValueError(
+            f"expected UIF contract {uif_id} must include non-empty requirement_refs"
+        )
+    if any(
+        not str(ref).startswith(("UI-", "VIS-"))
+        for ref in requirement_refs
+    ):
+        raise ValueError(
+            f"expected UIF contract {uif_id} has non-UI/VIS requirement_refs"
+        )
+
     steps = uif_contract.get("steps")
     if not isinstance(steps, list) or not steps:
         raise ValueError(f"expected UIF contract {uif_id} must include non-empty steps")
@@ -81,12 +104,13 @@ def _validate_non_positive_behavior_scenario(
         raise ValueError(f"behavior scenario {scenario_id} missing error_code")
 
     expected_feedback = scenario.get("expected_feedback")
-    if not isinstance(expected_feedback, dict) or not expected_feedback:
-        raise ValueError(f"behavior scenario {scenario_id} missing expected_feedback")
-    if not expected_feedback.get("type"):
-        raise ValueError(f"behavior scenario {scenario_id} missing feedback_type")
-    if not expected_feedback.get("message"):
-        raise ValueError(f"behavior scenario {scenario_id} missing feedback_message")
+    if expected_feedback is not None:
+        if not isinstance(expected_feedback, dict) or not expected_feedback:
+            raise ValueError(f"behavior scenario {scenario_id} has invalid expected_feedback")
+        if not expected_feedback.get("type"):
+            raise ValueError(f"behavior scenario {scenario_id} missing feedback_type")
+        if not expected_feedback.get("message"):
+            raise ValueError(f"behavior scenario {scenario_id} missing feedback_message")
 
     invariant_intents = {"state_invariant", "rollback", "compensation"}
     if not any(
@@ -225,6 +249,7 @@ def validate_behavior_contract_bundle(
     data_fixtures: dict[str, Any],
     assertions: dict[str, Any],
     uif_expected_contracts: list[dict[str, Any]],
+    test_condition_ids: set[str] | None = None,
 ) -> None:
     scenarios = scenario_instances.get("scenarios", [])
     if not scenarios:
@@ -261,17 +286,29 @@ def validate_behavior_contract_bundle(
     for scenario in scenarios:
         _require_non_empty_list(
             scenario,
-            key="fixture_ids",
+            key="assertion_ids",
             context="behavior scenario instance",
         )
         _require_non_empty_list(
             scenario,
-            key="assertion_ids",
+            key="test_condition_refs",
             context="behavior scenario instance",
         )
 
+        has_fixture_refs = bool(scenario.get("fixture_ids"))
+        has_no_fixture_rationale = bool(scenario.get("no_fixture_rationale"))
+        if has_fixture_refs == has_no_fixture_rationale:
+            raise ValueError(
+                "scenario must declare exactly one fixture_ids or no_fixture_rationale"
+            )
+
         uif_path_id = scenario.get("uif_path_id")
-        if uif_path_id not in uif_path_ids:
+        has_non_ui_rationale = bool(scenario.get("non_ui_rationale"))
+        if bool(uif_path_id) == has_non_ui_rationale:
+            raise ValueError(
+                "scenario must declare exactly one uif_path_id or non_ui_rationale"
+            )
+        if uif_path_id and uif_path_id not in uif_path_ids:
             raise ValueError(f"scenario references unknown uif_path_id: {uif_path_id}")
 
         for fixture_id in scenario.get("fixture_ids", []):
@@ -281,6 +318,13 @@ def validate_behavior_contract_bundle(
         for assertion_id in scenario.get("assertion_ids", []):
             if assertion_id not in assertion_ids:
                 raise ValueError(f"scenario references unknown assertion: {assertion_id}")
+
+        if test_condition_ids is not None:
+            for tc_id in scenario.get("test_condition_refs", []):
+                if tc_id not in test_condition_ids:
+                    raise ValueError(
+                        f"scenario references unknown test condition: {tc_id}"
+                    )
 
         _validate_non_positive_behavior_scenario(scenario, assertions_by_id)
 

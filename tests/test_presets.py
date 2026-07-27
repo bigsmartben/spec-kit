@@ -4651,14 +4651,14 @@ class TestBundledPresetLocator:
 
         assert catalog_updated_at >= datetime(2026, 6, 18, tzinfo=timezone.utc)
         assert entry["bundled"] is True
-        assert entry["version"] == "3.0.0"
+        assert entry["version"] == "3.1.0"
         assert entry["version"] == manifest["preset"]["version"]
         assert entry["repository"] == manifest["preset"]["repository"]
         assert entry["requires"]["speckit_version"] == manifest["requires"]["speckit_version"]
         assert entry["provides"]["commands"] == command_count
         assert entry["provides"]["templates"] == template_count
         assert command_count == 7
-        assert template_count == 24
+        assert template_count == 27
         assert entry["tags"] == manifest["tags"]
         assert len(entry["source_commit"]) == 40
         assert entry["sha256"]
@@ -4686,7 +4686,7 @@ class TestBundledPresetLocator:
         assert entry["provides"]["commands"] == command_count
         assert entry["provides"]["templates"] == template_count
         assert command_count == 7
-        assert template_count == 24
+        assert template_count == 27
         assert entry["tags"] == manifest["tags"]
         assert len(entry["source_commit"]) == 40
         assert entry["sha256"]
@@ -4833,9 +4833,17 @@ class TestBundledPresetLocator:
             "behavior-testability-checklist.md"
         ) in verify_run
         assert (
-            "test -f .specify/presets/workflow-preset/templates/behavior/"
+            "test ! -e .specify/presets/workflow-preset/templates/behavior/"
             "behavior-testability.md"
         ) in verify_run
+        for removed_template in (
+            "uif-intent.json",
+            "data-fixtures-intent.json",
+        ):
+            assert (
+                "test ! -e .specify/presets/workflow-preset/templates/behavior/"
+                f"{removed_template}"
+            ) in verify_run
         for template in (
             "behavior-gate.md",
             "domain-gate.md",
@@ -4843,6 +4851,34 @@ class TestBundledPresetLocator:
             "visual-gate.md",
         ):
             assert f"templates/requirements/{template}" in verify_run
+        for template in (
+            "class-diagram-template.md",
+            "sequences-template.md",
+            "ui-ux-design-template.md",
+            "quickstart-template.md",
+            "test-readiness-template.md",
+            "test/test-conditions.json",
+        ):
+            assert f"templates/{template}" in verify_run
+        assert "schemas/speckit.test.conditions.v1.schema.json" in verify_run
+        for command in ("specify", "clarify", "constitution"):
+            assert (
+                "test ! -e .specify/presets/workflow-preset/.composed/"
+                f"speckit.{command}.md"
+            ) in verify_run
+        for command in ("checklist", "analyze", "plan", "tasks"):
+            assert (
+                "test -f .specify/presets/workflow-preset/.composed/"
+                f"speckit.{command}.md"
+            ) in verify_run
+        for marker in (
+            "Full-Spectrum Projection",
+            "Cross-Domain Ambiguity Map",
+            "Cross-Command Consistency Gates",
+            "X0 — Feature Plan Control",
+            "PLAN_OUTPUT_READY",
+        ):
+            assert marker in verify_run
         assert (
             'for extension_id in arch discovery inception intake preview repository-governance; do'
             in verify_run

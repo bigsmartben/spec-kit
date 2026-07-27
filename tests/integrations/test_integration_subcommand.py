@@ -1300,13 +1300,13 @@ class TestIntegrationInstall:
         plan = project / ".agents" / "skills" / "speckit-plan" / "SKILL.md"
         content = plan.read_text(encoding="utf-8")
         assert "source: preset:workflow-preset" in content
-        assert "Phase 0 preflight" in content
+        assert "X0 — Feature Plan Control" in content
 
     def test_secondary_install_preserves_active_preset_projection(self, tmp_path):
         project = _init_project(tmp_path, "amp")
         active_plan = project / ".agents" / "commands" / "speckit.plan.md"
         before = active_plan.read_bytes()
-        assert b"Phase 0 preflight" in before
+        assert "X0 — Feature Plan Control".encode("utf-8") in before
 
         result = _run_in_project(project, [
             "integration", "install", "codex",
@@ -1641,7 +1641,7 @@ class TestIntegrationUninstall:
         )
         content = fallback_plan.read_text(encoding="utf-8")
         assert "source: preset:workflow-preset" in content
-        assert "Phase 0 preflight" in content
+        assert "X0 — Feature Plan Control" in content
 
     def test_uninstall_preserves_shared_infra(self, tmp_path):
         """Shared scripts and templates are not removed by integration uninstall."""
@@ -1705,7 +1705,7 @@ class TestIntegrationUse:
         assert result.exit_code == 0, result.output
         content = codex_plan.read_text(encoding="utf-8")
         assert "source: preset:workflow-preset" in content
-        assert "Phase 0 preflight" in content
+        assert "X0 — Feature Plan Control" in content
 
         preset_registry = json.loads(
             (project / ".specify" / "presets" / ".registry").read_text(
@@ -1966,7 +1966,7 @@ class TestIntegrationSwitch:
 
         plan = project / ".agents" / "commands" / "speckit.plan.md"
         content = plan.read_text(encoding="utf-8")
-        assert "Phase 0 preflight" in content
+        assert "X0 — Feature Plan Control" in content
         assert "workflow-preset" in content
 
     def test_switch_installed_target_reapplies_preset(self, tmp_path):
@@ -1985,7 +1985,7 @@ class TestIntegrationSwitch:
         plan = project / ".agents" / "skills" / "speckit-plan" / "SKILL.md"
         content = plan.read_text(encoding="utf-8")
         assert "source: preset:workflow-preset" in content
-        assert "Phase 0 preflight" in content
+        assert "X0 — Feature Plan Control" in content
 
     def test_switch_migrates_extension_commands(self, tmp_path):
         """Switching should migrate extension commands to the new agent directory."""
@@ -2737,7 +2737,7 @@ class TestIntegrationUpgrade:
 
             content = plan.read_text(encoding="utf-8")
             assert "source: preset:workflow-preset" in content
-            assert "Phase 0 preflight" in content
+            assert "X0 — Feature Plan Control" in content
 
             manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
             expected_hash = hashlib.sha256(plan.read_bytes()).hexdigest()
@@ -2816,7 +2816,7 @@ class TestIntegrationUpgrade:
         ])
         assert result.exit_code == 0, result.output
         plan = project / ".agents" / "commands" / "speckit.plan.md"
-        assert "Phase 0 preflight" not in plan.read_text(encoding="utf-8")
+        assert "X0 — Feature Plan Control" not in plan.read_text(encoding="utf-8")
 
     def test_upgrade_warns_for_broken_preset_and_continues(self, tmp_path):
         from specify_cli.presets import PresetManager
@@ -2841,7 +2841,7 @@ class TestIntegrationUpgrade:
 
         assert result.exit_code == 0, result.output
         plan = project / ".agents" / "commands" / "speckit.plan.md"
-        assert "Phase 0 preflight" in plan.read_text(encoding="utf-8")
+        assert "X0 — Feature Plan Control" in plan.read_text(encoding="utf-8")
 
     def test_upgrade_non_active_agent_preserves_active_agent_skills(self, tmp_path):
         """Upgrading a non-active agent must not touch the active agent's skills.

@@ -1066,7 +1066,16 @@ class TestGitExtensionDefaultInstall:
         assert not (preset_dir / "schemas" / "speckit.implement.handoff.v2.schema.json").exists()
         assert (preset_dir / "templates" / "constitution-template.md").exists()
         assert (preset_dir / "templates" / "behavior" / "bdd-draft.feature").exists()
-        assert (preset_dir / ".composed" / "speckit.constitution.md").exists()
+        assert not (preset_dir / "templates" / "behavior" / "behavior-testability.md").exists()
+        assert not (preset_dir / "templates" / "behavior" / "uif-intent.json").exists()
+        assert not (preset_dir / "templates" / "behavior" / "data-fixtures-intent.json").exists()
+        assert (preset_dir / "templates" / "ui-ux-design-template.md").exists()
+        assert (preset_dir / "templates" / "test" / "test-conditions.json").exists()
+        assert (preset_dir / "templates" / "test-readiness-template.md").exists()
+        assert not (preset_dir / ".composed" / "speckit.specify.md").exists()
+        assert not (preset_dir / ".composed" / "speckit.clarify.md").exists()
+        assert (preset_dir / ".composed" / "speckit.checklist.md").exists()
+        assert not (preset_dir / ".composed" / "speckit.constitution.md").exists()
         assert (preset_dir / ".composed" / "speckit.plan.md").exists()
         assert (preset_dir / ".composed" / "speckit.tasks.md").exists()
         assert (preset_dir / ".composed" / "speckit.analyze.md").exists()
@@ -1091,16 +1100,30 @@ class TestGitExtensionDefaultInstall:
         }
         assert set(workflow_entry["registered_commands"]["claude"]) == expected_preset_commands
 
+        specify_skill = project / ".claude" / "skills" / "speckit-specify" / "SKILL.md"
+        clarify_skill = project / ".claude" / "skills" / "speckit-clarify" / "SKILL.md"
+        analyze_skill = project / ".claude" / "skills" / "speckit-analyze" / "SKILL.md"
         plan_skill = project / ".claude" / "skills" / "speckit-plan" / "SKILL.md"
         constitution_skill = project / ".claude" / "skills" / "speckit-constitution" / "SKILL.md"
         tasks_skill = project / ".claude" / "skills" / "speckit-tasks" / "SKILL.md"
         implement_skill = project / ".claude" / "skills" / "speckit-implement" / "SKILL.md"
-        for skill_path in (plan_skill, constitution_skill, tasks_skill, implement_skill):
+        for skill_path in (
+            specify_skill,
+            clarify_skill,
+            analyze_skill,
+            plan_skill,
+            constitution_skill,
+            tasks_skill,
+            implement_skill,
+        ):
             assert skill_path.exists(), f"{skill_path} was not registered"
 
         assert "Change Scope Granularity" in constitution_skill.read_text(encoding="utf-8")
-        assert "Phase 0 Behavior Projection" in plan_skill.read_text(encoding="utf-8")
-        assert "validation task derivation" in tasks_skill.read_text(encoding="utf-8").lower()
+        assert "Full-Spectrum Projection" in specify_skill.read_text(encoding="utf-8")
+        assert "Cross-Domain Ambiguity Map" in clarify_skill.read_text(encoding="utf-8")
+        assert "Cross-Command Consistency Gates" in analyze_skill.read_text(encoding="utf-8")
+        assert "X0 — Feature Plan Control" in plan_skill.read_text(encoding="utf-8")
+        assert "PLAN_OUTPUT_READY" in tasks_skill.read_text(encoding="utf-8")
         implement_text = implement_skill.read_text(encoding="utf-8")
         assert "## Pre-Execution Checks" in implement_text
         assert "## Mandatory Post-Execution Hooks" in implement_text
@@ -1149,7 +1172,7 @@ class TestGitExtensionDefaultInstall:
             plan_file = project / plan_path
             first_content = plan_file.read_text(encoding="utf-8")
             assert "workflow-preset" in first_content
-            assert "Phase 0 preflight" in first_content
+            assert "X0 — Feature Plan Control" in first_content
 
             second = runner.invoke(
                 app,

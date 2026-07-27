@@ -65,31 +65,38 @@ jobs:
           PY
           test -f .specify/presets/workflow-preset/templates/behavior/behavior-scenarios-draft.json
           test ! -e .specify/presets/workflow-preset/templates/behavior/behavior-testability-checklist.md
-          test -f .specify/presets/workflow-preset/templates/behavior/behavior-testability.md
+          test ! -e .specify/presets/workflow-preset/templates/behavior/behavior-testability.md
           test -f .specify/presets/workflow-preset/templates/requirements/behavior-gate.md
           test -f .specify/presets/workflow-preset/templates/requirements/domain-gate.md
           test -f .specify/presets/workflow-preset/templates/requirements/nfr-gate.md
           test -f .specify/presets/workflow-preset/templates/requirements/visual-gate.md
           test -f .specify/presets/workflow-preset/templates/behavior/bdd-draft.feature
           test -f .specify/presets/workflow-preset/templates/behavior/bdd-contract.feature
-          test -f .specify/presets/workflow-preset/templates/behavior/uif-intent.json
+          test ! -e .specify/presets/workflow-preset/templates/behavior/uif-intent.json
           test -f .specify/presets/workflow-preset/templates/behavior/uif-expected.json
           test -f .specify/presets/workflow-preset/templates/behavior/scenario-instances.json
-          test -f .specify/presets/workflow-preset/templates/behavior/data-fixtures-intent.json
+          test ! -e .specify/presets/workflow-preset/templates/behavior/data-fixtures-intent.json
           test -f .specify/presets/workflow-preset/templates/behavior/data-fixtures.json
           test -f .specify/presets/workflow-preset/templates/behavior/assertions.json
           test -f .specify/presets/workflow-preset/templates/constitution-template.md
+          test -f .specify/presets/workflow-preset/templates/class-diagram-template.md
+          test -f .specify/presets/workflow-preset/templates/sequences-template.md
+          test -f .specify/presets/workflow-preset/templates/ui-ux-design-template.md
+          test -f .specify/presets/workflow-preset/templates/quickstart-template.md
+          test -f .specify/presets/workflow-preset/templates/test-readiness-template.md
+          test -f .specify/presets/workflow-preset/templates/test/test-conditions.json
           test -f .specify/presets/workflow-preset/schemas/speckit.behavior.scenarios.draft.v1.schema.json
-          test -f .specify/presets/workflow-preset/schemas/speckit.behavior.uif.intent.v1.schema.json
-          test -f .specify/presets/workflow-preset/schemas/speckit.behavior.data-fixtures.intent.v1.schema.json
+          test ! -e .specify/presets/workflow-preset/schemas/speckit.behavior.uif.intent.v1.schema.json
+          test ! -e .specify/presets/workflow-preset/schemas/speckit.behavior.data-fixtures.intent.v1.schema.json
           test -f .specify/presets/workflow-preset/schemas/speckit.behavior.uif.expected.v1.schema.json
           test -f .specify/presets/workflow-preset/schemas/speckit.behavior.scenario-instances.v1.schema.json
           test -f .specify/presets/workflow-preset/schemas/speckit.behavior.data-fixtures.v1.schema.json
           test -f .specify/presets/workflow-preset/schemas/speckit.behavior.assertions.v1.schema.json
-          test -f .specify/presets/workflow-preset/.composed/speckit.specify.md
-          test -f .specify/presets/workflow-preset/.composed/speckit.clarify.md
+          test -f .specify/presets/workflow-preset/schemas/speckit.test.conditions.v1.schema.json
+          test ! -e .specify/presets/workflow-preset/.composed/speckit.specify.md
+          test ! -e .specify/presets/workflow-preset/.composed/speckit.clarify.md
           test -f .specify/presets/workflow-preset/.composed/speckit.checklist.md
-          test -f .specify/presets/workflow-preset/.composed/speckit.constitution.md
+          test ! -e .specify/presets/workflow-preset/.composed/speckit.constitution.md
           test -f .specify/presets/workflow-preset/.composed/speckit.analyze.md
           test -f .specify/presets/workflow-preset/.composed/speckit.plan.md
           test -f .specify/presets/workflow-preset/.composed/speckit.tasks.md
@@ -114,8 +121,11 @@ jobs:
           test -f .claude/skills/speckit-implement/SKILL.md
 
           grep -q "Change Scope Granularity" .claude/skills/speckit-constitution/SKILL.md
-          grep -q "Phase 0 Behavior Projection" .claude/skills/speckit-plan/SKILL.md
-          grep -q "Validation Task Derivation" .claude/skills/speckit-tasks/SKILL.md
+          grep -q "Full-Spectrum Projection" .claude/skills/speckit-specify/SKILL.md
+          grep -q "Cross-Domain Ambiguity Map" .claude/skills/speckit-clarify/SKILL.md
+          grep -q "Cross-Command Consistency Gates" .claude/skills/speckit-analyze/SKILL.md
+          grep -q "X0 — Feature Plan Control" .claude/skills/speckit-plan/SKILL.md
+          grep -q "PLAN_OUTPUT_READY" .claude/skills/speckit-tasks/SKILL.md
           grep -q "## Pre-Execution Checks" .claude/skills/speckit-implement/SKILL.md
           grep -q "mark the task off as \[X\] in the tasks file" .claude/skills/speckit-implement/SKILL.md
 

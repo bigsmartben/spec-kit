@@ -4833,9 +4833,17 @@ class TestBundledPresetLocator:
             "behavior-testability-checklist.md"
         ) in verify_run
         assert (
-            "test -f .specify/presets/workflow-preset/templates/behavior/"
+            "test ! -e .specify/presets/workflow-preset/templates/behavior/"
             "behavior-testability.md"
         ) in verify_run
+        for removed_template in (
+            "uif-intent.json",
+            "data-fixtures-intent.json",
+        ):
+            assert (
+                "test ! -e .specify/presets/workflow-preset/templates/behavior/"
+                f"{removed_template}"
+            ) in verify_run
         for template in (
             "behavior-gate.md",
             "domain-gate.md",
@@ -4843,6 +4851,34 @@ class TestBundledPresetLocator:
             "visual-gate.md",
         ):
             assert f"templates/requirements/{template}" in verify_run
+        for template in (
+            "class-diagram-template.md",
+            "sequences-template.md",
+            "ui-ux-design-template.md",
+            "quickstart-template.md",
+            "test-readiness-template.md",
+            "test/test-conditions.json",
+        ):
+            assert f"templates/{template}" in verify_run
+        assert "schemas/speckit.test.conditions.v1.schema.json" in verify_run
+        for command in ("specify", "clarify", "constitution"):
+            assert (
+                "test ! -e .specify/presets/workflow-preset/.composed/"
+                f"speckit.{command}.md"
+            ) in verify_run
+        for command in ("checklist", "analyze", "plan", "tasks"):
+            assert (
+                "test -f .specify/presets/workflow-preset/.composed/"
+                f"speckit.{command}.md"
+            ) in verify_run
+        for marker in (
+            "Full-Spectrum Projection",
+            "Cross-Domain Ambiguity Map",
+            "Cross-Command Consistency Gates",
+            "X0 — Feature Plan Control",
+            "PLAN_OUTPUT_READY",
+        ):
+            assert marker in verify_run
         assert (
             'for extension_id in arch discovery inception intake preview repository-governance; do'
             in verify_run

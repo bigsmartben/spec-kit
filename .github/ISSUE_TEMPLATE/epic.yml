@@ -1,0 +1,100 @@
+name: Epic
+description: 创建可分解、可验收的大型工作父 Issue
+title: "[Epic] "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        此表单创建 Epic 父 Issue。GitHub 未提供原生 Epic 类型时，以 `[Epic]` 标题前缀作为兼容标识；实施工作应通过原生 Sub-issues（子议题）关联。
+
+  - type: textarea
+    id: goal
+    attributes:
+      label: 目标（Goal）
+      description: 说明要实现的业务或工程结果，而不是活动清单。
+      placeholder: 完成后，谁能获得什么可验证的结果？
+    validations:
+      required: true
+
+  - type: textarea
+    id: context
+    attributes:
+      label: 背景与问题（Context / Problem）
+      description: 给出当前状态、痛点和必要证据。
+      placeholder: 当前发生了什么，为什么现在需要解决？
+    validations:
+      required: true
+
+  - type: textarea
+    id: scope
+    attributes:
+      label: 范围（In Scope）
+      description: 列出该 Epic 明确负责的能力、组件或交付物。
+      placeholder: |
+        - 能力或交付物 A
+        - 能力或交付物 B
+    validations:
+      required: true
+
+  - type: textarea
+    id: non_goals
+    attributes:
+      label: 非目标（Non-goals）
+      description: 明确本 Epic 不处理的内容，防止范围漂移。
+      placeholder: |
+        - 不包含……
+        - 后续另行处理……
+    validations:
+      required: true
+
+  - type: textarea
+    id: constraints
+    attributes:
+      label: 约束与关键决策（Constraints / Decisions）
+      description: 记录兼容性、安全、架构、时限或不可逆决策。
+      placeholder: 无则填写“无”。
+    validations:
+      required: true
+
+  - type: textarea
+    id: dependencies
+    attributes:
+      label: 依赖与阻塞关系（Dependencies）
+      description: 使用 Issue/PR 链接，并说明 blocks / is blocked by 关系。
+      placeholder: 无则填写“无”；不要只写模糊的相关项。
+    validations:
+      required: true
+
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: 验收标准（Acceptance Criteria）
+      description: 每条标准必须可观察、可验证，并描述结果而非实现步骤。
+      placeholder: |
+        - [ ] 当……时，系统应……，并可通过……验证
+        - [ ] ……
+    validations:
+      required: true
+
+  - type: textarea
+    id: decomposition
+    attributes:
+      label: 子 Issue 分解契约（Sub-issue Contract）
+      description: 列出计划中的直接可实施子 Issue；创建后改为原生 Sub-issues 关系。
+      placeholder: |
+        - [ ] 子 Issue：输入 / 输出 / 边界 / 失败语义 / 验证方式
+        - [ ] 子 Issue：输入 / 输出 / 边界 / 失败语义 / 验证方式
+    validations:
+      required: true
+
+  - type: textarea
+    id: done
+    attributes:
+      label: 完成定义（Definition of Done）
+      description: 说明何时可以关闭父 Epic，包括子 Issue、验证证据和文档状态。
+      placeholder: |
+        - [ ] 所有必需子 Issue 已关闭
+        - [ ] 验收标准均有可追溯证据
+        - [ ] 必要文档与迁移说明已更新
+    validations:
+      required: true

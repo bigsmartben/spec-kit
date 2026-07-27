@@ -4651,14 +4651,14 @@ class TestBundledPresetLocator:
 
         assert catalog_updated_at >= datetime(2026, 6, 18, tzinfo=timezone.utc)
         assert entry["bundled"] is True
-        assert entry["version"] == "3.0.0"
+        assert entry["version"] == "3.1.0"
         assert entry["version"] == manifest["preset"]["version"]
         assert entry["repository"] == manifest["preset"]["repository"]
         assert entry["requires"]["speckit_version"] == manifest["requires"]["speckit_version"]
         assert entry["provides"]["commands"] == command_count
         assert entry["provides"]["templates"] == template_count
         assert command_count == 7
-        assert template_count == 24
+        assert template_count == 27
         assert entry["tags"] == manifest["tags"]
         assert len(entry["source_commit"]) == 40
         assert entry["sha256"]
@@ -4686,7 +4686,7 @@ class TestBundledPresetLocator:
         assert entry["provides"]["commands"] == command_count
         assert entry["provides"]["templates"] == template_count
         assert command_count == 7
-        assert template_count == 24
+        assert template_count == 27
         assert entry["tags"] == manifest["tags"]
         assert len(entry["source_commit"]) == 40
         assert entry["sha256"]

@@ -8,6 +8,38 @@
 
 <!-- insert new changelog below this comment -->
 
+## [0.12.7] - 2026-07-30
+
+### Changed
+
+- Update workflow-preset to v3.2.0
+- Update workflow-preset to v3.1.1
+- feat: add Epic issue form
+- Align workflow-preset integration lifecycle checks
+- Align workflow-preset v3.1.0 smoke checks
+- Update workflow-preset to v3.1.0
+- docs(workflow-preset): document plan responsibilities
+- feat: integrate workflow-preset v3.0.0 (#78)
+- refactor(workflow-preset): use standard implement workflow (#77)
+- Update arch extension to v3.0.1 (#76)
+- Align preset integration expectations
+- Align workflow preset integration assertion
+- Update workflow preset smoke artifacts
+- Update workflow-preset to v2.0.0 (#72)
+- Move architecture lifecycle into constitution workflow (#69)
+- refactor(workflow-preset): decouple UI/UX specification
+- Enforce preset and extension coding standards
+- ci: pin ruff for stable lint checks
+- fix: reconcile active presets after integration changes
+- Add requirement gate preflight before planning
+- Add inception bundled extension
+- Fix intake integration smoke checks
+- Update bundled intake to v0.2.0
+- Fix git default extension lifecycle tests
+- Update repository-governance bundled extension
+- Install git extension by default
+- chore: begin 0.12.7.dev0 development
+
 ## [0.12.6] - 2026-07-06
 
 ### Changed

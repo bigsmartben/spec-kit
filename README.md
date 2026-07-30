@@ -1,18 +1,45 @@
 <div align="center">
-    <img src="./media/logo_large.webp" alt="Spec Kit Logo" width="180" height="180"/>
-    <h1>Spec Kit Local Extensions</h1>
-    <h3><em>面向本地增强工作流的 Spec Kit 分发版。</em></h3>
+    <img src="./media/logo_large.webp" alt="Spec Kit Logo" width="200" height="200"/>
+    <h1>🌱 Spec Kit</h1>
+    <h3><em>Define what to build before building it — with any AI coding agent.</em></h3>
 </div>
 
 <p align="center">
-    <strong>这个仓库的重点不是复述基础用法，而是打包一组本地扩展和预设，让规格、架构、证据、预览、治理和多 agent 实现流程连成一条可审查的链路。</strong>
+    <strong>An open source toolkit for building high-quality software with any AI coding agent — a ready-to-use spec-driven process (or bring your own), endlessly extensible, community-driven, and built for your whole organization.</strong>
+</p>
+
+<p align="center">
+    <a href="https://github.com/github/spec-kit/releases/latest"><img src="https://img.shields.io/github/v/release/github/spec-kit" alt="Latest Release"/></a>
+    <a href="https://github.com/github/spec-kit/stargazers"><img src="https://img.shields.io/github/stars/github/spec-kit?style=social" alt="GitHub stars"/></a>
+    <a href="https://github.com/github/spec-kit/blob/main/LICENSE"><img src="https://img.shields.io/github/license/github/spec-kit" alt="License"/></a>
+    <a href="https://github.github.io/spec-kit/"><img src="https://img.shields.io/badge/docs-GitHub_Pages-blue" alt="Documentation"/></a>
+</p>
+
+<p align="center">
+    <strong>English</strong> ·
+    <a href="./README.zh-CN.md">简体中文</a>
 </p>
 
 ---
 
 ## 本地定位
 
-这个 checkout 是一个带本地增强能力的 Spec Kit 仓库。它保留核心 `specify` 工作流，同时默认安装一组本地扩展和一个默认预设。
+- [🤔 What is Spec-Driven Development?](#-what-is-spec-driven-development)
+- [⚡ Get Started](#-get-started)
+- [📽️ Video Overview](#️-video-overview)
+- [🌍 Community](#-community)
+- [🤖 Supported AI Coding Agent Integrations](#-supported-ai-coding-agent-integrations)
+- [🔧 Specify CLI Reference](#-specify-cli-reference)
+- [🧩 Making Spec Kit Your Own: Extensions & Presets](#-making-spec-kit-your-own-extensions--presets)
+- [📦 Bundles: Role-Based Setups](#-bundles-role-based-setups)
+- [📚 Core Philosophy](#-core-philosophy)
+- [🌟 Development Phases](#-development-phases)
+- [🎯 Experimental Goals](#-experimental-goals)
+- [🔧 Prerequisites](#-prerequisites)
+- [📖 Learn More](#-learn-more)
+- [💬 Support](#-support)
+- [🙏 Acknowledgements](#-acknowledgements)
+- [📄 License](#-license)
 
 本 README 只介绍仓库中实际存在的本地内容：
 
@@ -28,15 +55,21 @@
 - 默认预设：`workflow-preset`。
 - 自动上下文扩展：`agent-context`。
 
-## 快速开始
-
-在本仓库开发或试用时，优先从仓库地址安装 CLI：
+Requires **[uv](https://docs.astral.sh/uv/)** ([install uv](./docs/install/uv.md)). Replace `vX.Y.Z` with the latest release tag from [Releases](https://github.com/github/spec-kit/releases) — keep the leading `v` (for example, `v0.12.11`, not `0.12.11`):
 
 ```bash
 uv tool install specify-cli --from git+https://github.com/bigsmartben/spec-kit.git
 ```
 
-初始化一个项目：
+Prefer installing from PyPI? The `specify-cli` package is also published there:
+
+```bash
+uv tool install specify-cli
+```
+
+See the [Installation Guide](./docs/installation.md) for alternative methods, verification, upgrade, and troubleshooting.
+
+### 2. Initialize a project
 
 ```bash
 specify init my-project --integration codex
@@ -278,97 +311,224 @@ specs/<feature>/contracts/behavior/
 - [Walkthroughs](https://github.github.io/spec-kit/community/walkthroughs.html) — end-to-end SDD scenarios
 - [Friends](https://github.github.io/spec-kit/community/friends.html) — projects that extend or build on Spec Kit
 
-贡献扩展、预设或 bundle 时，分别参考 [Extension Publishing Guide](extensions/EXTENSION-PUBLISHING-GUIDE.md)、[Presets Publishing Guide](presets/PUBLISHING.md) 和 [Community Bundles guide](docs/community/bundles.md)。
-
 > [!NOTE]
-> 社区贡献由各自作者独立创建和维护。安装或使用前请审查来源与代码。
+> Community contributions are independently created and maintained by their respective authors. Review source code before installation and use at your own discretion.
 
-## 可选本地扩展
+Want to contribute? See the [Extension Publishing Guide](extensions/EXTENSION-PUBLISHING-GUIDE.md), the [Presets Publishing Guide](presets/PUBLISHING.md), or the [Community Bundles guide](docs/community/bundles.md).
 
-### `bug`
+## 🤖 Supported AI Coding Agent Integrations
 
-`bug` 提供三段式 bug 工作流：评估、修复、验证。
+Spec Kit works with 30+ AI coding agents — both CLI tools and IDE-based assistants. See the full list with notes and usage details in the [Supported AI Coding Agent Integrations](https://github.github.io/spec-kit/reference/integrations.html) guide.
 
-命令：
+Run `specify integration list` to see all available integrations in your installed version.
 
-```text
-/speckit.bug.assess
-/speckit.bug.fix
-/speckit.bug.test
-```
+## Available Slash Commands
 
-主要产物：
+After running `specify init`, your AI coding agent will have access to these slash commands for structured development. For integrations that support skills mode, passing `--integration <agent> --integration-options="--skills"` installs agent skills instead of slash-command prompt files.
 
-```text
-.specify/bugs/<slug>/assessment.md
-.specify/bugs/<slug>/fix.md
-.specify/bugs/<slug>/test.md
-```
+### Core Commands
 
-安装：
+Essential commands for the Spec-Driven Development workflow:
 
-```bash
-specify extension add bug
-```
+| Command                  | Agent Skill            | Description                                                                |
+| ------------------------ | ---------------------- | -------------------------------------------------------------------------- |
+| `/speckit.constitution`  | `speckit-constitution` | Create or update project governing principles and development guidelines   |
+| `/speckit.specify`       | `speckit-specify`      | Define what you want to build (requirements and user stories)              |
+| `/speckit.plan`          | `speckit-plan`         | Create technical implementation plans with your chosen tech stack          |
+| `/speckit.tasks`         | `speckit-tasks`        | Generate actionable task lists for implementation                          |
+| `/speckit.taskstoissues` | `speckit-taskstoissues`| Convert generated task lists into GitHub issues for tracking and execution |
+| `/speckit.implement`     | `speckit-implement`    | Execute all tasks to build the feature according to the plan               |
+| `/speckit.converge`      | `speckit-converge`     | Assess the codebase against spec/plan/tasks and append remaining work as new tasks |
 
-### `git`
+### Optional Commands
 
-`git` 是内置可选扩展，不在当前默认扩展列表中。它负责 Git 初始化、feature branch、branch validation、remote 检测和可配置自动提交。
+Additional commands for enhanced quality and validation:
 
-命令：
+| Command              | Agent Skill            | Description                                                                                                                          |
+| -------------------- | ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| `/speckit.clarify`   | `speckit-clarify`      | Clarify underspecified areas (recommended before `/speckit.plan`; formerly `/quizme`)                                                |
+| `/speckit.analyze`   | `speckit-analyze`      | Cross-artifact consistency & coverage analysis (run after `/speckit.tasks`, before `/speckit.implement`)                             |
+| `/speckit.checklist` | `speckit-checklist`    | Generate custom quality checklists that validate requirements completeness, clarity, and consistency (like "unit tests for English") |
 
-```text
-/speckit.git.initialize
-/speckit.git.feature
-/speckit.git.validate
-/speckit.git.remote
-/speckit.git.commit
-```
+## 🔧 Specify CLI Reference
 
-配置文件：
+For full command details, options, and examples, see the [CLI Reference](https://github.github.io/spec-kit/reference/overview.html).
 
-```text
-.specify/extensions/git/git-config.yml
-```
+## 🧩 Making Spec Kit Your Own: Extensions & Presets
 
-安装：
+Spec Kit can be tailored to your needs through two complementary systems — **extensions** and **presets** — plus project-local overrides for one-off adjustments:
 
-```bash
-specify extension add git
-```
+| Priority | Component Type                                    | Location                         |
+| -------: | ------------------------------------------------- | -------------------------------- |
+|      ⬆ 1 | Project-Local Overrides                           | `.specify/templates/overrides/`  |
+|        2 | Presets — Customize core & extensions             | `.specify/presets/templates/`    |
+|        3 | Extensions — Add new capabilities                 | `.specify/extensions/templates/` |
+|      ⬇ 4 | Spec Kit Core — Built-in SDD commands & templates | `.specify/templates/`            |
 
-## 可选本地预设
+- **Templates** are resolved at **runtime** — Spec Kit walks the stack top-down and uses the first match.
+- Project-local overrides (`.specify/templates/overrides/`) let you make one-off adjustments for a single project without creating a full preset.
+- **Extension/preset commands** are applied at **install time** — when you run `specify extension add` or `specify preset add`, command files are written into agent directories (e.g., `.claude/commands/`).
+- If multiple presets or extensions provide the same command, the highest-priority version wins. On removal, the next-highest-priority version is restored automatically.
+- If no overrides or customizations exist, Spec Kit uses its core defaults.
 
-### `lean`
+### Extensions — Add New Capabilities
 
-`lean` 把核心流程压缩成更轻量的命令，适合小功能、实验、低仪式感任务。
-
-它覆盖这些命令：
-
-```text
-/speckit.constitution
-/speckit.specify
-/speckit.plan
-/speckit.tasks
-/speckit.implement
-```
-
-安装：
+Use **extensions** when you need functionality that goes beyond Spec Kit's core. Extensions introduce new commands and templates — for example, adding domain-specific workflows that are not covered by the built-in SDD commands, integrating with external tools, or adding entirely new development phases. They expand *what Spec Kit can do*.
 
 ```bash
-specify preset add lean
+# Search available extensions
+specify extension search
+
+# Install an extension
+specify extension add <extension-name>
 ```
 
-## 开发和测试用本地包
+For example, extensions could add Jira integration, post-implementation code review, V-Model test traceability, or project health diagnostics.
 
-这些目录主要服务扩展/预设作者或测试，不建议作为普通项目主流程：
+See the [Extensions reference](https://github.github.io/spec-kit/reference/extensions.html) for the full command guide. Browse the [community extensions](https://github.github.io/spec-kit/community/extensions.html) for what's available.
 
-| 类型 | ID | 来源目录 | 用途 |
-| --- | --- | --- | --- |
-| 扩展模板 | `template` | `extensions/template` | 新扩展作者复制和改造的起始模板。 |
-| 扩展测试 | `selftest` | `extensions/selftest` | 验证扩展发现、安装和注册生命周期。 |
-| 预设模板 | `scaffold` | `presets/scaffold` | 新预设作者复制和改造的起始模板。 |
-| 预设测试 | `self-test` | `presets/self-test` | 覆盖核心模板和命令，用于测试 preset 解析与组合。 |
+### Presets — Customize Existing Workflows
+
+Use **presets** when you want to change *how* Spec Kit works without adding new capabilities. Presets override the templates and commands that ship with the core *and* with installed extensions — for example, enforcing a compliance-oriented spec format, using domain-specific terminology, or applying organizational standards to plans and tasks. They customize the artifacts and instructions that Spec Kit and its extensions produce.
+
+```bash
+# Search available presets
+specify preset search
+
+# Install a preset
+specify preset add <preset-name>
+```
+
+For example, presets could restructure spec templates to require regulatory traceability, adapt the workflow to fit the methodology you use (e.g., Agile, Kanban, Waterfall, jobs-to-be-done, or domain-driven design), add mandatory security review gates to plans, enforce test-first task ordering, or localize the entire workflow to a different language. The [pirate-speak demo](https://github.com/mnriem/spec-kit-pirate-speak-preset-demo) shows just how deep the customization can go. Multiple presets can be stacked with priority ordering.
+
+See the [Presets reference](https://github.github.io/spec-kit/reference/presets.html) for the full command guide, including resolution order and priority stacking.
+
+## 📦 Bundles: Role-Based Setups
+
+Extensions and presets are individual building blocks. A **bundle** packages a
+curated set of them — extensions, presets, steps, and workflows — into a single,
+versioned, role-oriented setup so a whole team persona (product manager, business
+analyst, security researcher, developer, …) can be provisioned with one command.
+
+A bundle is described by a hand-written `bundle.yml` manifest. It pins each
+component to a version and, optionally, targets a specific integration; a bundle
+with no `integration` is **agnostic** and inherits whatever integration the
+project already uses.
+
+```bash
+# Discover bundles in the active catalog stack
+specify bundle search [<query>]
+
+# Inspect the exact component set a bundle will add (equals what install does)
+specify bundle info <bundle-id>
+
+# Install a bundle's full component set in one operation
+specify bundle install <bundle-id>
+
+# See what's installed, then update or remove non-destructively
+specify bundle list
+specify bundle update <bundle-id>     # or --all
+specify bundle remove <bundle-id>     # removes only this bundle's components
+```
+
+Bundles resolve from a **priority-ordered catalog stack** (project > user >
+built-in). Each source carries an install policy: `install-allowed` sources can
+be installed from, while `discovery-only` sources are visible in `search`/`info`
+but refuse installation. Manage the stack with `specify bundle catalog list|add|remove`.
+
+Authors validate and package bundles locally. Distribution is hosting the built
+artifact and adding a catalog source; community bundle submissions use the
+[Bundle Submission](https://github.com/github/spec-kit/issues/new?template=bundle_submission.yml)
+issue template so required component catalogs and install evidence can be reviewed:
+
+```bash
+specify bundle validate --path ./my-bundle      # structural + reference checks
+specify bundle build --path ./my-bundle         # produce a versioned .zip artifact
+```
+
+Four ready-to-read example manifests live under
+[`examples/bundles/`](examples/bundles/) (product manager, business analyst,
+security researcher, developer).
+
+Key guarantees: `info` shows exactly what `install` adds (transparency);
+installs are idempotent and confined to the project root; `remove` never touches
+components another installed bundle still needs; and all consume/author commands
+work **offline** against local or pinned sources.
+
+### When to Use Which
+
+| Goal | Use |
+| --- | --- |
+| Add a brand-new command or workflow | Extension |
+| Customize the format of specs, plans, or tasks | Preset |
+| Integrate an external tool or service | Extension |
+| Enforce organizational or regulatory standards | Preset |
+| Ship reusable domain-specific templates | Either — presets for template overrides, extensions for templates bundled with new commands |
+| Provision a complete role-based setup in one command | Bundle |
+
+## 📚 Core Philosophy
+
+Spec-Driven Development is a structured process that emphasizes:
+
+- **Intent-driven development** where specifications define the "*what*" before the "*how*"
+- **Rich specification creation** using guardrails and organizational principles
+- **Multi-step refinement** rather than one-shot code generation from prompts
+- **Heavy reliance** on advanced AI model capabilities for specification interpretation
+
+## 🌟 Development Phases
+
+| Phase                                    | Focus                    | Key Activities                                                                                                                                                     |
+| ---------------------------------------- | ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **0-to-1 Development** ("Greenfield")    | Generate from scratch    | <ul><li>Start with high-level requirements</li><li>Generate specifications</li><li>Plan implementation steps</li><li>Build production-ready applications</li></ul> |
+| **Creative Exploration**                 | Parallel implementations | <ul><li>Explore diverse solutions</li><li>Support multiple technology stacks & architectures</li><li>Experiment with UX patterns</li></ul>                         |
+| **Iterative Enhancement** ("Brownfield") | Brownfield modernization | <ul><li>Add features iteratively</li><li>Modernize legacy systems</li><li>Adapt processes</li></ul>                                                                |
+
+For existing projects, keep Spec Kit tooling updates separate from feature
+artifact evolution: refresh managed project files when upgrading, and update
+`specs/` artifacts when intended behavior changes. The
+[Evolving Specs guide](./docs/guides/evolving-specs.md) describes the
+recommended brownfield loop.
+
+## 🎯 Experimental Goals
+
+Our research and experimentation focus on:
+
+### Technology independence
+
+- Create applications using diverse technology stacks
+- Validate the hypothesis that Spec-Driven Development is a process not tied to specific technologies, programming languages, or frameworks
+
+### Enterprise constraints
+
+- Demonstrate mission-critical application development
+- Incorporate organizational constraints (cloud providers, tech stacks, engineering practices)
+- Support enterprise design systems and compliance requirements
+
+### User-centric development
+
+- Build applications for different user cohorts and preferences
+- Support various development approaches (from vibe-coding to AI-native development)
+
+### Creative & iterative processes
+
+- Validate the concept of parallel implementation exploration
+- Provide robust iterative feature development workflows
+- Extend processes to handle upgrades and modernization tasks
+
+## 🔧 Prerequisites
+
+- **Linux/macOS/Windows**
+- [Supported](#-supported-ai-coding-agent-integrations) AI coding agent.
+- [uv](https://docs.astral.sh/uv/) for package management (recommended) or [pipx](https://pipx.pypa.io/) for persistent installation
+- [Python 3.11+](https://www.python.org/downloads/)
+- [Git](https://git-scm.com/downloads)
+
+If you encounter issues with an agent, please open an issue so we can refine the integration.
+
+## 📖 Learn More
+
+- **[Complete Spec-Driven Development Methodology](./spec-driven.md)** - Deep dive into the full process
+- **[Quick Start Guide](https://github.github.io/spec-kit/quickstart.html)** - Step-by-step implementation walkthrough
 
 ## Bundle 能力
 

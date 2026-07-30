@@ -44,11 +44,17 @@ def _stdin_is_interactive() -> bool:
 def ensure_constitution_from_template(
     project_path: Path, tracker: StepTracker | None = None
 ) -> None:
-    """Copy constitution template to memory if it doesn't exist."""
+    """Materialize the resolved constitution template to memory if missing.
+
+    Resolution walks the full priority stack (project overrides → installed
+    presets → extensions → core) via :class:`PresetResolver`, so a preset that
+    ships a ``constitution-template`` (e.g. ``strategy: replace`` with a ratified
+    constitution) can seed the memory file. When nothing overrides it, the
+    resolver falls through to the core template.
+    """
+    from ..presets import _materialize_constitution_template
+
     memory_constitution = project_path / ".specify" / "memory" / "constitution.md"
-    template_constitution = (
-        project_path / ".specify" / "templates" / "constitution-template.md"
-    )
 
     if memory_constitution.exists():
         if tracker:
@@ -56,18 +62,21 @@ def ensure_constitution_from_template(
             tracker.skip("constitution", "existing file preserved")
         return
 
-    if not template_constitution.exists():
-        if tracker:
-            tracker.add("constitution", "Constitution setup")
-            tracker.error("constitution", "template not found")
-        return
-
     try:
-        memory_constitution.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(template_constitution, memory_constitution)
+        materialization = _materialize_constitution_template(
+            project_path, memory_constitution
+        )
+        if materialization is None:
+            if tracker:
+                tracker.add("constitution", "Constitution setup")
+                tracker.error("constitution", "template not found")
+            return
         if tracker:
             tracker.add("constitution", "Constitution setup")
-            tracker.complete("constitution", "copied from template")
+            if materialization == "copied":
+                tracker.complete("constitution", "copied from template")
+            else:
+                tracker.complete("constitution", "composed from template")
         else:
             console.print("[cyan]Initialized constitution from template[/cyan]")
     except Exception as e:
@@ -88,7 +97,7 @@ def register(app: typer.Typer) -> None:
             help="Name for your new project directory (optional if using --here, or use '.' for current directory)",
         ),
         script_type: str = typer.Option(
-            None, "--script", help="Script type to use: sh or ps"
+            None, "--script", help="Script type to use: sh, ps, or py"
         ),
         ignore_agent_tools: bool = typer.Option(
             False,
@@ -185,6 +194,7 @@ def register(app: typer.Typer) -> None:
             save_init_options,
         )
         from ..integration_runtime import (
+            invoke_prefix_for_integration as _invoke_prefix_for_integration,
             with_integration_setting as _with_integration_setting,
         )
         from ..integrations._commands import (
@@ -231,16 +241,45 @@ def register(app: typer.Typer) -> None:
                 console.print(
                     f"[yellow]Warning:[/yellow] Current directory is not empty ({len(existing_items)} items)"
                 )
-                console.print(
-                    "[yellow]Template files will be merged with existing content and may overwrite existing files[/yellow]"
-                )
                 if force:
+                    # Proceeding: the merge/overwrite warning is accurate here.
+                    console.print(
+                        "[yellow]Template files will be merged with existing content and may overwrite existing files[/yellow]"
+                    )
                     console.print(
                         "[cyan]--force supplied: skipping confirmation and proceeding with merge[/cyan]"
                     )
                 else:
-                    response = typer.confirm("Do you want to continue?")
-                    if not response:
+                    # Fold the merge risk into the confirmation prompt rather than
+                    # printing it unconditionally first: on the EOF/no-input path
+                    # below the command exits without changing anything, so a
+                    # standalone "will be merged" line would mislead. Interactive
+                    # users still see the risk as part of the question.
+                    #
+                    # Call typer.confirm normally so piped y/n is honored — e.g.
+                    # `echo y | specify init --here` keeps reaching the
+                    # non-destructive preserve-merge path.
+                    try:
+                        proceed = typer.confirm(
+                            "Template files will be merged with existing content "
+                            "and may overwrite existing files. Do you want to continue?"
+                        )
+                    except (typer.Abort, EOFError):
+                        # typer.confirm raises Abort for BOTH an interactive Ctrl+C
+                        # and an EOF on closed/empty stdin. Distinguish them: a real
+                        # TTY cancellation is a normal exit (0, "cancelled"), while a
+                        # missing-input EOF (non-interactive) becomes an actionable
+                        # error pointing at --force.
+                        if _stdin_is_interactive():
+                            console.print("[yellow]Operation cancelled[/yellow]")
+                            raise typer.Exit(0) from None
+                        console.print(
+                            "[red]Error:[/red] Current directory is not empty and no "
+                            "confirmation input is available. Re-run with "
+                            "[bold]--force[/bold] to merge into it."
+                        )
+                        raise typer.Exit(1) from None
+                    if not proceed:
                         console.print("[yellow]Operation cancelled[/yellow]")
                         raise typer.Exit(0)
         else:
@@ -417,12 +456,20 @@ def register(app: typer.Typer) -> None:
                     if extra:
                         integration_parsed_options.update(extra)
 
+                from ..events import resolve_events
+                events_map = resolve_events(
+                    resolved_integration.key,
+                    resolved_integration.config,
+                    project_path,
+                    integration_parsed_options or None,
+                )
                 resolved_integration.setup(
                     project_path,
                     manifest,
                     parsed_options=integration_parsed_options or None,
                     script_type=selected_script,
                     raw_options=integration_options,
+                    events=events_map,
                 )
                 manifest.save()
 
@@ -433,6 +480,7 @@ def register(app: typer.Typer) -> None:
                     script_type=selected_script,
                     raw_options=integration_options,
                     parsed_options=integration_parsed_options or None,
+                    project_root=project_path,
                 )
                 _write_integration_json(
                     project_path,
@@ -453,14 +501,18 @@ def register(app: typer.Typer) -> None:
                     tracker=tracker,
                     force=force,
                     invoke_separator=resolved_integration.effective_invoke_separator(
-                        integration_parsed_options
+                        integration_parsed_options, project_root=project_path
+                    ),
+                    invoke_prefix=_invoke_prefix_for_integration(
+                        resolved_integration,
+                        resolved_integration.key,
+                        integration_parsed_options,
+                        project_path,
                     ),
                 )
                 tracker.complete(
                     "shared-infra", f"scripts ({selected_script}) + templates"
                 )
-
-                ensure_constitution_from_template(project_path, tracker=tracker)
 
                 try:
                     bundled_wf = _locate_bundled_workflow("speckit")
@@ -509,10 +561,8 @@ def register(app: typer.Typer) -> None:
                     "feature_numbering": "sequential",
                     "speckit_version": get_speckit_version(),
                 }
-                from ..integrations.base import SkillsIntegration as _SkillsPersist
-
-                if isinstance(resolved_integration, _SkillsPersist) or getattr(
-                    resolved_integration, "_skills_mode", False
+                if resolved_integration.is_skills_mode(
+                    integration_parsed_options or None, project_root=project_path
                 ):
                     init_opts["ai_skills"] = True
                 save_init_options(project_path, init_opts)
@@ -712,6 +762,11 @@ def register(app: typer.Typer) -> None:
                             continuing="Continuing without the optional preset.",
                         )
 
+                # Seed the constitution AFTER preset installation so that a
+                # preset-provided constitution-template (resolved via the
+                # priority stack) wins over the core template.
+                ensure_constitution_from_template(project_path, tracker=tracker)
+
                 from ..integrations._helpers import (
                     _reconcile_presets_for_active_agent,
                 )
@@ -792,11 +847,9 @@ def register(app: typer.Typer) -> None:
             steps_lines.append("1. You're already in the project directory!")
             step_num = 2
 
-        from ..integrations.base import SkillsIntegration as _SkillsInt
-
-        _is_skills_integration = isinstance(
-            resolved_integration, _SkillsInt
-        ) or getattr(resolved_integration, "_skills_mode", False)
+        _is_skills_integration = resolved_integration.is_skills_mode(
+            integration_parsed_options or None, project_root=project_path
+        )
 
         codex_skill_mode = selected_ai == "codex" and _is_skills_integration
         zcode_skill_mode = selected_ai == "zcode" and _is_skills_integration
@@ -810,7 +863,10 @@ def register(app: typer.Typer) -> None:
         copilot_skill_mode = selected_ai == "copilot" and _is_skills_integration
         devin_skill_mode = selected_ai == "devin"
         zed_skill_mode = selected_ai == "zed" and _is_skills_integration
+        grok_skill_mode = selected_ai == "grok" and _is_skills_integration
         cline_skill_mode = selected_ai == "cline"
+        forge_skill_mode = selected_ai == "forge"
+        bob_skill_mode = selected_ai == "bob" and _is_skills_integration
         native_skill_mode = (
             codex_skill_mode
             or zcode_skill_mode
@@ -822,6 +878,8 @@ def register(app: typer.Typer) -> None:
             or copilot_skill_mode
             or devin_skill_mode
             or zed_skill_mode
+            or grok_skill_mode
+            or bob_skill_mode
         )
 
         if codex_skill_mode:
@@ -854,6 +912,16 @@ def register(app: typer.Typer) -> None:
                 f"{step_num}. Start Zed in this project directory; spec-kit skills were installed to [cyan].agents/skills[/cyan]"
             )
             step_num += 1
+        if grok_skill_mode:
+            steps_lines.append(
+                f"{step_num}. Start Grok Build in this project directory; spec-kit skills were installed to [cyan].grok/skills[/cyan]"
+            )
+            step_num += 1
+        if bob_skill_mode:
+            steps_lines.append(
+                f"{step_num}. Start Bob in this project directory; spec-kit skills were installed to [cyan].bob/skills[/cyan]"
+            )
+            step_num += 1
         usage_label = "skills" if native_skill_mode else "slash commands"
 
         from .._invocation_style import (
@@ -874,6 +942,7 @@ def register(app: typer.Typer) -> None:
             if (
                 _is_slash_skills_agent(selected_ai, _ai_skills_enabled)
                 or cline_skill_mode
+                or forge_skill_mode
             ):
                 return f"/speckit-{name}"
             return f"/speckit.{name}"

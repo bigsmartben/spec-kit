@@ -24,6 +24,7 @@ GITHUB_HOSTS = frozenset({
     "api.github.com",
     "codeload.github.com",
 })
+_MAX_RELEASE_METADATA_BYTES = 5 * 1024 * 1024
 
 
 def build_github_request(url: str) -> urllib.request.Request:
@@ -68,6 +69,8 @@ def resolve_github_release_asset_api_url(
     open_url_fn: Callable,
     timeout: int = 60,
     github_hosts: tuple[str, ...] = (),
+    redirect_validator: Callable[[str, str], None] | None = None,
+    max_metadata_bytes: int = _MAX_RELEASE_METADATA_BYTES,
 ) -> Optional[str]:
     """Resolve a GitHub release browser-download URL to its REST API asset URL.
 
@@ -91,12 +94,25 @@ def resolve_github_release_asset_api_url(
             authenticated release-metadata lookup.
         timeout: Per-request timeout in seconds.
         github_hosts: Host patterns to treat as GitHub Enterprise Server.
+        redirect_validator: Optional policy applied to metadata redirects.
+        max_metadata_bytes: Maximum release-metadata response size.
     """
     import json
     import urllib.error
 
-    parsed = urlparse(download_url)
-    hostname = (parsed.hostname or "").lower()
+    from specify_cli._download_security import read_response_limited
+
+    # Accessing ``.hostname`` (like ``.port`` below) raises ValueError on a
+    # malformed authority, e.g. an invalid bracketed IPv6 host
+    # ``https://[not-an-ip]/...``. The function's contract is to return None for
+    # anything it can't resolve, not to raise, so guard the read. ``download_url``
+    # is server-controlled here (a catalog ``download_url`` payload), so a
+    # malformed value must not leak a raw traceback past the caller.
+    try:
+        parsed = urlparse(download_url)
+        hostname = (parsed.hostname or "").lower()
+    except ValueError:
+        return None
     parts = [unquote(part) for part in parsed.path.strip("/").split("/")]
 
     is_ghes = (
@@ -127,7 +143,14 @@ def resolve_github_release_asset_api_url(
     if hostname == "github.com":
         api_base = "https://api.github.com"
     elif is_ghes:
-        authority = hostname if parsed.port is None else f"{hostname}:{parsed.port}"
+        # ``parsed.port`` raises ValueError on a malformed port (e.g.
+        # ``host:notaport``); the function's contract is to return None for
+        # anything it can't resolve, not to raise.
+        try:
+            port = parsed.port
+        except ValueError:
+            return None
+        authority = hostname if port is None else f"{hostname}:{port}"
         api_base = f"{parsed.scheme}://{authority}/api/v3"
     else:
         return None
@@ -136,19 +159,43 @@ def resolve_github_release_asset_api_url(
     if len(parts) < 6 or parts[2:4] != ["releases", "download"]:
         return None
 
-    owner, repo, tag = parts[0], parts[1], parts[4]
-    asset_name = "/".join(parts[5:])
+    owner, repo = parts[0], parts[1]
+    tag = "/".join(parts[4:-1])
+    asset_name = parts[-1]
     encoded_tag = quote(tag, safe="")
     release_url = f"{api_base}/repos/{owner}/{repo}/releases/tags/{encoded_tag}"
 
     try:
-        with open_url_fn(release_url, timeout=timeout) as response:
-            release_data = json.loads(response.read())
-    except (urllib.error.URLError, json.JSONDecodeError):
+        open_kwargs = {"timeout": timeout}
+        if redirect_validator is not None:
+            open_kwargs["redirect_validator"] = redirect_validator
+        with open_url_fn(release_url, **open_kwargs) as response:
+            release_data = json.loads(
+                read_response_limited(
+                    response,
+                    max_bytes=max_metadata_bytes,
+                    label=f"GitHub release metadata {release_url}",
+                )
+            )
+    except (
+        urllib.error.URLError,
+        json.JSONDecodeError,
+        TypeError,
+        ValueError,
+    ):
         return None
 
-    for asset in release_data.get("assets", []):
-        if asset.get("name") == asset_name and asset.get("url"):
+    if not isinstance(release_data, dict):
+        return None
+    assets = release_data.get("assets", [])
+    if not isinstance(assets, list):
+        return None
+    for asset in assets:
+        if (
+            isinstance(asset, dict)
+            and asset.get("name") == asset_name
+            and asset.get("url")
+        ):
             return str(asset["url"])
 
     return None

@@ -1,8 +1,9 @@
 ---
 description: Generate or recompute requirement-quality gates before implementation planning.
 scripts:
-  sh: scripts/bash/check-prerequisites.sh --json --paths-only
-  ps: scripts/powershell/check-prerequisites.ps1 -Json -PathsOnly
+  sh: scripts/bash/check-prerequisites.sh --json
+  ps: scripts/powershell/check-prerequisites.ps1 -Json
+  py: scripts/python/check_prerequisites.py --json
 ---
 
 ## User Input

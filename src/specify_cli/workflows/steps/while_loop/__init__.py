@@ -26,6 +26,32 @@ class WhileStep(StepBase):
         nested_steps = config.get("steps", [])
 
         result = evaluate_condition(condition, context)
+
+        # The engine does not auto-validate step config (see
+        # ``WorkflowEngine.load_workflow``) and feeds ``next_steps`` straight
+        # into ``_execute_steps``, which iterates them as step mappings. A
+        # non-list ``steps`` (a single mapping or scalar authoring mistake)
+        # would otherwise be iterated element-wise — a dict yields its string
+        # keys, a str its characters — and crash the whole run with
+        # AttributeError on ``.get()``. ``validate`` already rejects a non-list
+        # ``steps``; fail this step loudly on an unvalidated run instead,
+        # mirroring the if/switch/fan-out steps. The guard fires only when the
+        # body would actually be dispatched (condition truthy). The condition is
+        # still evaluated first, so its result is surfaced for downstream context.
+        if result and not isinstance(nested_steps, list):
+            return StepResult(
+                status=StepStatus.FAILED,
+                output={
+                    "condition_result": True,
+                    "max_iterations": max_iterations,
+                    "loop_type": "while",
+                },
+                error=(
+                    f"While step {config.get('id', '?')!r}: 'steps' must be a "
+                    f"list of steps, got {type(nested_steps).__name__}."
+                ),
+            )
+
         if result:
             return StepResult(
                 status=StepStatus.COMPLETED,
@@ -52,6 +78,24 @@ class WhileStep(StepBase):
             errors.append(
                 f"While step {config.get('id', '?')!r} is missing "
                 f"'condition' field."
+            )
+        elif not isinstance(config["condition"], (str, bool)):
+            # execute() feeds 'condition' to evaluate_condition(), which first
+            # delegates to evaluate_expression() -- that returns a non-string
+            # unchanged -- and then coerces the result with bool(). So a
+            # list/dict/number condition silently resolves to its truthiness
+            # (e.g. condition: [1, 2] is always truthy, spinning the loop to
+            # max_iterations) with no error. Reject those at validation,
+            # mirroring the prompt/shell/command 'must be a string' checks.
+            #
+            # A literal ``bool`` stays valid: an unquoted ``condition: false``
+            # is idiomatic YAML, evaluate_condition() already resolves it
+            # exactly (bool passthrough, then a no-op bool()), and this step
+            # itself defaults ``condition`` to ``False``. "true"/"false" and an
+            # expression like "{{ ... }}" are strings, so they stay valid too.
+            errors.append(
+                f"While step {config.get('id', '?')!r}: 'condition' must be a "
+                f"string or boolean, got {type(config['condition']).__name__}."
             )
         max_iter = config.get("max_iterations")
         if max_iter is not None:

@@ -8,29 +8,451 @@
 
 <!-- insert new changelog below this comment -->
 
-## [0.12.6] - 2026-07-06
+## [0.14.4] - 2026-07-29
 
 ### Changed
 
-- Use canonical preview wireflow command
-- Align Cline inventory with opt-in agent context
-- Use canonical discovery command name
-- Remove default agent-context CLI management
-- Integrate discovery interface contract extension
-- Update skills integration context expectations
-- Align arch smoke checks with v2 commands
-- Fix arch integration smoke checks
-- Integrate arch planning contract v2
-- Integrate preview extension v1.3.0
-- Update intake layout normalization gate
-- chore: begin 0.12.6.dev0 development
+- fix(bundler): degrade non-UTF-8 config reads into BundlerError (#3784)
+- fix(workflows): escape the step-progress line so step ids render (and `/` stops failing the run) (#3783)
+- Update Agent Parity Governance preset to v0.4.1 (#3830)
+- fix(integrations): reject empty --commands-dir in generic raw_options (#3714)
+- fix(presets): guard non-list/non-mapping provides.templates in PresetManifest (#3712)
+- fix(auth): resolve az via shutil.which so azure-cli token works on Windows (#3709)
+- fix(workflows): reject falsy non-mapping workflow-catalogs.yml top level (#3707)
+- fix(integrations): render hyphenated /speckit-<name> for Droid (always-slash agent) (#3688)
+- [preset] Update A11Y Governance preset to v0.4.2 (#3828)
+- [preset] Update Parallel Autonomous Run Governance to v0.2.4 (#3825)
+- fix: correct Optional type annotation for _resolved_dir parameter (#3801)
+- fix: add timeout to prompt step subprocess execution (#3768)
+- fix: handle tags containing / in GitHub release asset URL resolution (#3767)
+- fix(presets): escape catalog metadata in discovery output (#3773)
+- Update Autonomous Run Governance preset to v0.3.3 (#3823)
+- fix: use bounded read for integration catalog HTTP responses (#3763)
+- docs: add Simplified Chinese translation of README (#3740)
+- Update Intake Sequencing Governance preset to v0.2.2 (#3809)
+- fix(workflows): reject non-string/non-boolean 'condition' in if/while/do-while steps (#3706)
+- fix(bundle): escape catalog metadata in discovery output (#3774)
+- fix(workflows,extensions): tolerate non-list catalog tags in search/info display (#3770)
+- fix: correct nullable resolved directory annotation (#3771)
+- fix(presets): tolerate non-string and non-list catalog fields in preset search/info (#3769)
+- fix(integrations): escape catalog metadata in discovery output (#3772)
+- Update Verify Review Ship extension to v0.4.2 (#3792)
+- fix(integrations): preserve native skill invocation prefixes (#3663)
+- Update Intake Review Governance preset to v0.2.0 (#3796)
+- fix(constitution): stop propagating guidance into templates (#3737) (#3790)
+- chore: release 0.14.3, begin 0.14.4.dev0 development (#3795)
 
-## [0.12.5] - 2026-07-03
+## [0.14.3] - 2026-07-28
 
 ### Changed
 
+- Update Intake Authoring Governance preset to v0.3.0 (#3788)
+- fix(copilot): honor preset command template overrides (#3592)
+- clarify: require real interrogatives, ban topic-label questions (#3745)
+- feat: Add Alquimia AI integration (#2734)
+- harden: secure extension and preset archive downloads (#3141)
+- fix: correct Optional type annotation for context_note parameter (#3765)
+- Update AGENTS.md (#2626)
+- fix(extensions): tolerate non-string catalog name in display-name lookup (#3747)
+- fix(presets): coerce non-string catalog tags before joining (#3743)
+- fix: register extensions for the active integration only (#3459)
+- fix(extensions): tolerate non-string tags in catalog search (#3746)
+- fix(extensions): hyphenate command names in 'extension info' listing (#3744)
+- fix(workflows): escape remaining untrusted fields in `workflow info` (#3731)
+- fix(extensions): guard non-numeric catalog downloads in search/info rendering (#3710)
+- fix(agent-context): apply default markers when config markers are blank (bash) (#3736)
+- fix: escape Rich markup in catalog list output (#3738)
+- fix(workflows): guard non-mapping 'workflow:' block in WorkflowDefinition (#3694)
+- fix(bundler): reject unsupported schema_version in _merge_config (align readers) (#3711)
+- Update Linear Weave extension to v1.0.1 (#3762)
+- Add Intake Sequencing Governance preset to community catalog (#3761)
+- Update Quality Gates (Enforcement Layer) extension to v0.3.3 (#3760)
+- Update Verify Review Ship extension to v0.4.1 (#3759)
+- fix(agent-context): discover nested plans in Python port mtime fallback (#3734)
+- fix(extensions): make shipped scripts executable after install (#3723)
+- docs(assess): clarify the pipeline works on an empty project (#3732)
+- chore: release 0.14.2, begin 0.14.3.dev0 development (#3730)
+
+## [0.14.2] - 2026-07-24
+
+### Changed
+
+- Update Intake Review Governance preset to v0.1.1 (#3729)
+- Update Verify Review Ship extension to v0.3.0 (#3728)
+- Update Architecture Guard extension to v1.13.1 (#3724)
+- docs(upgrade): Claude Code files live in .claude/skills, not .claude/commands (#3708)
+- fix(kilocode): install commands under .kilo/commands (#3672)
+- fix(auth): normalize whitespace in auth-config env-var/id references at store time (#3691)
+- fix(workflows): guard non-mapping 'inputs:' block in engine._resolve_inputs (#3696)
+- Update Intake Authoring Governance preset to v0.2.0 (#3721)
+- docs: clarify shell-step interpolation safety (#3719)
+- [extension] Add Blueprint Index — Living Architecture Map extension to community catalog (#3718)
+- fix(github-http): return None on malformed host in resolve_github_release_asset_api_url (#3715)
+- fix(integrations): declare PiIntegration multi_install_safe (#3652)
+- harden: remove shell parameter from run_command() (#3716)
+- chore(deps): bump github/codeql-action/init from 4.37.1 to 4.37.3 (#3699)
+- fix: auto-correct conflicting feature prefixes (#1829)
+- chore(deps): bump actions/checkout from 6.0.3 to 7.0.1 (#3703)
+- chore(deps): bump DavidAnson/markdownlint-cli2-action (#3702)
+- chore(deps): bump actions/setup-node from 6.4.0 to 7.0.0 (#3701)
+- chore(deps): bump astral-sh/setup-uv from 8.3.2 to 9.0.0 (#3700)
+- chore: release 0.14.1, begin 0.14.2.dev0 development (#3698)
+
+## [0.14.1] - 2026-07-23
+
+### Changed
+
+- Update Agent Parity Governance preset to v0.4.0 (#3697)
+- fix(bundler): InstallResult.changed counts uninstalled as a change (#3692)
+- [preset] Update Cross-Platform Governance preset to v0.2.1 (#3695)
+- Update A11Y Governance preset to v0.4.1 (#3693)
+- fix(workflows): escape step-graph brackets in `workflow info` so the type shows (#3690)
+- fix(workflows): filter parser rejects trailing tokens (fullmatch, not match) (#3689)
+- Update iSAQB Architecture Governance preset to v0.2.1 (#3687)
+- fix(extensions): parse SKILL.md on the --- delimiter line during removal (#3634)
+- fix(cli): guard lazy .hostname ValueError in extension/preset add --from (#3651)
+- Update Architecture Governance preset to v0.5.1 (#3686)
+- fix(bundler): reject a top-level non-mapping bundle-catalogs.yml in _merge_config (#3659)
+- Update Security Governance preset to v0.6.1 (#3685)
+- fix(integrations): declare OmpIntegration multi_install_safe (#3650)
+- feat(git-extension): add configurable Conventional Commit support (#3390) (#3413)
+- fix(extensions): hyphenate command names in the Forge post-install listing (#3669)
+- fix(bundler): reject falsy non-mapping requires/provides in CatalogEntry.from_dict (#3667)
+- fix(bundler): reject falsy non-list bundles/contributed_components in records (#3666)
+- Update Intake Authoring Governance preset to v0.1.1 (#3678)
+- docs(extensions): clarify agent-context README and add config examples (#3389)
+- chore: release 0.14.0, begin 0.14.1.dev0 development (#3677)
+
+## [0.14.0] - 2026-07-23
+
+### Changed
+
+- docs: add spec-kit-copilot to community friends (#3675)
+- fix(integrations): recompute invoke_separator from retained parsed_options (#3664)
+- fix(workflows): preserve intra-overlay order for multiple insert_after edits (#3662)
+- fix(bundler): reject falsy non-mapping requires/provides in manifest from_dict (#3661)
+- fix(bundler): dump_yaml writes literal UTF-8 (allow_unicode=True) (#3660)
+- fix(integrations): declare kiro-cli multi-install safe (#3477)
+- fix(git-extension): trim trailing whitespace before stripping commit-message quotes (#3673)
+- fix(bundler): order bundle members by canonical POSIX arcname (reproducible builds) (#3658)
+- fix(integrations): Cline overrides post_process_command_content (correct hook name) (#3657)
+- docs(workflows): gate step docstring lists the 'retry' on_reject behaviour (#3656)
+- fix: harden bounded reads and redirect validation (#3671)
+- fix(packaging): bundle scripts/python into the wheel core_pack (#3665) (#3670)
+- fix: bundle scripts/python in wheel so --script py works (#3665) (#3668)
+- docs(workflows): init step docstring lists the 'py' script type (#3655)
+- fix(integrations): declare LingmaIntegration multi_install_safe (#3654)
+- fix: guard constitution command against feature execution (#3646)
+- Fix duplicate step numbering in specify command (#3647)
+- docs(scripts): document the 'py' script type and sh/ps migration plan (#3284) (#3653)
+- harden: bound HTTP reads and enforce strict redirects (#3140)
+- chore: release 0.13.4, begin 0.13.5.dev0 development (#3649)
+
+## [0.13.4] - 2026-07-22
+
+### Changed
+
+- docs(concepts): document the spec-of-specs feature breakdown approach (#3648)
+- fix(scripts): git-ext PowerShell emits the '# To persist' SPECIFY_FEATURE hint (parity) (#3632)
+- fix(integrations): validate cached catalog shape before returning it (#3627)
+- fix(bundler): reject non-list 'catalogs' in bundle-catalogs.yml with a clean error (#3623)
+- fix(bundler): guard lazy .hostname ValueError in catalog add_source (#3644)
+- Add Intake Authoring Governance preset to community catalog (#3643)
+- feat: add Factory Droid CLI integration (#822) (#3587)
+- docs(installation): document the 'py' (Python) script type (#3640)
+- fix(init): show hyphenated /speckit-<name> in Next Steps for Forge projects (#3642)
+- fix(extensions): render hyphenated hook invocations for Forge projects (#3641)
+- fix(workflows): workflow add detects local YAML files case-insensitively (#3633)
+- fix(workflows): list-literal expression ignores trailing/empty commas (#3631)
+- fix(workflows): StepRegistry.add tolerates a corrupted non-dict existing entry (#3630)
+- fix(bundler): reject non-mapping 'integration' in a bundle manifest (#3629)
+- fix(workflows): command/prompt steps fail cleanly on a non-string integration (#3626)
+- docs(core): document the 'py' (Python) --script type in the init option table (#3625)
+- fix(workflows): gate prompt uses isdecimal() so a superscript digit doesn't crash (#3624)
+- fix(integrations): Cline dispatches hyphenated /speckit-<cmd> invocations (#3622)
+- docs(upgrade): document integration upgrade / extension update as the project-files upgrade path (#3326)
+- chore: release 0.13.3, begin 0.13.4.dev0 development (#3645)
+
+## [0.13.3] - 2026-07-22
+
+### Changed
+
+- fix(integrations): escape Rich markup in --integration-options error messages (#3458)
+- docs: document __SPECKIT_COMMAND_ token for portable cross-command references (#3503)
+- [preset] Add Parallel Autonomous Run Governance preset to community catalog (#3614)
+- docs(workflows): fix stale FanOutStep docstring claiming sequential-only execution (#3639)
+- [bundle] Add SicarioSpec Security & Governance Bundle to community catalog (#3636)
+- [preset] Update Autonomous Run Governance preset to v0.3.2 (#3615)
+- fix(workflows): validate every redirect hop when fetching workflow/step catalogs (#3637)
+- Add pipeline workflow to community catalog (#3338)
+- [extension] Add Linear Weave extension to community catalog (#3609)
+- docs: clarify hook priority validation semantics (#3594)
+- fix(workflows): reject a non-string 'integration'/'model' in command & prompt steps (#3597)
+- ci: add dependency audit workflow (#3138)
+- Add Intake Review Governance preset to community catalog (#3613)
+- fix(workflows): reject non-list input 'enum' instead of crashing (#3601)
+- chore: release 0.13.2, begin 0.13.3.dev0 development (#3617)
+
+## [0.13.2] - 2026-07-21
+
+### Changed
+
+- fix(workflows): reject a non-string 'command' in command-step (#3596)
+- fix(workflows): fail gate step loudly on a malformed 'options' (#3595)
+- fix(extensions): re-validate catalog URL after redirects (HTTPS parity/security) (#3524)
+- Add community bundle submission automation (#3553)
+- fix(presets): re-validate catalog URL after redirects (HTTPS parity/security) (#3523)
+- feat(scripts): port create-new-feature, setup-plan and setup-tasks to Python (#3386)
+- fix(agents): parse frontmatter on the --- delimiter line, not any --- substring (#3590)
+- [bug-fix] Fix reinstall-overwrites-kept-config: preserve config on plain reinstall after --keep-config (#3449)
+- feat: update Bob integration to skills-based layout for Bob 2.0 (#3415)
+- Update OKF Knowledge Bundle Generator to v0.3.0 (#3608)
+- Add Test Coverage Drift Control extension to community catalog (#3607)
+- chore: align ruff lint scope (#3139)
+- feat(workflows): WorkflowResolver standalone (PR 1) (#3557)
+- fix(extensions,presets): surface clean error on malformed download URL (#3577)
+- chore: release 0.13.1, begin 0.13.2.dev0 development (#3610)
+
+## [0.13.1] - 2026-07-21
+
+### Changed
+
+- fix(integrations): catch OverflowError on a `priority: .inf` in add/remove (#3589)
+- fix(workflows): reject bool / .inf catalog priority in workflow & step catalog loaders (#3526)
+- fix(catalogs): 'priority: .inf' yields a clean validation error instead of crashing (#3525)
+- docs(integrations): document the 'integration list --catalog' flag (#3530)
+- fix(workflows): fail fan-in loudly on a non-string wait_for entry (#3579)
+- fix(workflows): fail fan-out loudly on a truthy non-mapping step template (#3537)
+- fix(workflows): reject a non-string prompt in prompt-step validate() (#3582)
+- fix(workflows): route 'workflow status --json' errors to stderr (#3520)
+- fix(integrations): Forge dispatches hyphenated /speckit-<cmd> invocations (#3529)
+- chore: release 0.13.0, begin 0.13.1.dev0 development (#3588)
+
+## [0.13.0] - 2026-07-17
+
+### Changed
+
+- fix(auth): Azure DevOps az-CLI token acquisition returns None on undecodable output (#3527)
+- feat(extensions): add assess idea assessment pipeline extension (#3568)
+- fix(bundle): surface a clean BundlerError on a malformed bundle download URL (#3586)
+- Add OKF Knowledge Bundle Generator extension to community catalog (#3585)
+- Update Autonomous Run Governance preset to v0.2.2 (#3584)
+- docs: update extension guide PyPI upgrade guidance (#3578)
+- fix(presets): raise PresetValidationError, not raw ValueError, on malformed catalog URL (#3576)
+- chore(deps): bump github/codeql-action/init from 4.36.2 to 4.37.1 (#3571)
+- docs: align README hero tagline and subtitle with docs/index.md (#3581)
+- chore: release 0.12.18, begin 0.12.19.dev0 development (#3583)
+
+## [0.12.18] - 2026-07-17
+
+### Changed
+
+- chore(deps): bump actions/setup-dotnet from 5.4.0 to 6.0.0 (#3574)
+- chore(deps): bump actions/stale from 10.3.0 to 10.4.0 (#3572)
+- chore(deps): bump actions/setup-node from 6.4.0 to 7.0.0 (#3570)
+- docs: weave harness/SDLC framing into landing page (#3567)
+- docs: reframe SDD positioning, modernize install, and de-duplicate walkthroughs (#3565)
+- docs: document extensions.yml hook configuration (#3563)
+- docs: refresh landing page ecosystem stats (#3561)
+- [extension] Add Dotdog extension to community catalog (#3558)
+- Update DocGuard — CDD Enforcement to v0.33.0 (#3559)
+- chore: release 0.12.17, begin 0.12.18.dev0 development (#3560)
+
+## [0.12.17] - 2026-07-16
+
+### Changed
+
+- fix(extensions): resolve __SPECKIT_COMMAND tokens in auto-registered skills (#3544)
+- fix(workflows): fail if/switch steps on non-list branch instead of crashing (#3515)
+- feat(integrations): add Grok Build skills-based integration (#3535)
+- fix(extensions/git): reject negative -Number in create-new-feature-branch.ps1 (#3538)
+- test: cover preset constitution seeding through init CLI (#3297)
+- fix(integration): preserve ai_skills on `use` for skills-mode Copilot (#3550) (#3551)
+- [extension] Add Figma Starter extension to community catalog (#3547)
+- [extension] Add Spec-Kit BDD extension to community catalog (#3548)
+- [extension] Update Quality Gates (Enforcement Layer) extension to v0.3.2 (#3542)
+- chore: release 0.12.16, begin 0.12.17.dev0 development (#3549)
+
+## [0.12.16] - 2026-07-15
+
+### Changed
+
+- fix(workflows): raise a clear error, not a cryptic crash, on non-string filter args (#3522)
+- feat(workflows): expose workflow source directory to steps (#3469)
+- fix(workflows): fan-out max_concurrency .inf falls back to sequential, not crash (#3521)
+- Update Coding Standards Drift Control extension to v0.4.0 (#3540)
+- fix(presets): seed constitution from preset constitution-template (#3272) (#3276)
+- docs: add PyPI as second supported install route (#3425) (#3516)
+- fix(workflows): fail while/do-while steps on non-list steps instead of crashing (#3519)
+- Add PatchWarden Evidence Pack extension to community catalog (#3514)
+- feat(extensions): port git extension scripts to Python (#3400)
+- chore: release 0.12.15, begin 0.12.16.dev0 development (#3513)
+
+## [0.12.15] - 2026-07-14
+
+### Changed
+
+- Update Autonomous Run Governance preset to v0.1.4 (#3511)
+- fix(workflows): raise catalog error, not raw ValueError, on a malformed catalog URL (#3484)
+- fix(workflows): evaluate 'in'/'not in' safely on a non-iterable right operand (#3447) (#3468)
+- fix: add trailing newline to init-options.json output (#3509)
+- feat(workflows): align workflow CLI with extension command surface (#3419)
+- fix(extensions): stop env-var config leaking across prefix-colliding extension IDs (#3497)
+- fix(integrations): escape control characters in goose recipe YAML renderer (#3384)
+- [extension] Update DocGuard — CDD Enforcement extension to v0.32.0 (#3489)
+- [extension] Add Multi-Repo Branch Sync extension to community catalog (#3411)
+- chore: release 0.12.14, begin 0.12.15.dev0 development (#3506)
+
+## [0.12.14] - 2026-07-13
+
+### Changed
+
+- [extension] Add Spec Kit Memory extension to community catalog (#3455)
+- Add Test-First Governance preset to community catalog (#3504)
+- Add Autonomous Run Governance preset to community catalog (#3501)
+- fix(workflows): validate command step input/options are mappings (#3262)
+- fix(presets): resolve() honors manifest-declared file: for installed presets (#3351)
+- fix(init): don't block on confirmation for 'init --here' without a TTY (#3236)
+- [extension] Add Quality Gates (Enforcement Layer) extension to community catalog (#3431)
+- fix(integrations): exit cleanly on unbalanced quote in --integration-options (#3457) (#3466)
+- fix(integrations): declare kiro-cli multi-install safe (#3471) (#3485)
+- fix(workflows): fail fan-in step on non-list wait_for instead of crashing (#3482)
+- chore: release 0.12.13, begin 0.12.14.dev0 development (#3498)
+
+## [0.12.13] - 2026-07-13
+
+### Changed
+
+- fix(workflows): fail switch step on non-mapping cases instead of crashing (#3481)
+- Cleanup agent-file-template.md (#2579)
+- fix: mark Kiro integration as multi-install safe (#3472)
+- fix: rewrite extension-relative subdir paths in generated command bodies (#3444)
+- fix(templates): point constitution sync checklist at installed command files (#3418)
+- feat(workflows): make shell step timeout configurable (#3327) (#3328)
+- docs: clarify that release tags keep the leading v prefix (#3463)
+- fix(workflows): don't crash on membership test against a non-iterable (#3448)
+- fix(workflows): if-step validate accepts falsy non-list else (#3264)
+- chore: release 0.12.12, begin 0.12.13.dev0 development (#3490)
+
+## [0.12.12] - 2026-07-13
+
+### Changed
+
+- fix(extensions): set-priority repairs corrupted boolean priority (#3268)
+- fix(presets): set-priority repairs corrupted boolean priority (#3269)
+- fix(workflows): engine loop cap ignores bool max_iterations (#3270)
+- docs(bundles): document --integration on 'bundle update' (#3271)
+- fix(workflows): harden catalog.py against mis-shaped registry & non-string fields (#3375)
+- Add Verify Review Ship extension to community catalog (#3450)
+- fix(bundle): reject file:// / local download_url — catalog URLs are HTTPS-only (#3344)
+- fix(extensions): handle prefix-colliding env vars in _get_env_config (#3350)
+- docs: document copilot skills mode (--skills) and markdown deprecation (#3313)
+- chore: release 0.12.11, begin 0.12.12.dev0 development (#3460)
+
+## [0.12.11] - 2026-07-10
+
+### Changed
+
+- fix(agent-context): discover nested plan.md in scoped layouts (#3024) (#3301)
+- fix(auth): return no matches, not raw ValueError, for a malformed URL (#3437)
+- fix(catalogs): raise catalog error, not raw ValueError, on a malformed URL (#3435)
+- fix(bundler): raise BundlerError, not raw ValueError, on a malformed catalog URL (#3433)
+- chore: add pre-commit config and fix trailing whitespace/end-of-file (#3430)
+- Add EARS Requirements Syntax extension to community catalog (#3407)
+- Add Spec Kit Figma extension to community catalog (#3408)
+- fix(workflows): report validation errors instead of crashing on non-string workflow.yml scalars (#3421)
+- fix(templates): remove self-referencing path in plan-template.md note (#3417)
+- chore: release 0.12.10, begin 0.12.11.dev0 development (#3453)
+
+## [0.12.10] - 2026-07-10
+
+### Changed
+
+- chore(deps): bump astral-sh/setup-uv from 8.2.0 to 8.3.2 (#3439)
+- chore(deps): bump DavidAnson/markdownlint-cli2-action (#3438)
+- fix(templates): correct phase numbering in plan.md (#3416)
+- fix(git-ext): honor explicit -Number 0 in PowerShell branch creation (#3412)
+- docs: add 'spectatui' entry to friends.md (#3362)
+- test: pin interpreter probe so py-template render test passes on Windows (#3428)
+- feat(workflows): make shell step timeout configurable (#3404)
+- fix: find plans in nested spec directories (#3405)
+- feat(templates): add py: lines to command templates' scripts frontmatter (#3403)
+- chore: release 0.12.9, begin 0.12.10.dev0 development (#3426)
+
+## [0.12.9] - 2026-07-09
+
+### Changed
+
+- fix(integrations): skip Windows Store python3 alias stub in resolve_python_interpreter (#3385)
+- fix(integrations): escape control characters in SKILL.md frontmatter (#3399)
+- fix(workflows): apply chained expression filters left-to-right (#3339)
+- fix(scripts): resolve invoke_separator by parse success, not python3 availability (#3304) (#3320)
+- fix(shared-infra): refresh_shared_templates preserves recovered user files (#3378)
+- fix(agents): resolve skill placeholders in Goose (yaml) command output (#3374)
+- fix(bundler): enforce version pin on bundled preset/extension installs (#3377)
+- Update Golden Demo extension to v0.3.0 (#3394)
+- test: isolate integration test home (#3144)
+- chore: release 0.12.8, begin 0.12.9.dev0 development (#3410)
+
+## [0.12.8] - 2026-07-08
+
+### Changed
+
+- [extension] Add LLM Wiki extension to community catalog (#3361)
+- Docs: Document missing CLI flags and integrations (#3182)
+- Docs: Remove Cursor from CLI check list in README (#3184)
+- feat(extensions): port update-agent-context to Python (#3387)
+- fix(scripts): fall through to grep/sed when python3 is a broken stub in feature.json parser (#3312)
+- fix(toml): escape control characters so generated command files parse (#3341)
+- fix(cli): exit cleanly on malformed IPv6 URLs in `extension`/`preset`/`workflow add` (#3369)
+- fix(github-http): return None on malformed GHES port instead of raising (#3379)
+- fix(integrations): guard _sha256 against unreadable managed files (#3376)
+- chore: release 0.12.7, begin 0.12.8.dev0 development (#3398)
+
+## [0.12.7] - 2026-07-07
+
+### Changed
+
+- fix(bundler): bundle update uninstalls components dropped by new version (#3353)
+- fix(workflows): route run/resume errors to stderr under --json (#3352)
+- fix(workflows): fan-in validate() rejects non-mapping output (#3349)
+- fix(workflows): shell step validate() rejects non-string run (#3348)
+- fix(integrations): agy honors SPECKIT_INTEGRATION_AGY_EXTRA_ARGS (#3347)
+- Add Orchestration Task Context Management extension to community catalog (#3372)
+- Update DocGuard — CDD Enforcement extension to v0.30.0 (#3371)
+- Update Ripple extension to v1.1.0 (#3370)
+- feat(integrations): generalize post-processing to all format types (#3311)
+- chore: release 0.12.6, begin 0.12.7.dev0 development (#3393)
+
+## [0.12.6] - 2026-07-07
+
+### Changed
+
+- fix(bundler): validate catalog URLs in `catalog add` (HTTPS-only, require host) (#3367)
+- Update Ralph Loop extension to v1.2.1 (#3365)
+- fix extension-local script path rewriting (#3364)
+- Add Charter extension to community catalog (#3363)
+- feat(scripts): add Python check-prerequisites PoC (#3302)
+- test: reduce registry manifest test repetition (#3146)
+- fix(integrations): hermes honors SPECKIT_INTEGRATION_HERMES_EXTRA_ARGS (#3346)
+- fix(extensions): coerce non-mapping YAML config roots to {} in ConfigManager (#3345)
+- fix(yaml): pin goose recipe prompt block-scalar indentation (#3343)
+- chore: release 0.12.5, begin 0.12.6.dev0 development (#3381)
+
+## [0.12.5] - 2026-07-06
+
+### Changed
+
+- fix(workflows): match gate reject option case-insensitively (#3335)
+- fix(bundler): reject host-less catalog URLs in adapters (use hostname, not netloc) (#3333)
+- fix(bundler): resolve catalog search at highest-precedence source before filtering (#3331)
+- fix(workflows): compare non-numeric strings lexicographically instead of returning False (#3323)
+- fix(workflows): quote-aware interpolation so a literal }} in a filter arg doesn't break multi-expression templates (#3307)
+- Support namespaced git feature branch templates (#3293)
+- chore(deps): bump actions/setup-dotnet from 5.3.0 to 5.4.0 (#3315)
 - fix(integrations): cursor-agent honors executable/extra-args env overrides (#3265)
-- chore: sync fork with upstream main through 0.12.5 release baseline
+- docs: drop stale kimi KIMI.md->AGENTS.md migration note (#3291)
+- chore: release 0.12.4, begin 0.12.5.dev0 development (#3305)
 
 ## [0.12.4] - 2026-07-02
 

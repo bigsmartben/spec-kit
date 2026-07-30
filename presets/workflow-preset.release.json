@@ -1,7 +1,7 @@
 {
   "artifact": {
-    "name": "spec-kit-workflow-preset-v3.1.1.zip",
-    "sha256": "418b28ddca87a1e105df700c9063262d3a77d815cd6ac6fa6dd864e7b13d6768"
+    "name": "spec-kit-workflow-preset-v3.2.0.zip",
+    "sha256": "4215f409a81a017d9ecb3050623007c5d1d881920fc42a7777f94777ff1fb279"
   },
   "files": [
     {
@@ -10,7 +10,7 @@
     },
     {
       "path": "CHANGELOG.md",
-      "sha256": "59a583460843504156209338956f24334cbe90933bab8736d9b864dd5b0d11fc"
+      "sha256": "096623162acd4a80f087359bb9616e576b44fae45c6c014006bddf26084b8ea2"
     },
     {
       "path": "LICENSE",
@@ -18,11 +18,11 @@
     },
     {
       "path": "README.md",
-      "sha256": "69a358dd0fb5ccfefd49429797bbad8d77b43783bb3263fc0ba7ed289c714b2e"
+      "sha256": "ddd3fd57ab57e98e0ac3d0c7eed0143218d831db9dda5ef627e32c93cc1fc3a0"
     },
     {
       "path": "commands/speckit.analyze.md",
-      "sha256": "5fbd1e926038c6d587fd120851af4fd4c4153a678780113eeeaccc76e90cf0e0"
+      "sha256": "632bea1039cdeb2c0dabe8ce7a11dbba448a6d2f28e7e703c12392f488dbe7d1"
     },
     {
       "path": "commands/speckit.checklist.md",
@@ -38,23 +38,23 @@
     },
     {
       "path": "commands/speckit.plan.md",
-      "sha256": "bd9a75332655abbaa48f9d7a2673aa084090cd7069e240893d8926a460adc3a0"
+      "sha256": "e82cc984ab6d898ea4358cc1cc7a80d4b32c43fbd89bd408bb8ab41c20acead1"
     },
     {
       "path": "commands/speckit.specify.md",
-      "sha256": "8c5c744f42265223ce807b38e0a0626b59125bd88f253fb9449c670e198962c6"
+      "sha256": "19bc99aa51d826721d49c0a4fe406d15d5f20bb6b82038465986824bdd6ae093"
     },
     {
       "path": "commands/speckit.tasks.md",
-      "sha256": "a26f2b305cc99505bfbeb80a50e1b812c949b634e1a12780c0d5247374876339"
+      "sha256": "31ddb13915bc447e8bd471e501bd85bad1f939d54063f872ba1a65280e816cb8"
     },
     {
       "path": "docs/extension-governance.md",
-      "sha256": "feddb04f5a80eed12d0439a6c56eb7590df9b20f9cb7079ef9e612e2f0a5cab2"
+      "sha256": "7a19c10f824371b27e9233f4699ffe8f1bf04326ed93b1061cf04f9d378e0232"
     },
     {
       "path": "preset.yml",
-      "sha256": "9722b3121cba934f2ebd5ad77ed1c4d43eaa64c4c7e5f08fed43b1e94786f4a4"
+      "sha256": "97387ed796ade8df30f2385b8864c4b3affd325e30c15554f24f51df1442b94e"
     },
     {
       "path": "requirements-dev.txt",
@@ -126,7 +126,7 @@
     },
     {
       "path": "templates/plan-template.md",
-      "sha256": "10b9da0be3591bac4272efd424e2019e79e828297a4907939bf9d734ee00011c"
+      "sha256": "68069b9e8395951209c7afc3fc7ded4d51b8e1f31cb56de2752d6d5824a733dc"
     },
     {
       "path": "templates/quickstart-template.md",
@@ -146,7 +146,7 @@
     },
     {
       "path": "templates/requirements/visual-gate.md",
-      "sha256": "3c25de98d60f7f5f4e5352c1c8d0054b73b6c1c3ceeeb0d56c3f1d364221a828"
+      "sha256": "f5d4993d015f726d369de8ede3b0065fe8f5c6412a6b306cacffdc8fb43f41a4"
     },
     {
       "path": "templates/sequences-template.md",
@@ -154,7 +154,7 @@
     },
     {
       "path": "templates/spec-template.md",
-      "sha256": "400116470fc3c4dc9222eaf16b48a9f03b383158cfc271f915151cfc599dbe6a"
+      "sha256": "db0b7fe137cd48d7c97f037592704629b1b9d60aee8e57692bea6701d6540930"
     },
     {
       "path": "templates/test-readiness-template.md",
@@ -166,7 +166,7 @@
     },
     {
       "path": "templates/ui-ux-design-template.md",
-      "sha256": "deda68c43af32410e529b4addde3d86fabdcce37a7251ae6975a04eaefef53f5"
+      "sha256": "a0a86e5a31df93c295e31880bb2af6d65ce3a08949eca7f79bb144645b9b5ef0"
     },
     {
       "path": "tests/contracts/speckit-cross-agent-protocol.md",
@@ -174,23 +174,23 @@
     },
     {
       "path": "tests/fixtures/plan_bundles/async_retry_compensation.json",
-      "sha256": "4d875ff6e343aea2c518c974ca6c8d659361edb768ad24d436f24cf1d36d5864"
+      "sha256": "9ec8e69848b0cf20bcfc365e444ebf00d94459cbd8032547ab7d70ec0b78464c"
     },
     {
       "path": "tests/fixtures/plan_bundles/minimal_repository.json",
-      "sha256": "86349398d9168146a9c6c79f1980eef2cd27e14c3565aa7621da9f2483df765e"
+      "sha256": "893c4b50845ad2d62312446c0c6461785f8c55ee869fa8a0eb8c63ebb3656bb3"
     },
     {
       "path": "tests/fixtures/plan_bundles/non_ui_single_interface.json",
-      "sha256": "fe62e206f1167071064e840bde44c3848203953db3af7b381364d10e6347d34d"
+      "sha256": "4ada23a46878a14f0788315b652e0613bbe306aeac988eca012487c7f71941fa"
     },
     {
       "path": "tests/fixtures/plan_bundles/ui_only.json",
-      "sha256": "cb653d0d759e156641e6d46943c51b889730790ecd8ce293edf98447c5e90d01"
+      "sha256": "3d3f47c1b5d1064456d6f9c02345cdf045af07066ab627217ef7ca1131576246"
     },
     {
       "path": "tests/test_preset_contract.py",
-      "sha256": "f5382ee7bd11720781057abecf2a5a39ed18e069a3adaedf2fb38ad2a1e0027a"
+      "sha256": "d4182caa33afc838ac9296144d30e1298a7b3b67b7f24c6aca4fc6c3b6a742ea"
     },
     {
       "path": "validators/__init__.py",
@@ -198,7 +198,7 @@
     },
     {
       "path": "validators/speckit_analyze_contract.py",
-      "sha256": "8f108da51daf1f582781bcf9833946ec8bf4e99131bb0561513cd24ea1f44394"
+      "sha256": "5cc89e5987b139622dd6544b4e60ca04e88ccb52a3ddfa3221cfcfc28411a4f1"
     },
     {
       "path": "validators/speckit_behavior_contract.py",
@@ -206,7 +206,15 @@
     },
     {
       "path": "validators/speckit_plan_contract.py",
-      "sha256": "e724eede9933107c2a627d49a8b0178ebe6b6433fd7e0dc89ee4f6ae7852bb71"
+      "sha256": "db08c3417d86a58a16dffc1fe6fed77318752d03c8df07502c538df55db21045"
+    },
+    {
+      "path": "validators/speckit_spec_contract.py",
+      "sha256": "072845c892da168a263c3790df2da3363d03db33effec28b8a2956633e46f3b5"
+    },
+    {
+      "path": "validators/speckit_tasks_contract.py",
+      "sha256": "96f9813d5e4038af001375b62bb5779ebcf87a6353b62c1510452c4690122cdf"
     },
     {
       "path": "validators/speckit_test_contract.py",
@@ -215,7 +223,7 @@
   ],
   "preset_id": "workflow-preset",
   "schema_version": "1.0",
-  "source_commit": "393db34fb4e6a2a20e03038b774594a0b2edd6bd",
+  "source_commit": "bf99bc24cbbf4d1462fabed90ac47bc6101e8ebb",
   "source_repository": "https://github.com/bigsmartben/spec-kit-workflow-preset",
-  "version": "3.1.1"
+  "version": "3.2.0"
 }

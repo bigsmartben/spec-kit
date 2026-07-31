@@ -119,7 +119,7 @@ Y1 在 Test 主轴内的一个动作，不是完整的 Phase 0。
 | 职责 | 判断 Plan 是否有权开始，不产生任何设计 |
 | 输出 | 仅内存中的 PASS/BLOCKED 和阻塞报告 |
 | 门禁 | Architecture 完整；Checklist Revision 与 Spec 一致；Applicable Gate 全部 PASS |
-| 失败路由 | 产品问题回 Clarify；Provider Evidence 回 Intake；架构冲突回 Constitution |
+| 失败路由 | 产品问题回 Clarify；Provider Evidence 回来源证据流程；架构冲突回 Constitution |
 | 禁止 | 创建目录、写 BDD Draft、更新 `plan.md` |
 
 ## 8. Y1：Design Basis Projection

@@ -577,7 +577,7 @@ Preset/Extension issue 只有满足以下条件才可视为完成：
 ## 16. 推荐参考实现
 
 - `extensions/arch/`：Command、Template、Schema 和 Validator 分离。
-- `extensions/intake/`：Schema、语义 Contract、Readiness Validator 权威清晰。
+- `extensions/discovery/`：命令、语义 Contract、验证器责任边界清晰。
 - `presets/workflow-preset/`：阶段所有权、结构化行为契约，以及 Tasks 与标准 Core Implement 的边界。
 - `src/specify_cli/integrations/`：平台投影与功能提示词分离。
 - `src/specify_cli/agents.py`：Extension/Preset 共用的 command registrar。

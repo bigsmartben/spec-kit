@@ -623,6 +623,33 @@ class TestIntegrationUpgrade:
         assert result.exit_code == 0, result.output
         assert "upgraded successfully" in result.output
 
+    def test_upgrade_preserves_files_from_retired_extensions(self, tmp_path):
+        """Integration upgrades must not delete extension-owned project files."""
+        from typer.testing import CliRunner
+        from specify_cli import app
+
+        runner = CliRunner()
+        project = self._init_project(tmp_path, "copilot")
+        legacy_file = (
+            project
+            / ".specify"
+            / "extensions"
+            / "intake"
+            / "user-maintained-evidence.md"
+        )
+        legacy_file.parent.mkdir(parents=True, exist_ok=True)
+        legacy_file.write_text("preserve me\n", encoding="utf-8")
+
+        old = os.getcwd()
+        try:
+            os.chdir(project)
+            result = runner.invoke(app, ["integration", "upgrade"], catch_exceptions=False)
+        finally:
+            os.chdir(old)
+
+        assert result.exit_code == 0, result.output
+        assert legacy_file.read_text(encoding="utf-8") == "preserve me\n"
+
     def test_upgrade_allows_preset_managed_copilot_prompt_rewrite(self, tmp_path):
         from typer.testing import CliRunner
         from specify_cli import app

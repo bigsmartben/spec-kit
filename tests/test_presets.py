@@ -4879,27 +4879,22 @@ class TestBundledPresetLocator:
             "PLAN_OUTPUT_READY",
         ):
             assert marker in verify_run
-        assert (
-            'for extension_id in arch discovery inception intake preview repository-governance; do'
-            in verify_run
-        )
+        assert "test -f .specify/extensions/git/extension.yml" in verify_run
+        for extension_id in (
+            "discovery",
+            "inception",
+            "intake",
+            "preview",
+            "repository-governance",
+        ):
+            assert f"test ! -e .specify/extensions/{extension_id}" in verify_run
+        assert "for extension_id in arch discovery preview; do" in verify_run
         assert "test -f .specify/extensions/arch/extension.yml" not in verify_run
-        assert (
-            '/tmp/specify-community-smoke-venv/bin/specify extension remove "$extension_id" --force'
-            in verify_run
-        )
-        assert "find .claude/skills -maxdepth 1 -type d -name 'speckit-discovery-*'" in verify_run
-        assert "find .claude/skills -maxdepth 1 -type d -name 'speckit-inception-*'" in verify_run
-        assert "find .claude/skills -maxdepth 1 -type d -name 'speckit-intake-*'" in verify_run
         assert "speckit-preview-wireflow" in verify_run
-        assert "test ! -d .claude/skills/speckit-preview-wireflow" in verify_run
+        assert "test ! -e .claude/skills/speckit-preview-wireflow" in verify_run
         assert "test -f .claude/skills/speckit-preview-wireflow/SKILL.md" in verify_run
         assert (
             'grep -q "Input-to-Design Synthesis Pass" .claude/skills/speckit-preview-wireflow/SKILL.md'
-            in verify_run
-        )
-        assert (
-            "test ! -d .claude/skills/speckit-repository-governance-generate"
             in verify_run
         )
         assert (
@@ -4922,33 +4917,9 @@ class TestBundledPresetLocator:
             'test -f .claude/skills/speckit-discovery-contract/SKILL.md'
             in verify_run
         )
-        assert (
-            'test -f .claude/skills/speckit-inception-product/SKILL.md'
-            in verify_run
-        )
-        assert (
-            'test -f .claude/skills/speckit-inception-arch/SKILL.md'
-            in verify_run
-        )
-        assert (
-            'grep -q "INCEPTION_ARCH_COMMAND_RETIRED" .claude/skills/speckit-inception-arch/SKILL.md'
-            in verify_run
-        )
-        assert (
-            'test -f .claude/skills/speckit-intake-visual-design/SKILL.md'
-            in verify_run
-        )
-        assert (
-            'grep -q "visual design intake" .claude/skills/speckit-intake-visual-design/SKILL.md'
-            in verify_run
-        )
         assert "specify extension add discovery" in verify_run
         assert (
             'test -f .claude/skills/speckit-discovery-contract/SKILL.md'
-            in verify_run
-        )
-        assert (
-            'test -f .claude/skills/speckit-repository-governance-generate/SKILL.md'
             in verify_run
         )
 

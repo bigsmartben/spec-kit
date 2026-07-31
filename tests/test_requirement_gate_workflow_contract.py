@@ -38,7 +38,7 @@ def test_requirement_gate_metadata_and_blocker_routes_are_stable() -> None:
         assert field in checklist
     assert "[blocker:product-decision]" in command
     assert "[blocker:provider-evidence]" in command
-    assert "[return:intake]" in command
+    assert "[return:source-evidence]" in command
 
 
 def test_specify_hands_off_to_checklist_instead_of_plan() -> None:

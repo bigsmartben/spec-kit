@@ -1001,8 +1001,8 @@ class TestGitExtensionDefaultInstall:
         }
         assert expected_git_skills <= actual_git_skills
 
-    def test_community_extensions_and_workflow_preset_auto_installed(self, tmp_path):
-        """specify init installs default community extensions and the workflow preset."""
+    def test_minimal_extensions_and_workflow_preset_auto_installed(self, tmp_path):
+        """specify init installs only the core git extension plus the workflow preset."""
         from typer.testing import CliRunner
         from specify_cli import app
 
@@ -1021,20 +1021,13 @@ class TestGitExtensionDefaultInstall:
 
         assert result.exit_code == 0, f"init failed: {result.output}"
 
-        for extension_id in ("discovery", "git", "inception", "intake", "preview", "repository-governance"):
-            ext_dir = project / ".specify" / "extensions" / extension_id
-            assert (ext_dir / "extension.yml").exists(), f"{extension_id} was not installed"
+        assert (project / ".specify" / "extensions" / "git" / "extension.yml").exists()
+        for extension_id in ("discovery", "inception", "intake", "preview", "repository-governance"):
+            assert not (project / ".specify" / "extensions" / extension_id).exists()
 
         extensions_yml = project / ".specify" / "extensions.yml"
         hooks_data = yaml.safe_load(extensions_yml.read_text(encoding="utf-8"))
-        assert hooks_data["installed"] == [
-            "discovery",
-            "git",
-            "inception",
-            "intake",
-            "preview",
-            "repository-governance",
-        ]
+        assert hooks_data["installed"] == ["git"]
 
         preset_dir = project / ".specify" / "presets" / "workflow-preset"
         assert (preset_dir / "preset.yml").exists(), "workflow-preset was not installed"
@@ -1193,7 +1186,7 @@ class TestGitExtensionDefaultInstall:
         assert registry["presets"]["workflow-preset"]["enabled"] is True
 
     def test_git_default_keeps_community_defaults(self, tmp_path):
-        """Bundled community defaults install alongside the default git extension."""
+        """Optional and retired community extensions are absent from fresh init."""
         from typer.testing import CliRunner
         from specify_cli import app
 
@@ -1214,8 +1207,7 @@ class TestGitExtensionDefaultInstall:
         assert (project / ".specify" / "extensions" / "git" / "extension.yml").exists()
 
         for extension_id in ("discovery", "inception", "intake", "preview", "repository-governance"):
-            ext_dir = project / ".specify" / "extensions" / extension_id
-            assert (ext_dir / "extension.yml").exists(), f"{extension_id} was not installed"
+            assert not (project / ".specify" / "extensions" / extension_id).exists()
 
         assert (project / ".specify" / "presets" / "workflow-preset" / "preset.yml").exists()
 

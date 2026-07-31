@@ -229,9 +229,9 @@ class TestExtensionManifest:
 
         assert CORE_COMMAND_NAMES == expected
 
-    @pytest.mark.parametrize("extension_id", ("arch", "preview", "repository-governance"))
-    def test_bundled_default_catalogs_match_manifest(self, extension_id):
-        """Bundled extension packages, catalogs, and default command lists stay aligned."""
+    @pytest.mark.parametrize("extension_id", ("arch", "discovery", "preview"))
+    def test_bundled_opt_in_catalogs_match_manifest(self, extension_id):
+        """Bundled opt-in packages and catalogs stay aligned without becoming defaults."""
         from tests.integrations.community_defaults import DEFAULT_EXTENSION_COMMANDS
 
         repo_root = Path(__file__).resolve().parent.parent
@@ -245,7 +245,6 @@ class TestExtensionManifest:
         bundled_entry = bundled_catalog["extensions"][extension_id]
         community_entry = community_catalog["extensions"][extension_id]
         manifest_repository = manifest.data["extension"]["repository"]
-        manifest_commands = tuple(command["name"] for command in manifest.commands)
         default_commands = tuple(
             command
             for command in DEFAULT_EXTENSION_COMMANDS
@@ -259,39 +258,8 @@ class TestExtensionManifest:
             assert entry["repository"] == manifest_repository
             assert entry["provides"]["commands"] == len(manifest.commands)
 
-        assert community_entry["download_url"].endswith(f"/refs/tags/v{manifest.version}.zip")
-        if extension_id == "arch":
-            # Architecture remains an opt-in extension; catalog parity does not
-            # imply that init registers its commands by default.
-            assert default_commands == ()
-        else:
-            assert default_commands == manifest_commands
-
-    def test_bundled_inception_catalog_matches_manifest(self):
-        """Inception is bundled locally but not mirrored into the community catalog."""
-        from tests.integrations.community_defaults import DEFAULT_EXTENSION_COMMANDS
-
-        repo_root = Path(__file__).resolve().parent.parent
-        manifest = ExtensionManifest(repo_root / "extensions" / "inception" / "extension.yml")
-        bundled_catalog = json.loads(
-            (repo_root / "extensions" / "catalog.json").read_text(encoding="utf-8")
-        )
-        bundled_entry = bundled_catalog["extensions"]["inception"]
-        manifest_repository = manifest.data["extension"]["repository"]
-        manifest_commands = tuple(command["name"] for command in manifest.commands)
-        default_commands = tuple(
-            command
-            for command in DEFAULT_EXTENSION_COMMANDS
-            if command.startswith("speckit.inception.")
-        )
-
-        assert bundled_entry["name"] == manifest.name
-        assert bundled_entry["version"] == manifest.version
-        assert bundled_entry["description"] == manifest.description
-        assert bundled_entry["repository"] == manifest_repository
-        assert bundled_entry["bundled"] is True
-        assert bundled_entry["provides"]["commands"] == len(manifest.commands)
-        assert default_commands == manifest_commands
+        assert community_entry["download_url"].endswith(".zip")
+        assert default_commands == ()
 
     def test_missing_required_field(self, temp_dir):
         """Test manifest missing required field."""

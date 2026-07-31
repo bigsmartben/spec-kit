@@ -4651,7 +4651,7 @@ class TestBundledPresetLocator:
 
         assert catalog_updated_at >= datetime(2026, 6, 18, tzinfo=timezone.utc)
         assert entry["bundled"] is True
-        assert entry["version"] == "3.2.0"
+        assert entry["version"] == "3.2.1"
         assert entry["version"] == manifest["preset"]["version"]
         assert entry["repository"] == manifest["preset"]["repository"]
         assert entry["requires"]["speckit_version"] == manifest["requires"]["speckit_version"]

@@ -12,5 +12,5 @@ requires:
 provides:
   commands:
     - name: speckit.selftest.extension
-      file: commands/selftest.md
+      file: commands/speckit.selftest.extension.md
       description: Validate the lifecycle of an extension from the catalog.

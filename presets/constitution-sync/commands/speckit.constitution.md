@@ -31,16 +31,13 @@ so the dependent artifacts reflect the amended principles:
    constitution adds/removes mandatory sections or constraints.
 3. Read `.specify/templates/tasks-template.md` and ensure task categorization reflects new or
    removed principle-driven task types (e.g., observability, versioning, testing discipline).
-4. Read each installed Spec Kit command file for your agent (including this one) — named
-   `speckit.*` or `speckit-*` (dot or hyphen depending on the agent), or laid out as
-   `speckit-<name>/SKILL.md` for skills-based integrations, e.g. in `.github/agents/`,
-   `.github/skills/`, `.claude/skills/`, or your agent's equivalent commands directory — to verify
-   no outdated references (CLAUDE-only or other agent-specific names) remain when generic guidance
-   is required. **Only hand-edit a command file if it is a project-local file not managed by a
-   preset or extension.** Command files that are composed from the resolution stack (anything
-   provided or wrapped by a preset/extension) must be regenerated through the stack — do **not**
-   edit them in place, because reconciliation (`specify integration use`, `specify integration
-   upgrade`, or any preset/extension install/remove) will clobber the edits.
+4. Read the active integration manifest under `.specify/integrations/` and use its tracked paths
+   to enumerate the installed Spec Kit command artifacts, including this command. Verify that
+   agent-neutral guidance contains no stale agent-specific names. **Only hand-edit an artifact
+   when it is project-local and absent from preset or extension ownership records.** Artifacts
+   composed from the resolution stack must be regenerated through that stack — do **not** edit
+   them in place, because reconciliation (`specify integration use`, `specify integration upgrade`,
+   or any preset/extension install/remove) will replace those edits.
 5. Read any runtime guidance docs (e.g., `README.md`, `docs/quickstart.md`, or agent-specific
    guidance files if present) and update references to principles that changed.
 

@@ -19,7 +19,7 @@ class TestCopilotIntegration:
         assert copilot.config["folder"] == ".github/"
         assert copilot.config["commands_subdir"] == "agents"
         assert copilot.registrar_config["extension"] == ".agent.md"
-        assert copilot.context_file == ".github/copilot-instructions.md"
+        assert not hasattr(copilot, "context_file")
 
     def test_command_filename_agent_md(self):
         copilot = get_integration("copilot")
@@ -660,7 +660,7 @@ class TestCopilotSkillsMode:
     def test_skills_setup_does_not_create_context_file(self, tmp_path):
         copilot = self._make_copilot()
         self._setup_skills(copilot, tmp_path)
-        ctx_path = tmp_path / copilot.context_file
+        ctx_path = tmp_path / ".github" / "copilot-instructions.md"
         assert not ctx_path.exists()
 
     # -- CLI integration test ---------------------------------------------

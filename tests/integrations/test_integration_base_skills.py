@@ -2,13 +2,13 @@
 
 Each per-agent test file sets ``KEY``, ``FOLDER``, ``COMMANDS_SUBDIR``,
 and ``REGISTRAR_DIR``, then inherits all verification logic from
-``SkillsIntegrationTests``. ``CONTEXT_FILE`` is optional for legacy
-integrations that still own a context file directly.
+``SkillsIntegrationTests``.
 
 Mirrors ``MarkdownIntegrationTests`` / ``TomlIntegrationTests`` closely,
 adapted for the ``speckit-<name>/SKILL.md`` skills layout.
 """
 
+import json
 import os
 
 import yaml
@@ -28,14 +28,12 @@ class SkillsIntegrationTests:
         FOLDER: str           — e.g. ".agents/"
         COMMANDS_SUBDIR: str  — e.g. "skills"
         REGISTRAR_DIR: str    — e.g. ".agents/skills"
-        CONTEXT_FILE: str     — optional legacy context file, e.g. "AGENTS.md"
     """
 
     KEY: str
     FOLDER: str
     COMMANDS_SUBDIR: str
     REGISTRAR_DIR: str
-    CONTEXT_FILE: str | None = None
 
     # -- Registration -----------------------------------------------------
 
@@ -63,9 +61,9 @@ class SkillsIntegrationTests:
         assert i.registrar_config["args"] == "$ARGUMENTS"
         assert i.registrar_config["extension"] == "/SKILL.md"
 
-    def test_context_file(self):
+    def test_integration_declares_no_context_file(self):
         i = get_integration(self.KEY)
-        assert i.context_file == self.CONTEXT_FILE
+        assert not hasattr(i, "context_file")
 
     # -- Setup / teardown -------------------------------------------------
 
@@ -224,19 +222,14 @@ class SkillsIntegrationTests:
             body = parts[2].strip() if len(parts) >= 3 else ""
             assert len(body) > 0, f"{f} has empty body"
 
-    def test_plan_references_correct_context_file(self, tmp_path):
-        """The generated plan skill must reference this integration's context file."""
+    def test_plan_skill_has_no_context_placeholder(self, tmp_path):
+        """The CLI must not project context-file ownership into a plan skill."""
         i = get_integration(self.KEY)
-        if not i.context_file:
-            return
         m = IntegrationManifest(self.KEY, tmp_path)
         i.setup(tmp_path, m)
         plan_file = i.skills_dest(tmp_path) / "speckit-plan" / "SKILL.md"
         assert plan_file.exists(), f"Plan skill {plan_file} not created"
         content = plan_file.read_text(encoding="utf-8")
-        assert i.context_file in content, (
-            f"Plan skill should reference {i.context_file!r} but it was not found"
-        )
         assert "__CONTEXT_FILE__" not in content, (
             "Plan skill has unprocessed __CONTEXT_FILE__ placeholder"
         )
@@ -285,34 +278,30 @@ class SkillsIntegrationTests:
 
         assert (foreign_dir / "SKILL.md").exists(), "Foreign skill was removed"
 
-    # -- Context section ---------------------------------------------------
+    # -- Context ownership -------------------------------------------------
 
-    def test_setup_upserts_context_section(self, tmp_path):
+    def test_setup_does_not_create_context_files(self, tmp_path):
         i = get_integration(self.KEY)
         m = IntegrationManifest(self.KEY, tmp_path)
         i.setup(tmp_path, m)
-        if i.context_file:
-            ctx_path = tmp_path / i.context_file
-            assert ctx_path.exists(), f"Context file {i.context_file} not created for {self.KEY}"
-            content = ctx_path.read_text(encoding="utf-8")
-            assert "<!-- SPECKIT START -->" in content
-            assert "<!-- SPECKIT END -->" in content
-            assert "read the current plan" in content
+        for rel_path in (
+            "AGENTS.md",
+            "CLAUDE.md",
+            ".github/copilot-instructions.md",
+            ".clinerules/specify-rules.md",
+        ):
+            assert not (tmp_path / rel_path).exists()
 
-    def test_teardown_removes_context_section(self, tmp_path):
+    def test_teardown_leaves_existing_context_file_intact(self, tmp_path):
         i = get_integration(self.KEY)
         m = IntegrationManifest(self.KEY, tmp_path)
+        ctx_path = tmp_path / "AGENTS.md"
+        original = "# User-authored instructions\n"
+        ctx_path.write_text(original, encoding="utf-8")
         i.setup(tmp_path, m)
         m.save()
-        if i.context_file:
-            ctx_path = tmp_path / i.context_file
-            content = ctx_path.read_text(encoding="utf-8")
-            ctx_path.write_text("# My Rules\n\n" + content + "\n# Footer\n", encoding="utf-8")
-            i.teardown(tmp_path, m)
-            remaining = ctx_path.read_text(encoding="utf-8")
-            assert "<!-- SPECKIT START -->" not in remaining
-            assert "<!-- SPECKIT END -->" not in remaining
-            assert "# My Rules" in remaining
+        i.teardown(tmp_path, m)
+        assert ctx_path.read_text(encoding="utf-8") == original
 
     # -- CLI integration flag -------------------------------------------------
 
@@ -358,7 +347,7 @@ class SkillsIntegrationTests:
         skills_dir = i.skills_dest(project)
         assert skills_dir.is_dir(), f"Skills directory {skills_dir} not created"
 
-    def test_init_options_includes_context_file(self, tmp_path):
+    def test_init_options_exclude_context_file(self, tmp_path):
         """specify init must not install or configure agent-context implicitly."""
         from typer.testing import CliRunner
         from specify_cli import app
@@ -375,6 +364,10 @@ class SkillsIntegrationTests:
         finally:
             os.chdir(old_cwd)
         assert result.exit_code == 0
+        init_options = json.loads(
+            (project / ".specify" / "init-options.json").read_text(encoding="utf-8")
+        )
+        assert "context_file" not in init_options
         ext_cfg_path = project / ".specify" / "extensions" / "agent-context" / "agent-context-config.yml"
         assert not ext_cfg_path.exists()
 
@@ -444,9 +437,6 @@ class SkillsIntegrationTests:
         ]
         files.append(".specify/extensions.yml")
         files.append(".specify/extensions/.registry")
-        # Agent context file (if set)
-        if i.context_file:
-            files.append(i.context_file)
         files.extend(bundled_community_default_files(self.KEY))
         return sorted(set(files))
 

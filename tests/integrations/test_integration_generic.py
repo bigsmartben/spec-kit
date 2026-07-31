@@ -32,9 +32,9 @@ class TestGenericIntegration:
         i = get_integration("generic")
         assert i.config["requires_cli"] is False
 
-    def test_context_file_is_agents_md(self):
+    def test_integration_declares_no_context_file(self):
         i = get_integration("generic")
-        assert i.context_file == "AGENTS.md"
+        assert not hasattr(i, "context_file")
 
     # -- Options ----------------------------------------------------------
 

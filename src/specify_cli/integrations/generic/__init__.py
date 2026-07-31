@@ -31,8 +31,6 @@ class GenericIntegration(MarkdownIntegration):
         "args": "$ARGUMENTS",
         "extension": ".md",
     }
-    context_file = "AGENTS.md"
-
     @classmethod
     def options(cls) -> list[IntegrationOption]:
         return [

@@ -89,8 +89,6 @@ class _CopilotSkillsHelper(SkillsIntegration):
         "args": "$ARGUMENTS",
         "extension": "/SKILL.md",
     }
-    context_file = ".github/copilot-instructions.md"
-
 
 class CopilotIntegration(IntegrationBase):
     """Integration for GitHub Copilot (VS Code IDE + CLI).
@@ -118,8 +116,6 @@ class CopilotIntegration(IntegrationBase):
         "args": "$ARGUMENTS",
         "extension": ".agent.md",
     }
-    context_file = ".github/copilot-instructions.md"
-
     CANONICAL_TO_NATIVE = {
         "session_start": "sessionStart",
         "pre_tool_use": "preToolUse",

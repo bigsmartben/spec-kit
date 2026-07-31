@@ -6,9 +6,9 @@ handoffs:
     prompt: Break the plan into tasks
     send: true
 scripts:
-  sh: scripts/bash/setup-plan.sh --json
-  ps: scripts/powershell/setup-plan.ps1 -Json
-  py: scripts/python/setup_plan.py --json
+  sh: scripts/bash/setup-plan.sh --json --paths-only
+  ps: scripts/powershell/setup-plan.ps1 -Json -PathsOnly
+  py: scripts/python/setup_plan.py --json --paths-only
 ---
 
 ## User Input

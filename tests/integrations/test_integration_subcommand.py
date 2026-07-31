@@ -11,7 +11,7 @@ import yaml
 from typer.testing import CliRunner
 
 from specify_cli import app
-from tests.conftest import strip_ansi
+from tests.conftest import requires_symlink, strip_ansi
 
 
 runner = CliRunner()
@@ -63,6 +63,14 @@ def _run_in_project(project, args):
         return runner.invoke(app, args, catch_exceptions=False)
     finally:
         os.chdir(old_cwd)
+
+
+def _remove_default_workflow_preset(project):
+    """Remove the default preset layer for tests focused on layout migration."""
+    result = _run_in_project(
+        project, ["preset", "remove", "workflow-preset"]
+    )
+    assert result.exit_code == 0, result.output
 
 
 def _write_invalid_manifest(project, key):
@@ -1541,7 +1549,7 @@ class TestIntegrationInstall:
         ])
         assert result.exit_code == 0, result.output
 
-        result = _run_in_project(project, ["extension", "add", "git"])
+        result = _run_in_project(project, ["extension", "add", "git", "--force"])
         assert result.exit_code == 0, f"extension add failed: {result.output}"
 
         registry_path = project / ".specify" / "extensions" / ".registry"
@@ -1594,7 +1602,7 @@ class TestIntegrationInstall:
         ])
         assert result.exit_code == 0, result.output
 
-        result = _run_in_project(project, ["extension", "add", "git"])
+        result = _run_in_project(project, ["extension", "add", "git", "--force"])
         assert result.exit_code == 0, f"extension add failed: {result.output}"
 
         registry_path = project / ".specify" / "extensions" / ".registry"
@@ -1631,7 +1639,7 @@ class TestIntegrationInstall:
         init_options["ai"] = []
         init_options_path.write_text(json.dumps(init_options), encoding="utf-8")
 
-        result = _run_in_project(project, ["extension", "add", "git"])
+        result = _run_in_project(project, ["extension", "add", "git", "--force"])
         assert result.exit_code == 0, f"extension add failed: {result.output}"
 
         registry_path = project / ".specify" / "extensions" / ".registry"
@@ -1666,7 +1674,7 @@ class TestIntegrationInstall:
         init_options_path = project / ".specify" / "init-options.json"
         init_options_path.write_text("{not valid json", encoding="utf-8")
 
-        result = _run_in_project(project, ["extension", "add", "git"])
+        result = _run_in_project(project, ["extension", "add", "git", "--force"])
         assert result.exit_code == 0, f"extension add failed: {result.output}"
 
         registry_path = project / ".specify" / "extensions" / ".registry"
@@ -1678,6 +1686,7 @@ class TestIntegrationInstall:
             "treated like a legacy project missing the file entirely (#2948)"
         )
 
+    @requires_symlink
     def test_extension_add_dangling_init_options_symlink_fails_closed(self, tmp_path):
         """A dangling init-options.json symlink must fail closed too, not be
         treated the same as "no file at all".
@@ -1701,7 +1710,7 @@ class TestIntegrationInstall:
         assert not init_options_path.exists()  # sanity: dangling
         assert init_options_path.is_symlink()
 
-        result = _run_in_project(project, ["extension", "add", "git"])
+        result = _run_in_project(project, ["extension", "add", "git", "--force"])
         assert result.exit_code == 0, f"extension add failed: {result.output}"
 
         registry_path = project / ".specify" / "extensions" / ".registry"
@@ -1943,7 +1952,7 @@ class TestIntegrationUse:
         opts = json.loads((project / ".specify" / "init-options.json").read_text(encoding="utf-8"))
         assert opts.get("ai_skills") is True, "precondition: init recorded skills mode"
 
-        result = _run_in_project(project, ["extension", "add", "git"])
+        result = _run_in_project(project, ["extension", "add", "git", "--force"])
         assert result.exit_code == 0, f"extension add failed: {result.output}"
 
         # Simulate a fresh process: `use` in real life runs in its own process
@@ -2043,7 +2052,10 @@ class TestIntegrationUse:
             "presets"
         ]["cmd-preset"]["registered_commands"]
         assert "codex" in registered, "use registers presets for the new active agent"
-        assert "claude" in registered, "the previous agent's registration is preserved"
+        assert "claude" not in registered, (
+            "the previous agent's registration is removed under single-active "
+            "projection"
+        )
 
     def test_use_reregisters_presets_highest_precedence_last(self, tmp_path):
         """When two enabled presets override the same command, the
@@ -2898,7 +2910,7 @@ class TestIntegrationSwitch:
         must be rescaffolded, not just written to metadata.
         """
         project = _init_project(tmp_path, "claude")
-        result = _run_in_project(project, ["extension", "add", "git"])
+        result = _run_in_project(project, ["extension", "add", "git", "--force"])
         assert result.exit_code == 0, f"extension add failed: {result.output}"
         result = _run_in_project(project, [
             "integration", "install", "codex",
@@ -3037,6 +3049,7 @@ class TestIntegrationUpgrade:
 
     def test_upgrade_default_refreshes_shared_script_refs_for_option_separator_change(self, tmp_path):
         project = _init_project(tmp_path, "copilot")
+        _remove_default_workflow_preset(project)
         template = project / ".specify" / "templates" / "plan-template.md"
         managed_script = project / ".specify" / "scripts" / "bash" / "check-prerequisites.sh"
         customized_script = project / ".specify" / "scripts" / "bash" / "setup-tasks.sh"
@@ -3152,6 +3165,7 @@ class TestIntegrationUpgrade:
     def test_upgrade_migrates_kilocode_legacy_dir(self, tmp_path):
         """Upgrade moves Kilo commands from .kilocode/workflows/ to .kilo/commands/."""
         project = _init_project(tmp_path, "kilocode")
+        _remove_default_workflow_preset(project)
         canonical, legacy = _move_kilocode_install_to_legacy_layout(project)
 
         old_commands = sorted(legacy.glob("speckit.*.md"))
@@ -3223,9 +3237,10 @@ class TestIntegrationUpgrade:
     def test_upgrade_reconciles_kilocode_legacy_extension_artifacts(self, tmp_path):
         """Kilo upgrade moves enabled extension commands to the canonical dir."""
         project = _init_project(tmp_path, "kilocode")
+        _remove_default_workflow_preset(project)
         canonical, legacy = _move_kilocode_install_to_legacy_layout(project)
 
-        result = _run_in_project(project, ["extension", "add", "git"])
+        result = _run_in_project(project, ["extension", "add", "git", "--force"])
         assert result.exit_code == 0, f"extension add failed: {result.output}"
         assert sorted(legacy.glob("speckit.git.*.md")), (
             "legacy Kilo should render the git extension under .kilocode/workflows"
@@ -3257,9 +3272,10 @@ class TestIntegrationUpgrade:
     ):
         """Legacy reconciliation must not clean disabled or user-owned files."""
         project = _init_project(tmp_path, "kilocode")
+        _remove_default_workflow_preset(project)
         canonical, legacy = _move_kilocode_install_to_legacy_layout(project)
 
-        result = _run_in_project(project, ["extension", "add", "git"])
+        result = _run_in_project(project, ["extension", "add", "git", "--force"])
         assert result.exit_code == 0, f"extension add failed: {result.output}"
         result = _run_in_project(project, ["extension", "disable", "git"])
         assert result.exit_code == 0, f"extension disable failed: {result.output}"
@@ -3293,7 +3309,7 @@ class TestIntegrationUpgrade:
     ):
         """Kilo cleanup stays agent-scoped without inactive extension backfill."""
         project = _init_project(tmp_path, "copilot", integration_options="--skills")
-        result = _run_in_project(project, ["extension", "add", "git"])
+        result = _run_in_project(project, ["extension", "add", "git", "--force"])
         assert result.exit_code == 0, f"extension add failed: {result.output}"
 
         skill = project / ".github" / "skills" / "speckit-git-feature" / "SKILL.md"
@@ -3367,6 +3383,7 @@ class TestIntegrationUpgrade:
         project = _init_project(
             tmp_path, "bob", integration_options="--legacy-commands"
         )
+        _remove_default_workflow_preset(project)
 
         commands = project / ".bob" / "commands"
         skills = project / ".bob" / "skills"
@@ -3421,8 +3438,9 @@ class TestIntegrationUpgrade:
         project = _init_project(
             tmp_path, "bob", integration_options="--legacy-commands"
         )
+        _remove_default_workflow_preset(project)
 
-        result = _run_in_project(project, ["extension", "add", "git"])
+        result = _run_in_project(project, ["extension", "add", "git", "--force"])
         assert result.exit_code == 0, f"extension add failed: {result.output}"
 
         commands = project / ".bob" / "commands"
@@ -3501,7 +3519,8 @@ class TestIntegrationUpgrade:
         project = _init_project(
             tmp_path, "bob", integration_options="--legacy-commands"
         )
-        result = _run_in_project(project, ["extension", "add", "git"])
+        _remove_default_workflow_preset(project)
+        result = _run_in_project(project, ["extension", "add", "git", "--force"])
         assert result.exit_code == 0, f"extension add failed: {result.output}"
 
         commands = project / ".bob" / "commands"
@@ -3826,7 +3845,8 @@ class TestIntegrationUpgrade:
         """
         # Active agent: copilot in skills mode → git extension renders as skills.
         project = _init_project(tmp_path, "copilot", integration_options="--skills")
-        result = _run_in_project(project, ["extension", "add", "git"])
+        _remove_default_workflow_preset(project)
+        result = _run_in_project(project, ["extension", "add", "git", "--force"])
         assert result.exit_code == 0, f"extension add failed: {result.output}"
 
         skill = project / ".github" / "skills" / "speckit-git-feature" / "SKILL.md"
@@ -3965,7 +3985,7 @@ class TestIntegrationUpgrade:
         """
         project = _init_project(tmp_path, "claude")
 
-        result = _run_in_project(project, ["extension", "add", "git"])
+        result = _run_in_project(project, ["extension", "add", "git", "--force"])
         assert result.exit_code == 0, f"extension add failed: {result.output}"
 
         cmd_file = project / ".claude" / "skills" / "speckit-git-feature" / "SKILL.md"
@@ -4006,7 +4026,7 @@ class TestIntegrationUpgrade:
             tmp_path, "copilot", integration_options="--skills"
         )
 
-        result = _run_in_project(project, ["extension", "add", "git"])
+        result = _run_in_project(project, ["extension", "add", "git", "--force"])
         assert result.exit_code == 0, f"extension add failed: {result.output}"
 
         skill_dir = project / ".github" / "skills" / "speckit-git-feature"

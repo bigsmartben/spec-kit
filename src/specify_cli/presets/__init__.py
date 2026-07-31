@@ -903,6 +903,8 @@ class PresetManager:
         two enabled presets override the same command — matching the
         priority stack documented for ``list_by_priority()``.
         """
+        import warnings
+
         if not agent_name:
             return
 
@@ -981,6 +983,11 @@ class PresetManager:
             pack_dir = self.presets_dir / pack_id
             manifest = resolver._get_manifest(pack_dir)
             if manifest is None:
+                warnings.warn(
+                    f"Cannot reconcile enabled preset '{pack_id}': "
+                    "preset.yml is missing.",
+                    stacklevel=2,
+                )
                 continue
 
             # Registration can write one command and then fail on a later
@@ -1440,9 +1447,21 @@ class PresetManager:
                         if name not in shared_names
                     ]
                 if command_names_to_unregister:
-                    self._unregister_commands(
-                        {agent_name: command_names_to_unregister}
-                    )
+                    if agent_config.get("extension") == "/SKILL.md":
+                        skill_names = [
+                            skill_name
+                            for command_name in command_names_to_unregister
+                            for skill_name in self._skill_names_for_command(
+                                command_name
+                            )
+                        ]
+                        self._delete_agent_preset_skills(
+                            agent_name, skill_names, pack_id
+                        )
+                    else:
+                        self._unregister_commands(
+                            {agent_name: command_names_to_unregister}
+                        )
                 new_registered_commands = copy.deepcopy(registered_commands)
                 new_registered_commands.pop(agent_name, None)
                 updates["registered_commands"] = new_registered_commands
@@ -2670,7 +2689,8 @@ class PresetManager:
                 "invoke_separator", "."
             )
         prefix = get_invocation_prefix(selected_ai, separator == "-")
-        return IntegrationBase.resolve_command_refs(body, separator, prefix)
+        resolved = IntegrationBase.resolve_command_refs(body, separator, prefix)
+        return IntegrationBase.normalize_slash_command_refs(resolved, separator)
 
     def _build_extension_skill_restore_index(self) -> Dict[str, Dict[str, Any]]:
         """Index extension-backed skill restore data by skill directory name."""
@@ -4036,6 +4056,19 @@ class PresetManager:
                     f"{exc}. The live constitution may be stale.",
                     stacklevel=2,
                 )
+
+        # Preset removal rewrites integration-owned command/skill files back
+        # to the surviving preset or core layer. Record those final bytes so
+        # the next integration upgrade does not misclassify the legitimate
+        # restoration as a user modification.
+        try:
+            from ..integrations._helpers import (
+                _refresh_active_integration_manifest,
+            )
+
+            _refresh_active_integration_manifest(self.project_root)
+        except (OSError, ValueError, json.JSONDecodeError):
+            pass
 
         return True
 

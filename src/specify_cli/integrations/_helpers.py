@@ -467,6 +467,7 @@ def _register_presets_for_agent(
 
         preset_mgr = PresetManager(project_root)
         preset_mgr.register_enabled_presets_for_agent(agent_key)
+        _refresh_active_integration_manifest(project_root)
     except Exception as preset_err:
         from .. import _print_cli_warning
 

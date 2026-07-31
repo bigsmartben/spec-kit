@@ -49,7 +49,6 @@ class TestClineIntegration(MarkdownIntegrationTests):
     FOLDER = ".clinerules/"
     COMMANDS_SUBDIR = "workflows"
     REGISTRAR_DIR = ".clinerules/workflows"
-    CONTEXT_FILE = ".clinerules/specify-rules.md"
 
     @pytest.mark.parametrize(
         "cmd_name, expected_filename",
@@ -107,7 +106,6 @@ class TestClineIntegration(MarkdownIntegrationTests):
             for f in created
             if "scripts" not in f.parts
             and f.suffix == ".md"
-            and f.name != i.context_file
         ]
         for f in cmd_files:
             assert f.exists()

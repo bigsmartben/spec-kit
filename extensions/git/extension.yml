@@ -36,6 +36,7 @@ provides:
   config:
     - name: "git-config.yml"
       template: "config-template.yml"
+      schema: "config.schema.json"
       description: "Git branching configuration"
       required: false
 

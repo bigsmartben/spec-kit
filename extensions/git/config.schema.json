@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/github/spec-kit/extensions/git/config.schema.json",
+  "title": "Git Branching Workflow Configuration",
+  "type": "object",
+  "properties": {
+    "branch_numbering": {
+      "type": "string",
+      "enum": ["sequential", "timestamp"]
+    },
+    "branch_template": {
+      "type": "string"
+    },
+    "branch_prefix": {
+      "type": "string"
+    },
+    "init_commit_message": {
+      "type": "string",
+      "minLength": 1
+    },
+    "commit_style": {
+      "type": "string",
+      "enum": ["fixed", "conventional"]
+    },
+    "auto_commit": {
+      "type": "object",
+      "properties": {
+        "default": {
+          "type": "boolean"
+        }
+      },
+      "patternProperties": {
+        "^(before|after)_[a-z0-9-]+$": {
+          "type": "object",
+          "required": ["enabled", "message"],
+          "properties": {
+            "enabled": {
+              "type": "boolean"
+            },
+            "message": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

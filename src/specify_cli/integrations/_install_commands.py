@@ -29,6 +29,7 @@ from ._helpers import (
     _reconcile_presets_for_active_agent,
     _refresh_init_options_speckit_version,
     _register_extensions_for_agent,
+    _register_presets_for_agent,
     _remove_integration_json,
     _resolve_integration_options,
     _resolve_script_type,
@@ -211,13 +212,23 @@ def integration_install(
         )
         raise typer.Exit(1)
 
-    _reconcile_presets_for_active_agent(
-        project_root,
-        continuing=(
-            "The integration was installed, but enabled presets may need "
-            "manual re-registration."
-        ),
-    )
+    if new_default == integration.key:
+        _register_presets_for_agent(
+            project_root,
+            integration.key,
+            continuing=(
+                "The integration was installed, but enabled presets may need "
+                "manual re-registration."
+            ),
+        )
+    else:
+        _reconcile_presets_for_active_agent(
+            project_root,
+            continuing=(
+                "The integration was installed, but enabled presets may need "
+                "manual re-registration."
+            ),
+        )
 
     name = (integration.config or {}).get("name", key)
     console.print(f"\n[green]✓[/green] Integration '{name}' installed successfully")
@@ -288,8 +299,9 @@ def integration_uninstall(
                         "extensions may need re-registration."
                     ),
                 )
-                _reconcile_presets_for_active_agent(
+                _register_presets_for_agent(
                     project_root,
+                    new_default,
                     continuing=(
                         "The fallback integration was selected, but enabled "
                         "presets may need manual re-registration."
@@ -361,8 +373,9 @@ def integration_uninstall(
                     "extensions may need re-registration."
                 ),
             )
-            _reconcile_presets_for_active_agent(
+            _register_presets_for_agent(
                 project_root,
+                new_default,
                 continuing=(
                     "The fallback integration was selected, but enabled presets "
                     "may need manual re-registration."

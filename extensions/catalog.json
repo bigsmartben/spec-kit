@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "updated_at": "2026-07-17T00:00:00Z",
+  "updated_at": "2026-07-31T00:00:00Z",
   "catalog_url": "https://raw.githubusercontent.com/github/spec-kit/main/extensions/catalog.json",
   "extensions": {
     "agent-context": {
@@ -85,54 +85,6 @@
         "core"
       ]
     },
-    "inception": {
-      "name": "SDD Inception",
-      "id": "inception",
-      "version": "2.0.0",
-      "description": "Guide optional product inception and redirect retired architecture inception to the Constitution stage",
-      "author": "bigsmartben",
-      "repository": "https://github.com/bigsmartben/spec-kit",
-      "license": "MIT",
-      "bundled": true,
-      "requires": {
-        "speckit_version": ">=0.8.10.dev0"
-      },
-      "provides": {
-        "commands": 2
-      },
-      "tags": [
-        "inception",
-        "sdd",
-        "product",
-        "migration",
-        "workflow"
-      ]
-    },
-    "intake": {
-      "name": "Intake",
-      "id": "intake",
-      "version": "0.2.0",
-      "description": "Normalize PRD, visual design, final static HTML delivery, and test-case evidence into SDD-ready intake artifacts",
-      "author": "bigsmartben",
-      "repository": "https://github.com/bigsmartben/spec-kit-intake",
-      "license": "MIT",
-      "bundled": true,
-      "requires": {
-        "speckit_version": ">=0.8.10.dev0"
-      },
-      "provides": {
-        "commands": 3,
-        "hooks": 1
-      },
-      "tags": [
-        "intake",
-        "sdd",
-        "requirements",
-        "validation",
-        "figma",
-        "static-html"
-      ]
-    },
     "preview": {
       "name": "Spec Kit Preview",
       "id": "preview",
@@ -160,7 +112,7 @@
       "name": "Spec Kit Discovery Extension",
       "id": "discovery",
       "version": "0.3.0",
-      "description": "Validate pre-development interface feasibility by finding the key interface design from uc.md, spec.md, or arch.md and producing one verified interface contract artifact",
+      "description": "Validate pre-development interface feasibility by finding the key interface design from uc.md, spec.md, or arch.md, validating that design with non-persistent evidence, and producing one verified interface contract artifact.",
       "author": "bigsmartben",
       "repository": "https://github.com/bigsmartben/spec-kit-discovery",
       "license": "MIT",
@@ -180,30 +132,6 @@
         "technical-validation",
         "pre-development",
         "validation"
-      ]
-    },
-    "repository-governance": {
-      "name": "Repository Governance",
-      "id": "repository-governance",
-      "version": "3.0.2",
-      "description": "Generate project-governance projections from Spec Kit metadata",
-      "author": "bigben",
-      "repository": "https://github.com/bigsmartben/spec-kit-agent-governance",
-      "license": "MIT",
-      "bundled": true,
-      "requires": {
-        "speckit_version": ">=0.8.0"
-      },
-      "provides": {
-        "commands": 1,
-        "hooks": 3
-      },
-      "tags": [
-        "governance",
-        "repository",
-        "ssot",
-        "agents",
-        "context"
       ]
     }
   }

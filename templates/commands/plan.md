@@ -44,7 +44,7 @@ Complete this read-only preflight before extension hooks or any planning write:
    Do not run hooks, create directories, copy/touch `plan.md`, or write any
    planning artifact. Route product-decision blockers to
    `__SPECKIT_COMMAND_CLARIFY__` and provider-evidence blockers to their
-   intake/provider workflow.
+   source-evidence/provider workflow.
 
 Planning Readiness is an in-memory aggregate. Never create
 `planning-readiness.md`.

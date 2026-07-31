@@ -92,12 +92,12 @@ Blocking items must declare their routing:
 
 ```markdown
 - [ ] CHK-SEC-003 [blocker:product-decision] [spec:FR-012] Is the guest export policy specified?
-- [ ] CHK-VIS-004 [blocker:provider-evidence] [return:intake] Is the approved design revision referenced?
+- [ ] CHK-VIS-004 [blocker:provider-evidence] [return:source-evidence] Is the approved design revision referenced?
 ```
 
 - `product-decision` means clarify may ask the user and update `spec.md`.
 - `provider-evidence` means the item remains blocked and returns to the
-  responsible intake/provider workflow.
+  responsible source-evidence/provider workflow.
 - Checked items are satisfied requirement-quality assertions. Unchecked
   planning-gate items make that checklist `BLOCKED`.
 
@@ -132,7 +132,7 @@ creating another file:
 When BLOCKED, list each blocker ID and route:
 
 - product decisions → `__SPECKIT_COMMAND_CLARIFY__`
-- provider evidence → intake/provider workflow
+- provider evidence → source-evidence/provider workflow
 
 ## Post-Execution Hooks
 

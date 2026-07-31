@@ -1,7 +1,7 @@
 {
   "artifact": {
-    "name": "spec-kit-workflow-preset-v3.2.0.zip",
-    "sha256": "4215f409a81a017d9ecb3050623007c5d1d881920fc42a7777f94777ff1fb279"
+    "name": "spec-kit-workflow-preset-v3.2.1.zip",
+    "sha256": "6667df31c2828be89e6d2256c38e60d207749e783c38dd5efb3f3dbe2c15261b"
   },
   "files": [
     {
@@ -10,7 +10,7 @@
     },
     {
       "path": "CHANGELOG.md",
-      "sha256": "096623162acd4a80f087359bb9616e576b44fae45c6c014006bddf26084b8ea2"
+      "sha256": "7181feed95ca3230fb312fb90078a2fdf43c0a435f6a779e184fa1740f12ebab"
     },
     {
       "path": "LICENSE",
@@ -18,7 +18,7 @@
     },
     {
       "path": "README.md",
-      "sha256": "ddd3fd57ab57e98e0ac3d0c7eed0143218d831db9dda5ef627e32c93cc1fc3a0"
+      "sha256": "68e60cbe43e984193d78f6018fd4f26d648abeb1fd74c615674f66c24b598ab3"
     },
     {
       "path": "commands/speckit.analyze.md",
@@ -26,11 +26,11 @@
     },
     {
       "path": "commands/speckit.checklist.md",
-      "sha256": "ff4452ea7e85fe0be28b0c88d4dd5b29ab5a1dc9738e4f2681d4d99c3cf17814"
+      "sha256": "d9067b32c8a6f594923b48491a06619e2793b410bff32078fb7d77741e23ed42"
     },
     {
       "path": "commands/speckit.clarify.md",
-      "sha256": "e8d5af23f6a1b75d3e1dc45d9f79200f1a61774b6f1007f2d725049ec8d801bb"
+      "sha256": "fcb8475093a1bae533ea5c7cf3e409efbe1b90c6a645abb197e7289e3787c0ce"
     },
     {
       "path": "commands/speckit.constitution.md",
@@ -38,11 +38,11 @@
     },
     {
       "path": "commands/speckit.plan.md",
-      "sha256": "e82cc984ab6d898ea4358cc1cc7a80d4b32c43fbd89bd408bb8ab41c20acead1"
+      "sha256": "e57071e8e32f3d725e5e2c47d0d12b60fac6c2a2586fe35ed7faf85ee28dc579"
     },
     {
       "path": "commands/speckit.specify.md",
-      "sha256": "19bc99aa51d826721d49c0a4fe406d15d5f20bb6b82038465986824bdd6ae093"
+      "sha256": "4ed1b9ac9a8d12e77e07464573f5c1da089cbb0c62445fa88a8717ac542e6345"
     },
     {
       "path": "commands/speckit.tasks.md",
@@ -50,11 +50,11 @@
     },
     {
       "path": "docs/extension-governance.md",
-      "sha256": "7a19c10f824371b27e9233f4699ffe8f1bf04326ed93b1061cf04f9d378e0232"
+      "sha256": "74316df398872e064d6336038ddd2597873e6f84c695b18c7297746992829737"
     },
     {
       "path": "preset.yml",
-      "sha256": "97387ed796ade8df30f2385b8864c4b3affd325e30c15554f24f51df1442b94e"
+      "sha256": "332672bfb6251f963fa69c446826d093f1a7ec367e0d3c0892206fbb5fdabc37"
     },
     {
       "path": "requirements-dev.txt",
@@ -122,7 +122,7 @@
     },
     {
       "path": "templates/constitution-template.md",
-      "sha256": "77a3ce00c81e0a44ce5287a4ce39cde1d8d74e57777ad3a50b1ae599f230eb80"
+      "sha256": "078d4e60b25dc1f37ebb8d398bec81154418f4666b7ec6cca45bfe83a83dea28"
     },
     {
       "path": "templates/plan-template.md",
@@ -134,19 +134,19 @@
     },
     {
       "path": "templates/requirements/behavior-gate.md",
-      "sha256": "687e14fb6d0262722f813d998dc3b28dc23d44d909d3b425a79f536cdf308af5"
+      "sha256": "c7f23d2bf223b691971b4d9da89fcaa1fa69168cf12f82d259e20084d838e242"
     },
     {
       "path": "templates/requirements/domain-gate.md",
-      "sha256": "537f8998f43160f101f33f3755df08c4faaef72c359672b3be3e01d5aff8bcda"
+      "sha256": "a2f1138ba7efcb2dab2e7fb7930bd629aaf56d874ccf02cf9b43c72a3e74f539"
     },
     {
       "path": "templates/requirements/nfr-gate.md",
-      "sha256": "6c05f7cfad45c9891e932994c09dfc8cd14bebe1aecd99821cf38270a52fbd1f"
+      "sha256": "c893eb596043de7a2a139bb8938fbfbe531ec49d02afcbfed40f5f21e2f069a7"
     },
     {
       "path": "templates/requirements/visual-gate.md",
-      "sha256": "f5d4993d015f726d369de8ede3b0065fe8f5c6412a6b306cacffdc8fb43f41a4"
+      "sha256": "b2ff3247967865a9d2b10dcdb450a19c9373eb432f96254e6c0b42568345cc01"
     },
     {
       "path": "templates/sequences-template.md",
@@ -154,7 +154,7 @@
     },
     {
       "path": "templates/spec-template.md",
-      "sha256": "db0b7fe137cd48d7c97f037592704629b1b9d60aee8e57692bea6701d6540930"
+      "sha256": "edb57eb04bc7db6a74ced08c6b05140034c71d045018bdf7242101e7c24aeefc"
     },
     {
       "path": "templates/test-readiness-template.md",
@@ -189,8 +189,12 @@
       "sha256": "3d3f47c1b5d1064456d6f9c02345cdf045af07066ab627217ef7ca1131576246"
     },
     {
+      "path": "tests/fixtures/requirement_gates/issue_50_revision_gap.json",
+      "sha256": "4959f6b59cc7131a4989daf29109fa84d8a4b69bfded9d3057ecf4ca9a6da17d"
+    },
+    {
       "path": "tests/test_preset_contract.py",
-      "sha256": "d4182caa33afc838ac9296144d30e1298a7b3b67b7f24c6aca4fc6c3b6a742ea"
+      "sha256": "a36cdc1da73179b38c946e8db8e454bd8405bb6d58f0d5d871d0ea8b25ef7b14"
     },
     {
       "path": "validators/__init__.py",
@@ -209,6 +213,10 @@
       "sha256": "db08c3417d86a58a16dffc1fe6fed77318752d03c8df07502c538df55db21045"
     },
     {
+      "path": "validators/speckit_requirement_gate_contract.py",
+      "sha256": "ed9e4ff2a2fd869e9e82b904b9d26a767dd6d7632f030a0f6553fa267bedfa15"
+    },
+    {
       "path": "validators/speckit_spec_contract.py",
       "sha256": "072845c892da168a263c3790df2da3363d03db33effec28b8a2956633e46f3b5"
     },
@@ -223,7 +231,7 @@
   ],
   "preset_id": "workflow-preset",
   "schema_version": "1.0",
-  "source_commit": "bf99bc24cbbf4d1462fabed90ac47bc6101e8ebb",
+  "source_commit": "6e80f25d0334f9e71504b46223565a517b2dedb8",
   "source_repository": "https://github.com/bigsmartben/spec-kit-workflow-preset",
-  "version": "3.2.0"
+  "version": "3.2.1"
 }

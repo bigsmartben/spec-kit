@@ -80,7 +80,7 @@ Execution steps:
    - Prioritize unchecked `[blocker:product-decision]` items as clarification
      candidates.
    - Never turn `[blocker:provider-evidence]` items into product questions.
-     Keep them BLOCKED and report their `[return:intake]` route.
+     Keep them BLOCKED and report their `[return:source-evidence]` route.
    - Treat the legacy `checklists/behavior-testability.md` as
      non-authoritative even if it contains similar wording.
 
@@ -252,7 +252,7 @@ Execution steps:
       atomically; do not append duplicate IDs, old blockers, or repeated Gate
       Status sections.
     - Provider-evidence blockers remain unchecked and keep the aggregate
-      BLOCKED until the provider/intake workflow supplies evidence.
+      BLOCKED until the provider/source-evidence workflow supplies evidence.
     - PASS requires every standard domain to be evaluated, every gate to carry
       the current spec revision, every applicable planning gate to be PASS, and
       every NOT_APPLICABLE result to include a reason.
@@ -324,7 +324,7 @@ Report completion (after questioning loop ends or early termination):
 - [ ] Spec ambiguities identified and clarifications integrated into spec file
 - [ ] Spec quality checklist re-validated against updated spec (if `FEATURE_DIR/checklists/requirements.md` exists)
 - [ ] Affected requirement gates recomputed with stable IDs and current spec revision
-- [ ] Provider-evidence blockers preserved and routed to intake
+- [ ] Provider-evidence blockers preserved and routed to source evidence
 - [ ] Planning Readiness aggregated without creating a summary file
 - [ ] Extension hooks dispatched or skipped according to the rules in Mandatory Post-Execution Hooks above
 - [ ] Completion reported to user with questions answered, sections touched, checklist status, and coverage summary

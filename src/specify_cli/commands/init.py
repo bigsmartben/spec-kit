@@ -27,12 +27,7 @@ from .._console import StepTracker, console, select_with_arrows, show_banner
 from .._utils import check_tool
 
 DEFAULT_BUNDLED_EXTENSIONS = (
-    "discovery",
     "git",
-    "inception",
-    "intake",
-    "preview",
-    "repository-governance",
 )
 DEFAULT_BUNDLED_PRESETS = ("workflow-preset",)
 

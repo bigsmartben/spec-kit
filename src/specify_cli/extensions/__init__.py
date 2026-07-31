@@ -20,7 +20,7 @@ import tempfile
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, Set
+from typing import Any, BinaryIO, Callable, Dict, List, Optional, Set
 
 import pathspec
 import yaml
@@ -566,8 +566,11 @@ class ExtensionManifest:
 
     def get_hash(self) -> str:
         """Calculate SHA256 hash of manifest file."""
+        h = hashlib.sha256()
         with open(self.path, "rb") as f:
-            return f"sha256:{hashlib.sha256(f.read()).hexdigest()}"
+            for chunk in iter(lambda: f.read(8192), b""):
+                h.update(chunk)
+        return f"sha256:{h.hexdigest()}"
 
 
 class ExtensionRegistry:
@@ -2425,6 +2428,8 @@ class ExtensionManager:
         speckit_version: str,
         priority: int = 10,
         force: bool = False,
+        *,
+        archive_file: BinaryIO | None = None,
     ) -> ExtensionManifest:
         """Install extension from ZIP file.
 
@@ -2434,6 +2439,8 @@ class ExtensionManager:
             priority: Resolution priority (lower = higher precedence, default 10)
             force: If True and extension is already installed, remove it first
                    before proceeding with installation
+            archive_file: Already-open archive stream to consume instead of
+                          reopening ``zip_path``
 
         Returns:
             Installed extension manifest
@@ -2449,7 +2456,12 @@ class ExtensionManager:
         with tempfile.TemporaryDirectory() as tmpdir:
             temp_path = Path(tmpdir)
 
-            safe_extract_zip(zip_path, temp_path, error_type=ValidationError)
+            safe_extract_zip(
+                zip_path,
+                temp_path,
+                archive_file=archive_file,
+                error_type=ValidationError,
+            )
 
             # Find extension directory (may be nested)
             extension_dir = temp_path

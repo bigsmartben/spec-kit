@@ -26,9 +26,14 @@ def _sha256(path: Path) -> str:
     return h.hexdigest()
 
 
-def _sha256_with_lf_newlines(path: Path) -> str:
-    """Return a hash after normalizing CRLF/CR newlines to LF."""
-    content = path.read_bytes().replace(b"\r\n", b"\n").replace(b"\r", b"\n")
+def _sha256_with_lf_newlines(path: Path) -> str | None:
+    """Return a normalized text hash, or ``None`` for non-UTF-8 content."""
+    content = path.read_bytes()
+    try:
+        content.decode("utf-8")
+    except UnicodeDecodeError:
+        return None
+    content = content.replace(b"\r\n", b"\n").replace(b"\r", b"\n")
     return hashlib.sha256(content).hexdigest()
 
 
@@ -317,6 +322,12 @@ class IntegrationManifest:
                 continue
             try:
                 changed = _sha256(abs_path) != expected_hash
+                if changed:
+                    normalized_hash = _sha256_with_lf_newlines(abs_path)
+                    changed = (
+                        normalized_hash is None
+                        or normalized_hash != expected_hash
+                    )
             except OSError:
                 # Unreadable regular file (e.g. permission denied): treat as
                 # modified, consistent with the symlink / non-regular-file
@@ -495,6 +506,10 @@ class IntegrationManifest:
         path = inst.manifest_path
         try:
             data = json.loads(path.read_text(encoding="utf-8"))
+        except UnicodeDecodeError as exc:
+            raise ValueError(
+                f"Integration manifest at {path} is not valid UTF-8"
+            ) from exc
         except json.JSONDecodeError as exc:
             raise ValueError(
                 f"Integration manifest at {path} contains invalid JSON"

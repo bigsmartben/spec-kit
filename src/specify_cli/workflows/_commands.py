@@ -889,6 +889,18 @@ def _require_specify_project(*args, **kwargs):
     return project_root
 
 
+def _failed_step_error(state: Any) -> str | None:
+    """Terminal error for a failed/aborted run, if any.
+
+    Returns the run-level error persisted by the engine at the moment
+    the run terminated. Returns ``None`` for non-terminal statuses so
+    the caller can print unconditionally.
+    """
+    if getattr(state.status, "value", state.status) not in ("failed", "aborted"):
+        return None
+    return getattr(state, "error", None)
+
+
 def _workflow_run_payload(state: Any) -> dict[str, Any]:
     """Machine-readable summary of a run/resume outcome."""
     payload = {
@@ -901,6 +913,9 @@ def _workflow_run_payload(state: Any) -> dict[str, Any]:
     gate = _gate_outcome(state)
     if gate is not None:
         payload["gate"] = gate
+    error = _failed_step_error(state)
+    if error is not None:
+        payload["error"] = error
     return payload
 
 
@@ -1161,6 +1176,10 @@ def workflow_run(
     console.print(f"\n[{color}]Status: {state.status.value}[/{color}]")
     console.print(f"[dim]Run ID: {state.run_id}[/dim]")
 
+    err_msg = _failed_step_error(state)
+    if err_msg:
+        console.print(f"[red]Error:[/red] {_escape_markup(err_msg)}")
+
     if state.status.value == "paused":
         console.print(f"\nResume with: [cyan]specify workflow resume {state.run_id}[/cyan]")
 
@@ -1271,6 +1290,10 @@ def workflow_resume(
     color = status_colors.get(state.status.value, "white")
     console.print(f"\n[{color}]Status: {state.status.value}[/{color}]")
 
+    err_msg = _failed_step_error(state)
+    if err_msg:
+        console.print(f"[red]Error:[/red] {_escape_markup(err_msg)}")
+
     raise typer.Exit(_run_outcome_exit_code(state.status.value))
 
 
@@ -1337,6 +1360,10 @@ def workflow_status(
 
         if state.current_step_id:
             console.print(f"  Current:  {state.current_step_id}")
+
+        err_msg = _failed_step_error(state)
+        if err_msg:
+            console.print(f"  [red]Error:    {_escape_markup(err_msg)}[/red]")
 
         if state.step_results:
             console.print(f"\n  [bold]Steps ({len(state.step_results)}):[/bold]")
@@ -2549,9 +2576,10 @@ def workflow_step_list():
         console.print("  [bold]Custom (installed):[/bold]")
         for key in sorted(installed):
             meta = installed[key] or {}
-            name = meta.get("name", key)
-            version = meta.get("version", "?")
-            console.print(f"    • [bold]{name}[/bold] ({key}) v{version}")
+            name = _escape_markup(str(meta.get("name", key)))
+            safe_key = _escape_markup(str(key))
+            version = _escape_markup(str(meta.get("version", "?")))
+            console.print(f"    • [bold]{name}[/bold] ({safe_key}) v{version}")
         console.print()
 
     if not built_in and not installed:
@@ -3095,13 +3123,15 @@ def workflow_step_search(
         install_note = (
             "" if step.get("_install_allowed", True) else " [dim](discovery only)[/dim]"
         )
+        name = _escape_markup(str(step.get("name", step.get("id", "?"))))
+        step_id = _escape_markup(str(step.get("id", "?")))
+        version = _escape_markup(str(step.get("version", "?")))
         console.print(
-            f"  [bold]{step.get('name', step.get('id', '?'))}[/bold]"
-            f" ({step.get('id', '?')}) v{step.get('version', '?')}{install_note}"
+            f"  [bold]{name}[/bold] ({step_id}) v{version}{install_note}"
         )
         desc = step.get("description", "")
         if desc:
-            console.print(f"    {desc}")
+            console.print(f"    {_escape_markup(str(desc))}")
         console.print()
 
 
@@ -3114,6 +3144,7 @@ def workflow_step_info(
     from .catalog import StepCatalog, StepCatalogError, StepRegistry
 
     project_root = _require_specify_project()
+    safe_step_id = _escape_markup(str(step_id))
 
     registry = StepRegistry(project_root)
     installed_meta = registry.get(step_id)
@@ -3123,20 +3154,27 @@ def workflow_step_info(
     is_builtin = builtin_step is not None and not installed_meta
 
     if is_builtin:
-        console.print(f"\n[bold cyan]{step_id}[/bold cyan] [dim](built-in)[/dim]")
-        console.print(f"  Type key: {step_id}")
+        console.print(f"\n[bold cyan]{safe_step_id}[/bold cyan] [dim](built-in)[/dim]")
+        console.print(f"  Type key: {safe_step_id}")
         console.print("  [green]Built-in step type[/green]")
         return
 
     if installed_meta:
+        name = _escape_markup(str(installed_meta.get("name", step_id)))
+        version = _escape_markup(str(installed_meta.get("version", "?")))
         console.print(
-            f"\n[bold cyan]{installed_meta.get('name', step_id)}[/bold cyan] ({step_id})"
+            f"\n[bold cyan]{name}[/bold cyan] ({safe_step_id})"
         )
-        console.print(f"  Version:     {installed_meta.get('version', '?')}")
+        console.print(f"  Version:     {version}")
         if installed_meta.get("author"):
-            console.print(f"  Author:      {installed_meta['author']}")
+            console.print(
+                f"  Author:      {_escape_markup(str(installed_meta['author']))}"
+            )
         if installed_meta.get("description"):
-            console.print(f"  Description: {installed_meta['description']}")
+            console.print(
+                f"  Description: "
+                f"{_escape_markup(str(installed_meta['description']))}"
+            )
         console.print("  [green]Installed[/green]")
         return
 
@@ -3148,20 +3186,24 @@ def workflow_step_info(
         info = None
 
     if info:
+        name = _escape_markup(str(info.get("name", step_id)))
+        version = _escape_markup(str(info.get("version", "?")))
         console.print(
-            f"\n[bold cyan]{info.get('name', step_id)}[/bold cyan] ({step_id})"
+            f"\n[bold cyan]{name}[/bold cyan] ({safe_step_id})"
         )
-        console.print(f"  Version:     {info.get('version', '?')}")
+        console.print(f"  Version:     {version}")
         if info.get("author"):
-            console.print(f"  Author:      {info['author']}")
+            console.print(f"  Author:      {_escape_markup(str(info['author']))}")
         if info.get("description"):
-            console.print(f"  Description: {info['description']}")
+            console.print(
+                f"  Description: {_escape_markup(str(info['description']))}"
+            )
         console.print("  [yellow]Not installed[/yellow]")
         console.print(
-            f"\n  Install with: [cyan]specify workflow step add {step_id}[/cyan]"
+            f"\n  Install with: [cyan]specify workflow step add {safe_step_id}[/cyan]"
         )
     else:
-        console.print(f"[red]Error:[/red] Step type '{step_id}' not found")
+        console.print(f"[red]Error:[/red] Step type '{safe_step_id}' not found")
         raise typer.Exit(1)
 
 

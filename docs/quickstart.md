@@ -1,6 +1,6 @@
 # 快速开始
 
-这份指南面向本仓库分发版的 Spec Kit。它保留核心 Spec-Driven Development 流程，同时默认带上 Constitution 托管的单文件项目架构、仓库治理、BDD/UIF 行为契约、HTML 预览、实现期 handoff 和最终 code review receipt。
+这份指南面向本仓库分发版的 Spec Kit。它保留核心 Spec-Driven Development 流程，默认只安装 `git` 扩展和 `workflow-preset`；技术调研、HTML 预览和上下文维护均按需启用。
 
 > [!NOTE]
 > 自动化脚本同时提供 Bash (`.sh`) 和 PowerShell (`.ps1`) 版本。`specify` CLI 会按系统自动选择，也可以通过 `--script sh|ps` 显式指定。
@@ -13,14 +13,11 @@
 生产功能建议使用默认增强链路：
 
 ```text
-/speckit.inception.product        # 可选；仅在用户选择其产物作为输入时
 /speckit.constitution             # 同时托管 constitution.md 与 architecture.md
-/speckit.repository-governance.generate
 /speckit.specify
 /speckit.checklist
 /speckit.clarify
 /speckit.plan
-/speckit.preview.wireflow mid
 /speckit.tasks
 /speckit.analyze
 /speckit.implement
@@ -101,7 +98,7 @@ specify init my-project --integration codex --integration-options="--skills"
 specify integration list
 ```
 
-## 3. 建立项目原则与治理
+## 3. 建立项目原则与架构
 
 在编码助手中先建立项目原则和独立的项目架构：
 
@@ -119,19 +116,7 @@ specify integration list
 
 其推理顺序是 System Boundary（系统边界）→ Conceptual Model（概念模型）→ Technical Decisions & Evidence（技术决策与证据）→ Planning Guardrails & Gaps（规划守则与缺口），不再生成 4+1、多视图或 PoC 目录。
 
-生成或更新仓库治理规范：
-
-```text
-/speckit.repository-governance.generate
-```
-
-治理命令会生成或更新当前 integration 对应的 agent 上下文文件中的受管段，并维护内部治理记忆：
-
-```text
-.specify/memory/repository-governance.md
-```
-
-它用于约束 SSOT 读取顺序、目录责任、agent 平台适配和仓库事实证据。
+需要维护 agent 上下文文件时，显式运行 `specify extension add agent-context`；CLI 本身不会写入或迁移这些文件。
 
 ## 4. 确认项目架构
 
@@ -176,11 +161,15 @@ specs/<feature>/checklists/nfr.md
 specs/<feature>/checklists/visual.md
 ```
 
-如果清单指出产品决策缺失，使用 `/speckit.clarify` 修复；provider 证据缺口返回对应 intake。所有适用门禁通过后，`/speckit.plan` 才会写入规划产物。
+如果清单指出产品决策缺失，使用 `/speckit.clarify` 修复；provider 证据缺口返回来源证据流程。所有适用门禁通过后，`/speckit.plan` 才会写入规划产物。
 
 ## 6. 预览 UI/UX 规格
 
 对 UI、流程或交互有不确定性时，先生成保真度合适的预览产物：
+
+```bash
+specify extension add preview
+```
 
 ```text
 /speckit.preview.wireflow mid mobile album browsing and reorder flow
@@ -276,13 +265,13 @@ specify preset search
 specify workflow search
 ```
 
-重新安装默认增强能力：
+安装可选增强能力：
 
 ```bash
 specify extension add arch
-specify extension add inception
+specify extension add discovery
 specify extension add preview
-specify extension add repository-governance
+specify extension add agent-context
 specify preset add workflow-preset
 ```
 

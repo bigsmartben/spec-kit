@@ -5,14 +5,14 @@
 </div>
 
 <p align="center">
-    <strong>这个仓库的重点不是复述基础用法，而是打包一组本地扩展和预设，让规格、架构、证据、预览、治理和多 agent 实现流程连成一条可审查的链路。</strong>
+    <strong>这个仓库的重点不是复述基础用法，而是提供一套小而清晰的默认流程，以及按需启用的扩展和预设。</strong>
 </p>
 
 ---
 
 ## 本地定位
 
-这个 checkout 是一个带本地增强能力的 Spec Kit 仓库。它保留核心 `specify` 工作流，同时默认安装一组本地扩展和一个默认预设。
+这个 checkout 是一个带本地增强能力的 Spec Kit 仓库。它保留核心 `specify` 工作流，默认只安装核心 `git` 扩展和 `workflow-preset` 预设；其他扩展均按需启用。
 
 本 README 只介绍仓库中实际存在的本地内容：
 
@@ -24,9 +24,9 @@
 
 如果你只是想知道这个仓库相比基础流程多了什么，可以先看这三件事：
 
-- 默认扩展：`discovery`、`inception`、`intake`、`preview`、`repository-governance`。
+- 默认扩展：`git`。
 - 默认预设：`workflow-preset`。
-- 自动上下文扩展：`agent-context`。
+- 可选扩展：`discovery`、`preview`、`agent-context`、`arch`、`bug`。
 
 ## 快速开始
 
@@ -55,7 +55,7 @@ specify init . --integration codex --force
 specify init my-project --integration codex --ignore-agent-tools
 ```
 
-初始化完成后，本地默认能力会被复制到项目的 `.specify/` 目录，并注册到所选 agent 的命令或 skill 目录中。
+初始化完成后，`git` 扩展和默认预设会被复制到项目的 `.specify/` 目录，并注册到所选 agent 的命令或 skill 目录中。
 
 ## 默认安装内容
 
@@ -63,42 +63,25 @@ specify init my-project --integration codex --ignore-agent-tools
 
 | 类型 | ID | 来源目录 | 作用 |
 | --- | --- | --- | --- |
-| 自动扩展 | `agent-context` | `extensions/agent-context` | 维护 AGENTS、CLAUDE、Copilot 等 agent context 文件里的 Spec Kit 受管段。 |
-| 默认扩展 | `discovery` | `extensions/discovery` | 在正式计划前做可行性、技术选型、旧代码评估、接口理解、PoC 和场景化技术决策。 |
-| 默认扩展 | `inception` | `extensions/inception` | 在正式 SDD 前通过对话收敛可选的产品 UC 和 wireflow；旧架构入口仅提供迁移提示。 |
-| 默认扩展 | `intake` | `extensions/intake` | 把 PRD、设计稿、Figma、最终静态 HTML 交付、测试用例等来源归一化为 SDD 可消费的证据包。 |
-| 默认扩展 | `preview` | `extensions/preview` | 从规格和计划生成低、中、高保真 Markdown 或自包含 HTML 预览。 |
-| 默认扩展 | `repository-governance` | `extensions/repository-governance` | 生成仓库治理 SSOT，帮助 agent 明确目录责任、读取顺序和事实证据。 |
+| 默认扩展 | `git` | `extensions/git` | 提供特性分支、远端检查和提交辅助命令。 |
 | 默认预设 | `workflow-preset` | `presets/workflow-preset` | 从 Specify 引入 UI/UX 需求，从 Plan 引入 BDD、集成与 E2E 测试设计，由 Tasks 映射为执行清单，最终交给标准 Core Implement。 |
 
 默认扩展列表在 `src/specify_cli/commands/init.py` 的 `DEFAULT_BUNDLED_EXTENSIONS` 中维护。默认预设列表在同文件的 `DEFAULT_BUNDLED_PRESETS` 中维护。
 
-## 默认扩展
+## 扩展审计与迁移
 
-### `inception`
+| 扩展 | 状态 | 原因与迁移 |
+| --- | --- | --- |
+| `git` | 默认保留 | 核心分支工作流，体积小且普遍适用。 |
+| `discovery` | 内置、按需安装 | 技术调研仍有价值，但不是所有项目的必经阶段；使用 `specify extension add discovery`。 |
+| `preview` | 内置、按需安装 | 实现前评审仍有价值，但不是默认流程；使用 `specify extension add preview`。 |
+| `inception` | 已移除 | 旧产品启动和迁移命令不再作为权威阶段；把仍有价值的材料直接作为 `/speckit.specify` 的输入。 |
+| `intake` | 已移除 | 工作流不再依赖其 schema、artifact 或 blocker route；由用户选择的来源工具提供证据，并在规格中记录来源。 |
+| `repository-governance` | 已移除 | 其上下文投影与 `agent-context` 的独占职责冲突；需要受管上下文时显式安装 `agent-context`。 |
 
-`inception` 是正式规格化之前的可选产品启动阶段。它通过对话确认产品材料，并用模板生成 `inception/product/` 下的产物。
+升级 CLI 不会扫描或删除既有项目的 `.specify/extensions/` 内容。因此，旧项目中已经安装的退役扩展文件会原样保留；如需清理，请由项目维护者显式运行 `specify extension remove <id>`。
 
-产品命令：
-
-```text
-/speckit.inception.product
-```
-
-主要产物：
-
-```text
-inception/product/uc.md
-inception/product/wireflow-medium.html
-inception/product/wireflow-high.html
-```
-
-使用建议：
-
-- 仅在需要产品启动材料时运行 `/speckit.inception.product`。
-- `uc.md` 只有在用户后续明确选择时才成为 Constitution 或 Architecture 输入。
-- `/speckit.inception.arch` 已退役，只返回迁移提示，不读取 UC、生成架构或运行 PoC。
-- `inception` 不生成 `spec.md`、`plan.md`、`tasks.md`、OpenAPI、数据库 schema、生产代码或测试套件变更。
+## 可选扩展
 
 ### `arch`
 
@@ -143,37 +126,6 @@ inception/product/wireflow-high.html
 
 典型产物会写在当前 feature 的 discovery 相关文件中，例如 feasibility、tech-selection、legacy codebase risk、PoC plan/result 或 API implementation overview。
 
-### `intake`
-
-`intake` 负责把外部输入变成可追踪证据，而不是直接替你生成需求。它的重点是保留来源、标记不确定性、做结构化归一化，让后续 `/speckit.specify`、`/speckit.plan` 能带着证据继续工作。
-
-常用命令：
-
-```text
-/speckit.intake.prd
-/speckit.intake.visual-design
-/speckit.intake.test-cases
-```
-
-支持来源：
-
-- PRD、产品说明、Markdown、PDF、导出的文档。
-- 图片、线框图、设计 PDF、Figma 文件、Figma 页面或节点。
-- 设计稿派生的视觉 IR、操作回放、动效锚点、视口截图和最终静态 HTML 交付证据。
-- 既有测试、Gherkin、手工测试用例、QA 导出、测试管理表格。
-
-主要产物：
-
-```text
-specs/<feature>/intake/prd/
-specs/<feature>/intake/visual-design/
-specs/<feature>/intake/visual-design/visual-ir/
-specs/<feature>/intake/visual-design/delivery/
-specs/<feature>/intake/test-cases/
-```
-
-这些目录中会包含 source manifest、source files、归一化 YAML、evidence packet 和 schema 校验所需材料。
-
 ### `preview`
 
 `preview` 在实现前生成评审产物。它不改应用源码，不替代实现；它用当前 feature 的规格、计划和契约生成可以讨论的自包含 HTML wireflow。
@@ -196,35 +148,9 @@ specs/<feature>/preview/wireflow.html
 - 产品、设计和工程需要一起评审：用 `mid`。
 - 交互、状态、权限、响应式和错误反馈要确认：用 `high`。
 
-### `repository-governance`
-
-`repository-governance` 生成 agent 可读的仓库治理说明。它把目录职责、SSOT 读取顺序、工具链证据、agent 平台适配和仓库事实投影到当前 agent 的上下文文件中。
-
-常用命令：
-
-```text
-/speckit.repository-governance.generate
-```
-
-它也注册了 hook，可在 constitution、plan、tasks 之后提示生成或更新治理内容。
-
-主要产物：
-
-```text
-.specify/memory/repository-governance.md
-```
-
-以及当前集成对应的 agent context 文件中的受管治理段。
-
-使用建议：
-
-- 多 agent 协作时使用。
-- 新人或新 agent 接手仓库时使用。
-- 仓库目录结构、构建工具、SSOT 或平台适配规则变化后使用。
-
 ### `agent-context`
 
-`agent-context` 是上下文维护扩展。它读取集成元数据，并更新当前 agent 的说明文件，例如 `AGENTS.md`、`CLAUDE.md` 或 `.github/copilot-instructions.md`。
+`agent-context` 是完全 opt-in（显式启用）的上下文维护扩展。只有用户显式安装并启用它后，它才会更新 `AGENTS.md`、`CLAUDE.md` 或 `.github/copilot-instructions.md` 等文件。
 
 常用命令：
 
@@ -412,25 +338,22 @@ specify bundle build --path ./my-bundle
 ### 新项目
 
 ```text
-/speckit.inception.product   # 可选
 /speckit.constitution        # greenfield；用户指定输入和更新范围
 /speckit.specify
 /speckit.clarify
 /speckit.checklist
-/speckit.discovery.feasibility
 /speckit.plan
-/speckit.preview.wireflow mid
 /speckit.tasks
 /speckit.analyze
 /speckit.implement
 ```
 
+需要技术调研或 UI 评审时，先显式安装 `discovery` 或 `preview`，再把对应命令插入上述链路。
+
 ### 旧仓库接入
 
 ```text
-/speckit.discovery.codebase
 /speckit.constitution        # brownfield；显式授权仓库证据范围
-/speckit.repository-governance.generate
 /speckit.specify
 /speckit.checklist
 /speckit.plan
@@ -440,19 +363,11 @@ specify bundle build --path ./my-bundle
 
 ### 已有 PRD、设计或测试用例
 
-```text
-/speckit.intake.prd
-/speckit.intake.visual-design
-/speckit.intake.test-cases
-/speckit.specify
-/speckit.clarify
-/speckit.plan
-```
+把材料路径和来源说明直接传给 `/speckit.specify`；缺失或矛盾的证据保持为 blocker（阻塞项），由用户选择的来源工具补齐。
 
 ### 前端和交互功能
 
 ```text
-/speckit.intake.visual-design
 /speckit.specify
 /speckit.preview.wireflow low
 /speckit.plan
@@ -495,9 +410,6 @@ specify extension add bug
 | 目录或文件 | 来源 | 含义 |
 | --- | --- | --- |
 | `.specify/memory/architecture.md` | `workflow-preset` 的 `/speckit.constitution` | 项目级边界、概念、技术证据、规划约束和缺口。 |
-| `.specify/memory/repository-governance.md` | `repository-governance` | 内部仓库治理 SSOT。 |
-| `inception/product/` | `inception` | 产品 UC 和 medium/high wireflow 启动设计产物。 |
-| `specs/<feature>/intake/` | `intake` | PRD、视觉设计、测试用例的结构化证据包。 |
 | `specs/<feature>/preview/` | `preview` | 单一自包含 HTML wireflow 预览。 |
 | `specs/<feature>/contracts/bdd/` | `workflow-preset` | BDD 行为契约。 |
 | `specs/<feature>/contracts/uif/` | `workflow-preset` | UI flow / interface fidelity 契约。 |
@@ -524,7 +436,7 @@ specify extension add git
 
 ```bash
 specify extension add --dev extensions/preview
-specify extension add --dev extensions/intake
+specify extension add --dev extensions/discovery
 ```
 
 查看已安装预设：
@@ -576,7 +488,7 @@ uv run pytest tests/integrations -v
 
 ```bash
 specify extension add --dev extensions/preview
-specify extension add --dev extensions/intake
+specify extension add --dev extensions/preview
 specify preset add --dev presets/workflow-preset
 ```
 

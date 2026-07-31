@@ -10,27 +10,14 @@ from specify_cli.integrations import get_integration
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_EXTENSION_IDS = (
-    "discovery",
     "git",
-    "inception",
-    "intake",
-    "preview",
-    "repository-governance",
 )
 DEFAULT_EXTENSION_COMMANDS = (
-    "speckit.discovery.contract",
     "speckit.git.feature",
     "speckit.git.validate",
     "speckit.git.remote",
     "speckit.git.initialize",
     "speckit.git.commit",
-    "speckit.inception.product",
-    "speckit.inception.arch",
-    "speckit.intake.visual-design",
-    "speckit.intake.prd",
-    "speckit.intake.test-cases",
-    "speckit.preview.wireflow",
-    "speckit.repository-governance.generate",
 )
 DEFAULT_PRESET_ID = "workflow-preset"
 DEFAULT_PRESET_COMMANDS = (

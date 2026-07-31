@@ -1,7 +1,7 @@
 """Executable coding-standard checks for Preset and Extension packages.
 
 The runtime manifest loaders answer whether a package can be installed.  This
-module adds repository-governance checks that answer whether a touched package
+module adds repository component checks that answer whether a touched package
 follows the component coding standard.  It deliberately has no network access
 and does not mutate the package being checked.
 """

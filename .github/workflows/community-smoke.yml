@@ -45,11 +45,12 @@ jobs:
           cd "$project_dir"
           /tmp/specify-community-smoke-venv/bin/specify init --here --integration claude --script sh --ignore-agent-tools
 
-          test -f .specify/extensions/preview/extension.yml
-          test -f .specify/extensions/discovery/extension.yml
-          test -f .specify/extensions/inception/extension.yml
-          test -f .specify/extensions/intake/extension.yml
-          test -f .specify/extensions/repository-governance/extension.yml
+          test -f .specify/extensions/git/extension.yml
+          test ! -e .specify/extensions/discovery
+          test ! -e .specify/extensions/inception
+          test ! -e .specify/extensions/intake
+          test ! -e .specify/extensions/preview
+          test ! -e .specify/extensions/repository-governance
           test -f .specify/presets/workflow-preset/preset.yml
           /tmp/specify-community-smoke-venv/bin/python - <<'PY'
           import json
@@ -103,14 +104,8 @@ jobs:
           test ! -e .specify/presets/workflow-preset/commands/speckit.implement.md
           test ! -e .specify/presets/workflow-preset/.composed/speckit.implement.md
 
-          test -f .claude/skills/speckit-preview-wireflow/SKILL.md
-          test -f .claude/skills/speckit-discovery-contract/SKILL.md
-          test -f .claude/skills/speckit-inception-product/SKILL.md
-          test -f .claude/skills/speckit-inception-arch/SKILL.md
-          test -f .claude/skills/speckit-intake-visual-design/SKILL.md
-          test -f .claude/skills/speckit-intake-prd/SKILL.md
-          test -f .claude/skills/speckit-intake-test-cases/SKILL.md
-          test -f .claude/skills/speckit-repository-governance-generate/SKILL.md
+          test ! -e .claude/skills/speckit-preview-wireflow
+          test ! -e .claude/skills/speckit-discovery-contract
           test -f .claude/skills/speckit-specify/SKILL.md
           test -f .claude/skills/speckit-clarify/SKILL.md
           test -f .claude/skills/speckit-checklist/SKILL.md
@@ -129,29 +124,7 @@ jobs:
           grep -q "## Pre-Execution Checks" .claude/skills/speckit-implement/SKILL.md
           grep -q "mark the task off as \[X\] in the tasks file" .claude/skills/speckit-implement/SKILL.md
 
-          for extension_id in discovery inception intake preview repository-governance; do
-            /tmp/specify-community-smoke-venv/bin/specify extension remove "$extension_id" --force
-            test ! -d ".specify/extensions/$extension_id"
-            case "$extension_id" in
-              preview)
-                test ! -d .claude/skills/speckit-preview-wireflow
-                ;;
-              discovery)
-                test "$(find .claude/skills -maxdepth 1 -type d -name 'speckit-discovery-*' | wc -l)" -eq 0
-                ;;
-              inception)
-                test "$(find .claude/skills -maxdepth 1 -type d -name 'speckit-inception-*' | wc -l)" -eq 0
-                ;;
-              intake)
-                test "$(find .claude/skills -maxdepth 1 -type d -name 'speckit-intake-*' | wc -l)" -eq 0
-                ;;
-              repository-governance)
-                test ! -d .claude/skills/speckit-repository-governance-generate
-                ;;
-            esac
-          done
-
-          for extension_id in arch discovery inception intake preview repository-governance; do
+          for extension_id in arch discovery preview; do
             /tmp/specify-community-smoke-venv/bin/specify extension add "$GITHUB_WORKSPACE/extensions/$extension_id" --dev
             case "$extension_id" in
               arch)
@@ -166,22 +139,6 @@ jobs:
               discovery)
                 test -f .claude/skills/speckit-discovery-contract/SKILL.md
                 grep -q "interface-contract discovery facilitator" .claude/skills/speckit-discovery-contract/SKILL.md
-                ;;
-              inception)
-                test -f .claude/skills/speckit-inception-product/SKILL.md
-                test -f .claude/skills/speckit-inception-arch/SKILL.md
-                grep -q "Conversation Workflow" .claude/skills/speckit-inception-product/SKILL.md
-                grep -q "INCEPTION_ARCH_COMMAND_RETIRED" .claude/skills/speckit-inception-arch/SKILL.md
-                ;;
-              intake)
-                test -f .claude/skills/speckit-intake-visual-design/SKILL.md
-                test -f .claude/skills/speckit-intake-prd/SKILL.md
-                test -f .claude/skills/speckit-intake-test-cases/SKILL.md
-                grep -q "visual design intake" .claude/skills/speckit-intake-visual-design/SKILL.md
-                ;;
-              repository-governance)
-                test -f .claude/skills/speckit-repository-governance-generate/SKILL.md
-                grep -q "Project Governance Projection Generation" .claude/skills/speckit-repository-governance-generate/SKILL.md
                 ;;
             esac
           done

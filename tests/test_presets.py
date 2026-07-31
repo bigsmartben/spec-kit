@@ -4873,7 +4873,7 @@ class TestBundledPresetLocator:
             ) in verify_run
         for marker in (
             "Full-Spectrum Projection",
-            "Cross-Domain Ambiguity Map",
+            "Shared-Root Ambiguity Map",
             "Cross-Command Consistency Gates",
             "X0 — Feature Plan Control",
             "PLAN_OUTPUT_READY",

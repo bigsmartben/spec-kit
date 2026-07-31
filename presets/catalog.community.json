@@ -670,11 +670,11 @@
     "workflow-preset": {
       "name": "Workflow Preset",
       "id": "workflow-preset",
-      "version": "3.2.0",
+      "version": "3.2.1",
       "description": "Constitution-managed architecture, behavior-first specification, design artifacts, and execution-ready task mapping",
       "author": "bigsmartben",
       "repository": "https://github.com/bigsmartben/spec-kit-workflow-preset",
-      "download_url": "https://github.com/bigsmartben/spec-kit-workflow-preset/releases/download/v3.2.0/spec-kit-workflow-preset-v3.2.0.zip",
+      "download_url": "https://github.com/bigsmartben/spec-kit-workflow-preset/releases/download/v3.2.1/spec-kit-workflow-preset-v3.2.1.zip",
       "homepage": "https://github.com/bigsmartben/spec-kit-workflow-preset",
       "documentation": "https://github.com/bigsmartben/spec-kit-workflow-preset/blob/main/README.md",
       "license": "MIT",
@@ -697,8 +697,8 @@
       ],
       "created_at": "2026-05-27T00:00:00Z",
       "updated_at": "2026-07-26T00:00:00Z",
-      "source_commit": "bf99bc24cbbf4d1462fabed90ac47bc6101e8ebb",
-      "sha256": "4215f409a81a017d9ecb3050623007c5d1d881920fc42a7777f94777ff1fb279"
+      "source_commit": "6e80f25d0334f9e71504b46223565a517b2dedb8",
+      "sha256": "6667df31c2828be89e6d2256c38e60d207749e783c38dd5efb3f3dbe2c15261b"
     }
   }
 }

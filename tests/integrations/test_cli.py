@@ -1113,7 +1113,7 @@ class TestGitExtensionDefaultInstall:
 
         assert "Change Scope Granularity" in constitution_skill.read_text(encoding="utf-8")
         assert "Full-Spectrum Projection" in specify_skill.read_text(encoding="utf-8")
-        assert "Cross-Domain Ambiguity Map" in clarify_skill.read_text(encoding="utf-8")
+        assert "Shared-Root Ambiguity Map" in clarify_skill.read_text(encoding="utf-8")
         assert "Cross-Command Consistency Gates" in analyze_skill.read_text(encoding="utf-8")
         assert "X0 — Feature Plan Control" in plan_skill.read_text(encoding="utf-8")
         assert "PLAN_OUTPUT_READY" in tasks_skill.read_text(encoding="utf-8")

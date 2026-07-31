@@ -45,6 +45,13 @@ def test_pinned_action_ref_accepts_uppercase_hex_sha():
     )
 
 
+def test_release_install_command_targets_current_repository():
+    release_workflow = (WORKFLOWS_DIR / "release.yml").read_text(encoding="utf-8")
+
+    assert "https://github.com/${GITHUB_REPOSITORY}.git@${VERSION}" in release_workflow
+    assert "https://github.com/github/spec-kit.git@${VERSION}" not in release_workflow
+
+
 def test_community_bundle_submission_automation_is_wired():
     source = WORKFLOWS_DIR / "add-community-bundle.md"
     compiled = WORKFLOWS_DIR / "add-community-bundle.lock.yml"

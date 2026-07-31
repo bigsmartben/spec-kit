@@ -20,6 +20,7 @@ from specify_cli.bundler.services.primitives import (
     _WorkflowKindManager,
     primitive_manager,
 )
+from tests.bundler_helpers import valid_manifest_dict
 
 
 def _component(kind: str, cid: str = "x") -> ComponentRef:
@@ -131,3 +132,205 @@ def test_preset_install_preserves_explicit_zero_priority(tmp_path: Path, monkeyp
 
     # An explicit priority of 0 must be passed through, not replaced by default.
     assert calls["priority"] == 0
+
+
+def _write_manifest(path: Path, root_key: str, version: str) -> Path:
+    path.mkdir(parents=True, exist_ok=True)
+    (path / f"{root_key}.yml").write_text(
+        f"{root_key}:\n  id: x\n  version: {version}\n", encoding="utf-8"
+    )
+    return path
+
+
+def test_bundled_extension_pin_mismatch_refuses(tmp_path: Path, monkeypatch):
+    """A bundled extension whose version != the manifest pin must be refused
+    (the bundled path previously skipped the pin the catalog path enforces)."""
+    import specify_cli._assets as assets
+    from specify_cli.extensions import ExtensionManager
+
+    bundled = _write_manifest(tmp_path / "ext", "extension", "1.0.0")
+    monkeypatch.setattr(assets, "_locate_bundled_extension", lambda cid: bundled)
+    called: list = []
+    monkeypatch.setattr(
+        ExtensionManager, "install_from_directory",
+        lambda self, *a, **k: called.append(a),
+    )
+
+    manager = primitive_manager("extensions", tmp_path, allow_network=False)
+    with pytest.raises(BundlerError, match="pinned to version 2.0.0"):
+        manager.install(ComponentRef(kind="extensions", id="my-ext", version="2.0.0"))
+    assert called == []  # install must not proceed
+
+
+def test_bundled_extension_pin_match_installs(tmp_path: Path, monkeypatch):
+    import specify_cli._assets as assets
+    from specify_cli.extensions import ExtensionManager
+
+    bundled = _write_manifest(tmp_path / "ext", "extension", "1.0.0")
+    monkeypatch.setattr(assets, "_locate_bundled_extension", lambda cid: bundled)
+    called: list = []
+    monkeypatch.setattr(
+        ExtensionManager, "install_from_directory",
+        lambda self, *a, **k: called.append(a),
+    )
+
+    manager = primitive_manager("extensions", tmp_path, allow_network=False)
+    # matching pin, and unpinned, both install cleanly
+    manager.install(ComponentRef(kind="extensions", id="my-ext", version="1.0.0"))
+    manager.install(ComponentRef(kind="extensions", id="my-ext", version=None))
+    assert len(called) == 2
+
+
+def test_bundled_preset_pin_mismatch_refuses(tmp_path: Path, monkeypatch):
+    import specify_cli._assets as assets
+    from specify_cli.presets import PresetManager
+
+    bundled = _write_manifest(tmp_path / "preset", "preset", "1.0.0")
+    monkeypatch.setattr(assets, "_locate_bundled_preset", lambda cid: bundled)
+    called: list = []
+    monkeypatch.setattr(
+        PresetManager, "install_from_directory",
+        lambda self, *a, **k: called.append(a),
+    )
+
+    manager = primitive_manager("presets", tmp_path, allow_network=False)
+    with pytest.raises(BundlerError, match="pinned to version 2.0.0"):
+        manager.install(ComponentRef(kind="presets", id="my-preset", version="2.0.0"))
+    assert called == []
+
+
+def test_bundled_preset_pin_match_installs(tmp_path: Path, monkeypatch):
+    import specify_cli._assets as assets
+    from specify_cli.presets import PresetManager
+
+    bundled = _write_manifest(tmp_path / "preset", "preset", "1.0.0")
+    monkeypatch.setattr(assets, "_locate_bundled_preset", lambda cid: bundled)
+    called: list = []
+    monkeypatch.setattr(
+        PresetManager, "install_from_directory",
+        lambda self, *a, **k: called.append(a),
+    )
+
+    manager = primitive_manager("presets", tmp_path, allow_network=False)
+    # matching pin, and unpinned, both proceed to install
+    manager.install(ComponentRef(kind="presets", id="my-preset", version="1.0.0"))
+    manager.install(ComponentRef(kind="presets", id="my-preset", version=None))
+    assert len(called) == 2
+
+
+def test_extension_refresh_calls_install_with_force(tmp_path: Path, monkeypatch):
+    """_ExtensionKindManager.refresh() must pass force=True to install_from_directory
+    so an already-installed extension is overwritten instead of raising an error."""
+    import specify_cli._assets as assets
+    from specify_cli.extensions import ExtensionManager
+
+    bundled = _write_manifest(tmp_path / "ext", "extension", "1.0.0")
+    monkeypatch.setattr(assets, "_locate_bundled_extension", lambda cid: bundled)
+    force_values: list = []
+    monkeypatch.setattr(
+        ExtensionManager, "install_from_directory",
+        lambda self, *a, **k: force_values.append(k.get("force", False)),
+    )
+
+    manager = primitive_manager("extensions", tmp_path, allow_network=False)
+    manager.refresh(ComponentRef(kind="extensions", id="my-ext"))
+    assert force_values == [True], "refresh() must pass force=True"
+
+
+def test_preset_refresh_calls_install_with_force(tmp_path: Path, monkeypatch):
+    """_PresetKindManager.refresh() must pass force=True to install_from_directory
+    so an already-installed preset is overwritten instead of raising an error."""
+    import specify_cli._assets as assets
+    from specify_cli.presets import PresetManager
+
+    bundled = _write_manifest(tmp_path / "preset", "preset", "1.0.0")
+    monkeypatch.setattr(assets, "_locate_bundled_preset", lambda cid: bundled)
+    force_values: list = []
+    monkeypatch.setattr(
+        PresetManager, "install_from_directory",
+        lambda self, *a, **k: force_values.append(k.get("force", False)),
+    )
+
+    manager = primitive_manager("presets", tmp_path, allow_network=False)
+    manager.refresh(ComponentRef(kind="presets", id="my-preset"))
+    assert force_values == [True], "refresh() must pass force=True"
+
+
+def test_default_installer_refresh_dispatches_to_kind_manager(tmp_path: Path, monkeypatch):
+    """DefaultPrimitiveInstaller.refresh() must call the kind manager's refresh(),
+    which is the hook _refresh_component() will find — fixing the --force leak."""
+    import specify_cli._assets as assets
+    from specify_cli.extensions import ExtensionManager
+
+    bundled = _write_manifest(tmp_path / "ext", "extension", "1.0.0")
+    monkeypatch.setattr(assets, "_locate_bundled_extension", lambda cid: bundled)
+    force_values: list = []
+    monkeypatch.setattr(
+        ExtensionManager, "install_from_directory",
+        lambda self, *a, **k: force_values.append(k.get("force", False)),
+    )
+
+    installer = DefaultPrimitiveInstaller(allow_network=False)
+    installer.refresh(tmp_path, _component("extensions", "my-ext"))
+    assert force_values == [True], "DefaultPrimitiveInstaller.refresh() must use force=True"
+
+
+def test_refresh_succeeds_and_passes_force_true(tmp_path: Path, monkeypatch):
+    """Regression: bundle update (refresh=True) of an already-installed extension
+    must succeed and pass force=True to install_from_directory."""
+    from specify_cli.bundler.services.installer import install_bundle
+    from specify_cli.bundler.models.manifest import BundleManifest
+    import specify_cli._assets as assets
+    from specify_cli.extensions import ExtensionManager
+
+    bundled = _write_manifest(tmp_path / "ext", "extension", "1.0.0")
+    monkeypatch.setattr(assets, "_locate_bundled_extension", lambda cid: bundled)
+    # Simulate refresh succeeding (force=True removes the duplicate-install guard)
+    force_seen: list = []
+    def _fake_install_from_directory(self, *a, **k):
+        force_seen.append(k.get("force", False))
+        self.registry.add("my-ext", {"version": "1.0.0"})
+
+    monkeypatch.setattr(
+        ExtensionManager, "install_from_directory", _fake_install_from_directory
+    )
+
+    raw = valid_manifest_dict(
+        bundle={
+            "id": "test-bundle",
+            "name": "Test",
+            "version": "1.0.0",
+            "role": "developer",
+            "description": "Test bundle",
+            "author": "Spec Kit",
+            "license": "MIT",
+        },
+        provides={
+            "extensions": [{"id": "my-ext", "version": "1.0.0"}],
+            "presets": [],
+            "steps": [],
+            "workflows": [],
+        },
+    )
+    manifest = BundleManifest.from_dict(raw)
+    installer = DefaultPrimitiveInstaller(allow_network=False)
+    # First install
+    install_bundle(tmp_path, _plan(manifest), installer, manifest=manifest)
+    # Refresh (bundle update) — must not raise with --force hint
+    install_bundle(tmp_path, _plan(manifest), installer, manifest=manifest, refresh=True)
+    # force=True must have been passed during the refresh call
+    assert True in force_seen, "refresh path should have called install_from_directory with force=True"
+
+
+def _plan(manifest):
+    from specify_cli.bundler.services.installer import InstallPlan
+    from specify_cli.bundler.models.manifest import ComponentRef as CR
+
+    components = [CR(kind=c.kind, id=c.id) for c in manifest.components]
+    return InstallPlan(
+        bundle_id=manifest.bundle.id,
+        version=manifest.bundle.version,
+        role=manifest.bundle.role,
+        effective_integration=None,
+        components=components,
+    )

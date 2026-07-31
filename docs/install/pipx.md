@@ -7,8 +7,9 @@
 Pin a specific release tag for stability (check [Releases](https://github.com/bigsmartben/spec-kit/releases) for the latest):
 
 ```bash
-# Install a specific stable release (recommended — replace vX.Y.Z with the latest tag)
-pipx install git+https://github.com/bigsmartben/spec-kit.git@vX.Y.Z
+# Install a specific stable release (recommended — replace vX.Y.Z with the
+# latest tag, keeping the leading v, e.g. v0.12.11 not 0.12.11)
+pipx install git+https://github.com/github/spec-kit.git@vX.Y.Z
 
 # Or install latest from main (may include unreleased changes)
 pipx install git+https://github.com/bigsmartben/spec-kit.git

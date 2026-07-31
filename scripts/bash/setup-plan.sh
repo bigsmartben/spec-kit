@@ -9,21 +9,21 @@ ARGS=()
 
 for arg in "$@"; do
     case "$arg" in
-        --json) 
-            JSON_MODE=true 
+        --json)
+            JSON_MODE=true
             ;;
         --paths-only)
             PATHS_ONLY=true
             ;;
-        --help|-h) 
-            echo "Usage: $0 [--json] [--paths-only]"
+        --help|-h)
+            echo "Usage: $0 [--json]"
             echo "  --json    Output results in JSON format"
             echo "  --paths-only  Resolve paths without creating plan artifacts"
             echo "  --help    Show this help message"
-            exit 0 
+            exit 0
             ;;
-        *) 
-            ARGS+=("$arg") 
+        *)
+            ARGS+=("$arg")
             ;;
     esac
 done
@@ -33,7 +33,17 @@ SCRIPT_DIR="$(CDPATH="" cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/common.sh"
 
 # Get all paths and variables from common functions
-_paths_output=$(get_feature_paths) || { echo "ERROR: Failed to resolve feature paths" >&2; exit 1; }
+if $PATHS_ONLY; then
+    _paths_output=$(get_feature_paths --no-persist) || {
+        echo "ERROR: Failed to resolve feature paths" >&2
+        exit 1
+    }
+else
+    _paths_output=$(get_feature_paths) || {
+        echo "ERROR: Failed to resolve feature paths" >&2
+        exit 1
+    }
+fi
 eval "$_paths_output"
 unset _paths_output
 
@@ -86,7 +96,7 @@ if $JSON_MODE; then
     fi
 else
     echo "FEATURE_SPEC: $FEATURE_SPEC"
-    echo "IMPL_PLAN: $IMPL_PLAN" 
+    echo "IMPL_PLAN: $IMPL_PLAN"
     echo "SPECS_DIR: $FEATURE_DIR"
     echo "BRANCH: $CURRENT_BRANCH"
 fi

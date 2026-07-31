@@ -1,6 +1,8 @@
 """Tests for IntegrationOption, IntegrationBase, MarkdownIntegration, and primitives."""
 
+import shlex
 import sys
+from types import SimpleNamespace
 
 import pytest
 
@@ -204,19 +206,105 @@ class TestBuildCommandInvocation:
     def test_skills_core_command(self):
         from specify_cli.integrations import get_integration
         i = get_integration("codex")
-        assert i.build_command_invocation("speckit.plan") == "/speckit-plan"
-        assert i.build_command_invocation("plan") == "/speckit-plan"
+        assert i.build_command_invocation("speckit.plan") == "$speckit-plan"
+        assert i.build_command_invocation("plan") == "$speckit-plan"
 
     def test_skills_extension_command(self):
         from specify_cli.integrations import get_integration
         i = get_integration("codex")
-        assert i.build_command_invocation("speckit.git.commit") == "/speckit-git-commit"
-        assert i.build_command_invocation("git.commit") == "/speckit-git-commit"
+        assert i.build_command_invocation("speckit.git.commit") == "$speckit-git-commit"
+        assert i.build_command_invocation("git.commit") == "$speckit-git-commit"
 
     def test_skills_extension_command_with_args(self):
         from specify_cli.integrations import get_integration
         i = get_integration("codex")
-        assert i.build_command_invocation("speckit.git.commit", "fix typo") == "/speckit-git-commit fix typo"
+        assert i.build_command_invocation("speckit.git.commit", "fix typo") == "$speckit-git-commit fix typo"
+
+    @pytest.mark.parametrize("integration_key", ["codex", "zcode"])
+    def test_dollar_skill_post_processing_is_idempotent(self, integration_key):
+        from specify_cli.integrations import get_integration
+
+        content = (
+            "---\nname: test\n---\n\n"
+            "Literal slash invocation: /speckit-plan\n"
+            "- For each executable hook, output the following based on its flag:\n"
+        )
+        integration = get_integration(integration_key)
+        once = integration.post_process_skill_content(content)
+        twice = integration.post_process_skill_content(once)
+
+        assert twice == once
+        assert once.count("replace dots (`.`) with hyphens") == 1
+        assert "$speckit-git-commit" in once
+        assert "/speckit-plan" in once
+
+    def test_kimi_skill_post_processing_is_idempotent(self):
+        """Kimi's post_process_skill_content must be idempotent.
+
+        The hook-command note is injected with the /skill: prefix by the base
+        class (via get_invocation_prefix), so the idempotency check matches on
+        re-runs without requiring the broad /speckit- -> /skill:speckit- body
+        replacement to recognise a duplicate.
+        """
+        from specify_cli.integrations import get_integration
+
+        content = (
+            "---\nname: test\n---\n\n"
+            "Literal slash invocation: /speckit-plan\n"
+            "- For each executable hook, output the following based on its flag:\n"
+        )
+        integration = get_integration("kimi")
+        once = integration.post_process_skill_content(content)
+        twice = integration.post_process_skill_content(once)
+
+        assert twice == once
+        assert once.count("replace dots (`.`) with hyphens") == 1
+        assert "/skill:speckit-git-commit" in once
+
+    def test_get_invocation_prefix_skill_colon(self):
+        """get_invocation_prefix returns '/skill:' for Kimi in skills mode."""
+        from specify_cli._invocation_style import get_invocation_prefix
+
+        assert get_invocation_prefix("kimi", True) == "/skill:"
+        assert get_invocation_prefix("kimi", False) == "/"
+        assert get_invocation_prefix("codex", True) == "$"
+        assert get_invocation_prefix("claude", True) == "/"
+
+    def test_forge_core_command_hyphenated(self):
+        """Forge installs hyphenated slash-commands (/speckit-<name>), so the
+        dispatch invocation must be hyphenated too — not the dotted default it
+        would inherit from MarkdownIntegration."""
+        from specify_cli.integrations import get_integration
+        i = get_integration("forge")
+        assert i.build_command_invocation("speckit.plan") == "/speckit-plan"
+        assert i.build_command_invocation("plan") == "/speckit-plan"
+
+    def test_forge_extension_command_hyphenated(self):
+        from specify_cli.integrations import get_integration
+        i = get_integration("forge")
+        assert i.build_command_invocation("speckit.git.commit") == "/speckit-git-commit"
+        assert (
+            i.build_command_invocation("speckit.git.commit", "fix typo")
+            == "/speckit-git-commit fix typo"
+        )
+
+    def test_cline_core_command_hyphenated(self):
+        """Cline installs hyphenated slash-commands (/speckit-<name>), so the
+        dispatch invocation must be hyphenated too — not the dotted default it
+        would inherit from MarkdownIntegration."""
+        from specify_cli.integrations import get_integration
+        i = get_integration("cline")
+        assert i.build_command_invocation("speckit.plan") == "/speckit-plan"
+        assert i.build_command_invocation("plan") == "/speckit-plan"
+
+    def test_cline_extension_command_hyphenated(self):
+        from specify_cli.integrations import get_integration
+        i = get_integration("cline")
+        assert i.build_command_invocation("speckit.git.commit") == "/speckit-git-commit"
+        assert (
+            i.build_command_invocation("speckit.git.commit", "fix typo")
+            == "/speckit-git-commit fix typo"
+        )
 
 
 class TestResolveCommandRefs:
@@ -231,6 +319,26 @@ class TestResolveCommandRefs:
         text = "Run `__SPECKIT_COMMAND_PLAN__` to plan."
         result = IntegrationBase.resolve_command_refs(text, "-")
         assert result == "Run `/speckit-plan` to plan."
+
+    def test_dollar_prefix_core_command(self):
+        text = "Run `__SPECKIT_COMMAND_PLAN__` to plan."
+        result = IntegrationBase.resolve_command_refs(text, "-", "$")
+        assert result == "Run `$speckit-plan` to plan."
+
+    def test_skill_colon_prefix_core_command(self):
+        text = "Run `__SPECKIT_COMMAND_PLAN__` to plan."
+        result = IntegrationBase.resolve_command_refs(text, "-", "/skill:")
+        assert result == "Run `/skill:speckit-plan` to plan."
+
+    def test_process_template_kimi_uses_skill_colon_prefix(self):
+        """process_template must use /skill: prefix for Kimi without relying on
+        post_process_skill_content's broad replacement."""
+        text = "---\ndescription: test\n---\nRun `__SPECKIT_COMMAND_PLAN__` to plan."
+        result = IntegrationBase.process_template(
+            text, "kimi", "sh", invoke_separator="-"
+        )
+        assert "/skill:speckit-plan" in result
+        assert "/speckit-plan" not in result
 
     def test_multiple_placeholders(self):
         text = "__SPECKIT_COMMAND_SPECIFY__ then __SPECKIT_COMMAND_PLAN__ then __SPECKIT_COMMAND_TASKS__"
@@ -308,9 +416,12 @@ class TestResolveCommandRefs:
 class TestResolvePythonInterpreter:
     def test_returns_python_on_path(self, monkeypatch):
         # Positive: when python3 is on PATH it is preferred over python.
+        # Pin a POSIX platform so the Windows stub probe (tested separately
+        # below) does not reject the fake PATH entries on Windows CI.
         def fake_which(name):
             return f"/usr/bin/{name}" if name in ("python3", "python") else None
 
+        monkeypatch.setattr("specify_cli.integrations.base.sys.platform", "linux")
         monkeypatch.setattr(
             "specify_cli.integrations.base.shutil.which", fake_which
         )
@@ -320,6 +431,7 @@ class TestResolvePythonInterpreter:
         def fake_which(name):
             return "/usr/bin/python" if name == "python" else None
 
+        monkeypatch.setattr("specify_cli.integrations.base.sys.platform", "linux")
         monkeypatch.setattr(
             "specify_cli.integrations.base.shutil.which", fake_which
         )
@@ -371,11 +483,78 @@ class TestResolvePythonInterpreter:
 
     def test_ignores_missing_venv(self, monkeypatch, tmp_path):
         # Negative: no venv directory -> PATH resolution is used instead.
+        monkeypatch.setattr("specify_cli.integrations.base.sys.platform", "linux")
         monkeypatch.setattr(
             "specify_cli.integrations.base.shutil.which",
             lambda name: "/usr/bin/python3" if name == "python3" else None,
         )
         assert IntegrationBase.resolve_python_interpreter(tmp_path) == "python3"
+
+    def test_windows_skips_store_alias_stub(self, monkeypatch):
+        # On Windows, python3 on PATH may be the Microsoft Store App
+        # Execution Alias stub: it exists but only prints an installer
+        # hint and exits non-zero. Existence is not enough; the
+        # interpreter must actually run (mirrors #3304 for the CLI).
+        monkeypatch.setattr("specify_cli.integrations.base.sys.platform", "win32")
+        monkeypatch.setattr(
+            "specify_cli.integrations.base.shutil.which",
+            lambda name: f"C:\\WindowsApps\\{name}.exe"
+            if name in ("python3", "python")
+            else None,
+        )
+        monkeypatch.setattr(
+            IntegrationBase, "_interpreter_runs", staticmethod(lambda path: False)
+        )
+        monkeypatch.setattr(
+            "specify_cli.integrations.base.sys.executable", "C:\\Python\\python.exe"
+        )
+        result = IntegrationBase.resolve_python_interpreter()
+        assert result == "C:\\Python\\python.exe"
+
+    def test_windows_keeps_working_interpreter(self, monkeypatch):
+        # Positive: a real python3 on Windows PATH passes the run check.
+        monkeypatch.setattr("specify_cli.integrations.base.sys.platform", "win32")
+        monkeypatch.setattr(
+            "specify_cli.integrations.base.shutil.which",
+            lambda name: f"C:\\Python\\{name}.exe" if name == "python3" else None,
+        )
+        monkeypatch.setattr(
+            IntegrationBase, "_interpreter_runs", staticmethod(lambda path: True)
+        )
+        assert IntegrationBase.resolve_python_interpreter() == "python3"
+
+    def test_windows_stub_python3_falls_through_to_working_python(self, monkeypatch):
+        # python3 is the stub but python is a real install: pick python.
+        monkeypatch.setattr("specify_cli.integrations.base.sys.platform", "win32")
+        monkeypatch.setattr(
+            "specify_cli.integrations.base.shutil.which",
+            lambda name: f"C:\\somewhere\\{name}.exe"
+            if name in ("python3", "python")
+            else None,
+        )
+        monkeypatch.setattr(
+            IntegrationBase,
+            "_interpreter_runs",
+            staticmethod(lambda path: path.endswith("python.exe")),
+        )
+        assert IntegrationBase.resolve_python_interpreter() == "python"
+
+    def test_posix_does_not_spawn_run_check(self, monkeypatch):
+        # Non-Windows platforms have no App Execution Alias; existence
+        # on PATH stays sufficient and no subprocess is spawned.
+        monkeypatch.setattr("specify_cli.integrations.base.sys.platform", "linux")
+        monkeypatch.setattr(
+            "specify_cli.integrations.base.shutil.which",
+            lambda name: "/usr/bin/python3" if name == "python3" else None,
+        )
+
+        def boom(path):
+            raise AssertionError("run check must not execute on POSIX")
+
+        monkeypatch.setattr(
+            IntegrationBase, "_interpreter_runs", staticmethod(boom)
+        )
+        assert IntegrationBase.resolve_python_interpreter() == "python3"
 
 
 class TestProcessTemplatePyScriptType:
@@ -392,6 +571,7 @@ class TestProcessTemplatePyScriptType:
     def test_py_prefixes_interpreter(self, monkeypatch):
         # Positive: py script type prefixes a resolved interpreter and the
         # script path is rewritten to the .specify location.
+        monkeypatch.setattr("specify_cli.integrations.base.sys.platform", "linux")
         monkeypatch.setattr(
             "specify_cli.integrations.base.shutil.which",
             lambda name: "/usr/bin/python3" if name == "python3" else None,
@@ -407,19 +587,41 @@ class TestProcessTemplatePyScriptType:
         assert ".specify/scripts/bash/check-prerequisites.sh --json" in result
         assert "python" not in result
 
+    def test_body_scripts_example_does_not_override_frontmatter(self):
+        content = (
+            "---\n"
+            "scripts:\n"
+            "  sh: scripts/bash/real.sh --json\n"
+            "---\n"
+            "Run {SCRIPT} now.\n"
+            "```yaml\n"
+            "scripts:\n"
+            "  sh: examples/not-the-command.sh\n"
+            "```\n"
+        )
+
+        result = IntegrationBase.process_template(content, "agent", "sh")
+
+        assert ".specify/scripts/bash/real.sh --json" in result
+        assert "examples/not-the-command.sh" in result
+
     def test_py_quotes_interpreter_with_spaces(self, monkeypatch):
         # An interpreter path containing whitespace (e.g. Windows
         # ``Program Files``) must be quoted so it isn't split into args.
+        interpreter = r"C:\Program Files\Python\python.exe"
         monkeypatch.setattr(
             "specify_cli.integrations.base.shutil.which", lambda name: None
         )
         monkeypatch.setattr(
             "specify_cli.integrations.base.sys.executable",
-            r"C:\Program Files\Python\python.exe",
+            interpreter,
+        )
+        monkeypatch.setattr(
+            "specify_cli.integrations.base.os", SimpleNamespace(name="posix")
         )
         result = IntegrationBase.process_template(self.CONTENT, "agent", "py")
         assert (
-            '"C:\\Program Files\\Python\\python.exe" '
+            f"{shlex.quote(interpreter)} "
             ".specify/scripts/python/check-prerequisites.py --json"
         ) in result
 
@@ -440,6 +642,39 @@ class TestProcessTemplatePyScriptType:
             self.CONTENT, "agent", "py", project_root=tmp_path
         )
         assert ".venv/bin/python .specify/scripts/python/check-prerequisites.py" in result
+
+    def test_setup_py_falls_back_to_platform_shell(
+        self, monkeypatch, tmp_path
+    ):
+        template = tmp_path / "fallback.md"
+        template.write_text(
+            "---\n"
+            "scripts:\n"
+            "  sh: scripts/bash/check-prerequisites.sh --json\n"
+            "  ps: scripts/powershell/check-prerequisites.ps1 -Json\n"
+            "---\n"
+            "Run {SCRIPT} now.\n",
+            encoding="utf-8",
+        )
+        integration = StubIntegration()
+        monkeypatch.setattr(
+            integration, "list_command_templates", lambda: [template]
+        )
+
+        created = integration.setup(
+            tmp_path,
+            IntegrationManifest("stub", tmp_path),
+            script_type="py",
+        )
+
+        rendered = created[0].read_text(encoding="utf-8")
+        expected = (
+            ".specify/scripts/powershell/check-prerequisites.ps1"
+            if sys.platform == "win32"
+            else ".specify/scripts/bash/check-prerequisites.sh"
+        )
+        assert "{SCRIPT}" not in rendered
+        assert expected in rendered
 
 
 class TestInstallScriptsPython:

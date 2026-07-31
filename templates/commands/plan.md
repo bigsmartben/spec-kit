@@ -1,6 +1,6 @@
 ---
 description: Execute the implementation planning workflow using the plan template to generate design artifacts.
-handoffs: 
+handoffs:
   - label: Create Tasks
     agent: speckit.tasks
     prompt: Break the plan into tasks
@@ -8,6 +8,7 @@ handoffs:
 scripts:
   sh: scripts/bash/setup-plan.sh --json --paths-only
   ps: scripts/powershell/setup-plan.ps1 -Json -PathsOnly
+  py: scripts/python/setup_plan.py --json --paths-only
 ---
 
 ## User Input
@@ -100,7 +101,6 @@ Run this section only after Planning Readiness PASS.
    - Evaluate gates (ERROR if violations unjustified)
    - Phase 0: Generate research.md (resolve all NEEDS CLARIFICATION)
    - Phase 1: Generate data-model.md, contracts/, quickstart.md
-   - Phase 1: Update agent context by running the agent script
    - Re-evaluate Constitution Check post-design
 
 ## Mandatory Post-Execution Hooks
@@ -139,7 +139,7 @@ Check if `.specify/extensions.yml` exists in the project root.
 
 ## Completion Report
 
-Command ends after Phase 2 planning. Report branch, IMPL_PLAN path, and generated artifacts.
+Command ends after Phase 1 design. Report branch, IMPL_PLAN path, and generated artifacts.
 
 ## Phases
 

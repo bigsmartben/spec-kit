@@ -3,6 +3,7 @@ description: Generate or recompute requirement-quality gates before implementati
 scripts:
   sh: scripts/bash/check-prerequisites.sh --json --paths-only
   ps: scripts/powershell/check-prerequisites.ps1 -Json -PathsOnly
+  py: scripts/python/check_prerequisites.py --json --paths-only
 ---
 
 ## User Input

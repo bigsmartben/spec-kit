@@ -1,5 +1,5 @@
 <div align="center">
-    <img src="./media/logo_large.webp" alt="Spec Kit Logo" width="180" height="180"/>
+    <img src="https://raw.githubusercontent.com/bigsmartben/spec-kit/main/media/logo_large.webp" alt="Spec Kit Logo" width="180" height="180"/>
     <h1>Spec Kit Local Extensions</h1>
     <h3><em>面向本地增强工作流的 Spec Kit 分发版。</em></h3>
 </div>
@@ -193,6 +193,14 @@ specs/<feature>/contracts/bdd/
 specs/<feature>/contracts/uif/
 specs/<feature>/contracts/behavior/
 ```
+
+## 社区资源
+
+## 视频概览
+
+可通过[视频概览](https://www.youtube.com/watch?v=a9eR1xsfvHg&pp=0gcJCckJAYcqIYzv)了解 Spec Kit 的基本工作方式：
+
+[![Spec Kit video header](https://raw.githubusercontent.com/github/spec-kit/main/media/spec-kit-video-header.jpg)](https://www.youtube.com/watch?v=a9eR1xsfvHg&pp=0gcJCckJAYcqIYzv)
 
 ## 社区资源
 

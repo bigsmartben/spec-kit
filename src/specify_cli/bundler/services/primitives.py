@@ -33,12 +33,13 @@ DEFAULT_PRIORITY = 10
 def _assert_pinned_version(
     kind: str, component_id: str, pinned: str | None, advertised: object
 ) -> None:
-    """Refuse to install when the catalog version differs from the manifest pin.
+    """Refuse to install when the resolved version differs from the manifest pin.
 
     Bundle manifests pin component versions for reproducibility; installing
-    whatever the active catalog currently serves would silently violate the
-    pin. When the catalog advertises no version we cannot enforce the pin, so
-    installation proceeds (the catalog, not the bundler, owns that gap).
+    whatever the resolved source (catalog *or* bundled asset) provides would
+    silently violate the pin. When the source advertises no version we cannot
+    enforce the pin, so installation proceeds (the source, not the bundler,
+    owns that gap).
     """
     if not pinned or advertised is None:
         return
@@ -54,17 +55,47 @@ def _assert_pinned_version(
     if not matches:
         raise BundlerError(
             f"{kind} '{component_id}' is pinned to version {pinned} in the bundle "
-            f"manifest, but the active catalog serves {actual}. Update the bundle's "
-            "pinned version or the catalog before installing."
+            f"manifest, but the resolved version is {actual}. Update the bundle's "
+            "pinned version or the source before installing."
         )
 
 
+def _bundled_manifest_version(manifest_path: Path, root_key: str) -> str | None:
+    """Best-effort read of a bundled asset's declared version from its manifest.
+
+    Returns ``None`` when the manifest is missing/unreadable/invalid, which
+    ``_assert_pinned_version`` treats as "cannot enforce" (proceed) — matching
+    the catalog "advertises no version" escape hatch.
+    """
+    try:
+        import yaml
+
+        data = yaml.safe_load(manifest_path.read_text(encoding="utf-8"))
+        if isinstance(data, dict):
+            section = data.get(root_key)
+            if isinstance(section, dict):
+                version = section.get("version")
+                # Only a non-empty string is a usable version; anything else
+                # (missing / non-string / whitespace) means "cannot enforce".
+                if isinstance(version, str) and version.strip():
+                    return version
+    except Exception:  # noqa: BLE001 - unreadable/invalid manifest: skip pin
+        return None
+    return None
+
+
 class _KindManager(Protocol):
-    def is_installed(self, component: ComponentRef) -> bool: ...
+    def is_installed(self, component: ComponentRef) -> bool:
+        pass
 
-    def install(self, component: ComponentRef) -> None: ...
+    def install(self, component: ComponentRef) -> None:
+        pass
 
-    def remove(self, component: ComponentRef) -> None: ...
+    def refresh(self, component: ComponentRef) -> None:
+        pass
+
+    def remove(self, component: ComponentRef) -> None:
+        pass
 
 
 def primitive_manager(
@@ -126,6 +157,12 @@ class _PresetKindManager:
             return False
 
     def install(self, component: ComponentRef) -> None:
+        self._do_install(component, force=False)
+
+    def refresh(self, component: ComponentRef) -> None:
+        self._do_install(component, force=True)
+
+    def _do_install(self, component: ComponentRef, *, force: bool) -> None:
         from ... import get_speckit_version
         from ..._assets import _locate_bundled_preset
 
@@ -134,7 +171,18 @@ class _PresetKindManager:
 
         bundled = _locate_bundled_preset(component.id)
         if bundled is not None:
-            self._manager.install_from_directory(bundled, speckit_version, priority)
+            # Enforce the manifest pin against the bundled asset's own version,
+            # mirroring the catalog path below (the bundled path previously
+            # skipped the pin entirely).
+            _assert_pinned_version(
+                "Preset",
+                component.id,
+                component.version,
+                _bundled_manifest_version(bundled / "preset.yml", "preset"),
+            )
+            self._manager.install_from_directory(
+                bundled, speckit_version, priority, **({"force": True} if force else {})
+            )
             return
 
         if not self._allow_network:
@@ -160,7 +208,9 @@ class _PresetKindManager:
         )
         zip_path = catalog.download_pack(component.id)
         try:
-            self._manager.install_from_zip(zip_path, speckit_version, priority)
+            self._manager.install_from_zip(
+                zip_path, speckit_version, priority, **({"force": True} if force else {})
+            )
         finally:
             with contextlib.suppress(Exception):
                 if zip_path.exists():
@@ -190,6 +240,12 @@ class _ExtensionKindManager:
             return False
 
     def install(self, component: ComponentRef) -> None:
+        self._do_install(component, force=False)
+
+    def refresh(self, component: ComponentRef) -> None:
+        self._do_install(component, force=True)
+
+    def _do_install(self, component: ComponentRef, *, force: bool) -> None:
         from ... import get_speckit_version
         from ..._assets import _locate_bundled_extension
 
@@ -198,8 +254,17 @@ class _ExtensionKindManager:
 
         bundled = _locate_bundled_extension(component.id)
         if bundled is not None:
+            # Enforce the manifest pin against the bundled asset's own version,
+            # mirroring the catalog path below (the bundled path previously
+            # skipped the pin entirely).
+            _assert_pinned_version(
+                "Extension",
+                component.id,
+                component.version,
+                _bundled_manifest_version(bundled / "extension.yml", "extension"),
+            )
             self._manager.install_from_directory(
-                bundled, speckit_version, priority=priority
+                bundled, speckit_version, priority=priority, force=force
             )
             return
 
@@ -229,7 +294,7 @@ class _ExtensionKindManager:
         zip_path = catalog.download_extension(component.id)
         try:
             self._manager.install_from_zip(
-                zip_path, speckit_version, priority=priority
+                zip_path, speckit_version, priority=priority, force=force
             )
         finally:
             with contextlib.suppress(Exception):
@@ -274,6 +339,11 @@ class _WorkflowKindManager:
                 "install", f"workflow '{component.id}'",
                 lambda: workflow_add(component.id),
             )
+
+    def refresh(self, component: ComponentRef) -> None:
+        # workflow_add is idempotent for already-installed workflows; delegate
+        # to the standard install path which handles version refresh correctly.
+        self.install(component)
 
     def _assert_pinned_version(self, component: ComponentRef) -> None:
         if not component.version:
@@ -334,6 +404,35 @@ class _StepKindManager:
                 "install", f"step '{component.id}'",
                 lambda: workflow_step_add(component.id),
             )
+
+    def refresh(self, component: ComponentRef) -> None:
+        # Preserve an existing step until we've validated we can perform refresh.
+        # For already-installed steps, keep a backup and restore it if the
+        # remove+reinstall path fails.
+        if not (self._allow_network and self.is_installed(component)):
+            self.install(component)
+            return
+
+        import shutil
+        import tempfile
+
+        step_dir = self._registry.steps_dir / component.id
+        metadata = self._registry.get(component.id)
+        backup_dir = Path(tempfile.mkdtemp(prefix="speckit-step-refresh-")) / component.id
+        try:
+            if step_dir.exists():
+                shutil.copytree(step_dir, backup_dir)
+            self.remove(component)
+            try:
+                self.install(component)
+            except BundlerError:
+                if backup_dir.exists():
+                    shutil.copytree(backup_dir, step_dir, dirs_exist_ok=True)
+                if metadata is not None and not self._registry.is_installed(component.id):
+                    self._registry.add(component.id, metadata)
+                raise
+        finally:
+            shutil.rmtree(backup_dir.parent, ignore_errors=True)
 
     def remove(self, component: ComponentRef) -> None:
         from ... import workflow_step_remove

@@ -15,23 +15,25 @@ from pathlib import Path
 from urllib.parse import ParseResult, urlparse
 from urllib.request import url2pathname
 
+from ..._assets import _locate_core_pack, _repo_root
+from ..._download_security import MAX_JSON_CATALOG_BYTES, read_response_limited
 from .. import BundlerError
 from ..lib.yamlio import loads_json
 from ..models.catalog import CatalogSource
 from ..models.manifest import ComponentRef
 
-# Built-in catalog payloads ship empty by default; a host distribution can
-# replace these with curated content. Keeping them here makes ``search``/``info``
-# work fully offline against the default stack.
+COMMUNITY_CATALOG_URL = (
+    "https://raw.githubusercontent.com/github/spec-kit/main/"
+    "bundles/catalog.community.json"
+)
+
+# The default catalog is reserved for first-party bundles. The community
+# catalog is loaded from the repository online and from the packaged snapshot
+# offline so discovery remains useful without network access.
 _BUILTIN_CATALOGS: dict[str, dict] = {
     "builtin://default": {
         "schema_version": "1.0",
         "catalog_url": "builtin://default",
-        "bundles": {},
-    },
-    "builtin://community": {
-        "schema_version": "1.0",
-        "catalog_url": "builtin://community",
         "bundles": {},
     },
 }
@@ -68,17 +70,45 @@ def _validate_remote_url(source_id: str, url: str) -> None:
     Mirrors ``specify_cli.catalogs`` URL validation to avoid MITM/downgrade
     issues before any network call.
     """
-    parsed = urlparse(url)
-    is_localhost = parsed.hostname in ("localhost", "127.0.0.1", "::1")
+    # A malformed authority (e.g. an unclosed IPv6 bracket ``https://[::1``)
+    # makes urlparse / hostname access raise ValueError. This function's
+    # contract is to raise BundlerError for a bad URL, so surface that as a
+    # clean error rather than leaking a raw ValueError to the caller.
+    try:
+        parsed = urlparse(url)
+        hostname = parsed.hostname
+        # Accessing ``port`` performs urllib's syntax/range validation.
+        _ = parsed.port
+    except ValueError:
+        raise BundlerError(
+            f"Catalog '{source_id}' URL is malformed: {url}"
+        ) from None
+    is_localhost = hostname in ("localhost", "127.0.0.1", "::1")
     if parsed.scheme != "https" and not (parsed.scheme == "http" and is_localhost):
         raise BundlerError(
             f"Catalog '{source_id}' URL must use HTTPS (got {parsed.scheme}://). "
             "HTTP is only allowed for localhost."
         )
-    if not parsed.netloc:
+    # Check hostname, not netloc: netloc is truthy for host-less URLs like
+    # "https://:8080" or "https://user@...", so requiring netloc would let
+    # those through even though they carry no host. hostname is None in those
+    # cases. Mirrors the fix in ``specify_cli.catalogs`` (#3210).
+    if not hostname:
         raise BundlerError(
             f"Catalog '{source_id}' URL must be a valid URL with a host: {url}"
         )
+
+
+def _load_packaged_community_catalog() -> dict:
+    core_pack = _locate_core_pack()
+    path = (
+        core_pack / "bundles" / "catalog.community.json"
+        if core_pack is not None
+        else _repo_root() / "bundles" / "catalog.community.json"
+    )
+    if not path.is_file():
+        raise BundlerError(f"Bundled community catalog not found: {path}")
+    return loads_json(path.read_text(encoding="utf-8"), origin=str(path))
 
 
 def make_catalog_fetcher(*, allow_network: bool = True):
@@ -90,10 +120,22 @@ def make_catalog_fetcher(*, allow_network: bool = True):
 
     def fetch(source: CatalogSource) -> dict:
         url = source.url
-        parsed = urlparse(url)
+        try:
+            parsed = urlparse(url)
+            # Keep malformed authorities and ports inside the BundlerError
+            # contract even when a config file was edited by hand.
+            _ = parsed.port
+        except ValueError:
+            raise BundlerError(
+                f"Catalog {source.id!r} URL is malformed: {url!r}"
+            ) from None
         scheme = parsed.scheme.lower()
 
         if scheme == "builtin":
+            if url == "builtin://community":
+                if allow_network:
+                    return _http_get_json(source.id, COMMUNITY_CATALOG_URL)
+                return _load_packaged_community_catalog()
             payload = _BUILTIN_CATALOGS.get(url)
             if payload is None:
                 raise BundlerError(f"Unknown built-in catalog '{url}'.")
@@ -149,7 +191,12 @@ def _http_get_json(source_id: str, url: str) -> dict:
         ) as response:
             final_url = response.geturl()
             _validate_remote_url(source_id, final_url)
-            raw = response.read().decode("utf-8")
+            raw = read_response_limited(
+                response,
+                max_bytes=MAX_JSON_CATALOG_BYTES,
+                error_type=BundlerError,
+                label=f"bundle catalog '{source_id}'",
+            ).decode("utf-8")
     except BundlerError:
         raise
     except Exception as exc:  # noqa: BLE001
@@ -179,6 +226,10 @@ class DefaultPrimitiveInstaller:
     def install(self, project_root: Path, component: ComponentRef) -> None:
         manager = self._manager_for(component, project_root)
         manager.install(component)
+
+    def refresh(self, project_root: Path, component: ComponentRef) -> None:
+        manager = self._manager_for(component, project_root)
+        manager.refresh(component)
 
     def remove(self, project_root: Path, component: ComponentRef) -> None:
         manager = self._manager_for(component, project_root)

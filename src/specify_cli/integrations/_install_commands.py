@@ -8,6 +8,7 @@ import typer
 from .._console import console
 from .._utils import _display_project_path
 from ..integration_runtime import (
+    invoke_prefix_for_integration as _invoke_prefix_for_integration,
     invoke_separator_for_integration as _invoke_separator_for_integration,
     with_integration_setting as _with_integration_setting,
 )
@@ -28,6 +29,7 @@ from ._helpers import (
     _reconcile_presets_for_active_agent,
     _refresh_init_options_speckit_version,
     _register_extensions_for_agent,
+    _register_presets_for_agent,
     _remove_integration_json,
     _resolve_integration_options,
     _resolve_script_type,
@@ -41,7 +43,7 @@ from ._helpers import (
 @integration_app.command("install")
 def integration_install(
     key: str = typer.Argument(help="Integration key to install (e.g. claude, copilot)"),
-    script: str | None = typer.Option(None, "--script", help="Script type: sh or ps (default: from init-options.json or platform default)"),
+    script: str | None = typer.Option(None, "--script", help="Script type: sh, ps, or py (default: from init-options.json or platform default)"),
     force: bool = typer.Option(False, "--force", help="Allow multi-install when integrations are not declared safe"),
     integration_options: str | None = typer.Option(None, "--integration-options", help='Options for the integration (e.g. --integration-options="--commands-dir .myagent/cmds")'),
 ):
@@ -130,7 +132,11 @@ def integration_install(
         project_root,
         selected_script,
         invoke_separator=_invoke_separator_for_integration(
-            infra_integration, current, infra_key, infra_parsed
+            infra_integration, current, infra_key, infra_parsed,
+            project_root=project_root,
+        ),
+        invoke_prefix=_invoke_prefix_for_integration(
+            infra_integration, infra_key, infra_parsed, project_root
         ),
     )
     if os.name != "nt":
@@ -141,12 +147,21 @@ def integration_install(
         integration.key, project_root, version=_get_speckit_version()
     )
 
+    from ..events import resolve_events
+    events_map = resolve_events(
+        integration.key,
+        integration.config,
+        project_root,
+        parsed_options,
+    )
+
     try:
         integration.setup(
             project_root, manifest,
             parsed_options=parsed_options,
             script_type=selected_script,
             raw_options=raw_options,
+            events=events_map,
         )
         manifest.save()
         new_installed = _dedupe_integration_keys([*installed_keys, integration.key])
@@ -158,10 +173,16 @@ def integration_install(
             script_type=selected_script,
             raw_options=raw_options,
             parsed_options=parsed_options,
+            project_root=project_root,
         )
         _write_integration_json(project_root, new_default, new_installed, settings)
         if new_default == integration.key:
-            _update_init_options_for_integration(project_root, integration, script_type=selected_script)
+            _update_init_options_for_integration(
+                project_root,
+                integration,
+                script_type=selected_script,
+                parsed_options=parsed_options,
+            )
         else:
             _refresh_init_options_speckit_version(project_root)
 
@@ -191,13 +212,23 @@ def integration_install(
         )
         raise typer.Exit(1)
 
-    _reconcile_presets_for_active_agent(
-        project_root,
-        continuing=(
-            "The integration was installed, but enabled presets may need "
-            "manual re-registration."
-        ),
-    )
+    if new_default == integration.key:
+        _register_presets_for_agent(
+            project_root,
+            integration.key,
+            continuing=(
+                "The integration was installed, but enabled presets may need "
+                "manual re-registration."
+            ),
+        )
+    else:
+        _reconcile_presets_for_active_agent(
+            project_root,
+            continuing=(
+                "The integration was installed, but enabled presets may need "
+                "manual re-registration."
+            ),
+        )
 
     name = (integration.config or {}).get("name", key)
     console.print(f"\n[green]✓[/green] Integration '{name}' installed successfully")
@@ -268,8 +299,9 @@ def integration_uninstall(
                         "extensions may need re-registration."
                     ),
                 )
-                _reconcile_presets_for_active_agent(
+                _register_presets_for_agent(
                     project_root,
+                    new_default,
                     continuing=(
                         "The fallback integration was selected, but enabled "
                         "presets may need manual re-registration."
@@ -341,8 +373,9 @@ def integration_uninstall(
                     "extensions may need re-registration."
                 ),
             )
-            _reconcile_presets_for_active_agent(
+            _register_presets_for_agent(
                 project_root,
+                new_default,
                 continuing=(
                     "The fallback integration was selected, but enabled presets "
                     "may need manual re-registration."

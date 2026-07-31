@@ -6,6 +6,7 @@ contracts/cli-commands.md (offline, discovery-only refusal, not-a-project error)
 """
 from __future__ import annotations
 
+import io
 import json
 from pathlib import Path
 from unittest.mock import patch
@@ -16,6 +17,7 @@ from typer.testing import CliRunner
 
 from specify_cli import app
 from specify_cli.bundler.services.packager import build_bundle
+from tests.conftest import strip_ansi
 from tests.bundler_helpers import (
     catalog_entry_dict,
     valid_manifest_dict,
@@ -23,6 +25,42 @@ from tests.bundler_helpers import (
 )
 
 runner = CliRunner()
+
+MARKUP_BUNDLE_ID = "[red]markup-id[/red]"
+MARKUP_SOURCE_ID = "[underline]markup-source[/underline]"
+
+
+def _configure_markup_catalog(project: Path, **overrides: object) -> dict:
+    entry = catalog_entry_dict(
+        MARKUP_BUNDLE_ID,
+        name="[green]Markup Name[/green]",
+        version="[blue]1.0.0[/blue]",
+        role="[magenta]Markup Role[/magenta]",
+        description="[yellow]Markup Description[/yellow]",
+        author="[cyan]Markup Author[/cyan]",
+        license="[bold]Markup License[/bold]",
+        download_url="https://example.com/markup-bundle.zip",
+        requires={"speckit_version": "[italic]>=0.1.0[/italic]"},
+        **overrides,
+    )
+    catalog = project / "markup-catalog.json"
+    write_catalog_file(catalog, {MARKUP_BUNDLE_ID: entry})
+    config = {
+        "schema_version": "1.0",
+        "catalogs": [
+            {
+                "id": MARKUP_SOURCE_ID,
+                "url": str(catalog),
+                "priority": 1,
+                "install_policy": "install-allowed",
+            }
+        ],
+    }
+    (project / ".specify" / "bundle-catalogs.yml").write_text(
+        yaml.safe_dump(config),
+        encoding="utf-8",
+    )
+    return entry
 
 
 @pytest.fixture()
@@ -63,6 +101,42 @@ def test_commands_outside_project_fail_with_guidance(tmp_path: Path, monkeypatch
     assert "Spec Kit project" in result.output
 
 
+def test_remove_reports_clean_error_when_primitive_raises_raw_exception(
+    project: Path,
+):
+    """A raw exception from a primitive installer (e.g. an OSError from an
+    unreadable workflow registry surfacing through _WorkflowKindManager's
+    fail-closed construction) must not propagate uncaught through
+    `specify bundle remove` -- the command only catches BundlerError, so
+    without a conversion at the remove_bundle boundary this would exit
+    with an unhandled exception and empty/raw output instead of a clean,
+    actionable message, and no removal side effects should occur either."""
+    from specify_cli.bundler.models.manifest import BundleManifest
+    from specify_cli.bundler.models.records import load_records
+    from specify_cli.bundler.services.adapters import DefaultPrimitiveInstaller
+    from specify_cli.bundler.services.installer import install_bundle
+    from specify_cli.bundler.services.resolver import resolve_install_plan
+    from tests.bundler_helpers import FakeInstaller
+
+    manifest = BundleManifest.from_dict(valid_manifest_dict())
+    plan = resolve_install_plan(
+        manifest, speckit_version="0.11.2", active_integration="copilot"
+    )
+    install_bundle(project, plan, FakeInstaller(), manifest=manifest)
+
+    def boom(self, project_root, component):
+        raise OSError("workflow registry unreadable")
+
+    with pytest.MonkeyPatch.context() as mp:
+        mp.setattr(DefaultPrimitiveInstaller, "is_installed", boom)
+        result = runner.invoke(app, ["bundle", "remove", "demo-bundle"])
+
+    assert result.exit_code != 0
+    assert result.output.strip() != ""
+    assert result.exception is None or isinstance(result.exception, SystemExit)
+    assert {r.bundle_id for r in load_records(project)} == {"demo-bundle"}
+
+
 def test_fail_writes_error_to_stderr_not_stdout(capsys):
     """_fail must write to stderr, not stdout: every bundle command routes errors
     through it, and under --json the error would otherwise corrupt the JSON payload
@@ -85,6 +159,24 @@ def test_search_works_without_a_project(tmp_path: Path, monkeypatch):
     result = runner.invoke(app, ["bundle", "search", "--offline", "--json"])
     assert result.exit_code == 0, result.output
     assert result.output.strip().startswith("[")
+
+
+def test_search_escapes_catalog_markup(project: Path):
+    entry = _configure_markup_catalog(project)
+
+    result = runner.invoke(app, ["bundle", "search", "--offline"])
+
+    assert result.exit_code == 0, result.output
+    output = " ".join(strip_ansi(result.output).split())
+    for value in (
+        entry["id"],
+        entry["name"],
+        entry["version"],
+        entry["role"],
+        entry["description"],
+        MARKUP_SOURCE_ID,
+    ):
+        assert value in output
 
 
 def test_info_unknown_bundle_without_project_reports_not_found(tmp_path: Path, monkeypatch):
@@ -175,7 +267,23 @@ def test_build_produces_artifact(project: Path):
     assert len(artifacts) == 1
 
 
-def test_info_expands_full_component_set(project: Path):
+def _mock_manifest_download(monkeypatch, source_path: Path) -> None:
+    """Mock the HTTPS manifest fetch to return a locally-authored manifest.
+
+    Catalog ``download_url``s are HTTPS-only, so ``info`` tests can no longer
+    point one at a local file. Patch ``_download_manifest`` to return the
+    manifest parsed from *source_path* (a bundle.yml or a .zip artifact),
+    exercising ``info``'s expansion without a network call.
+    """
+    from specify_cli.commands.bundle import _local_manifest_source
+
+    monkeypatch.setattr(
+        "specify_cli.commands.bundle._download_manifest",
+        lambda resolved, *, offline: _local_manifest_source(str(source_path)),
+    )
+
+
+def test_info_expands_full_component_set(project: Path, monkeypatch):
     bundle_dir = project / "src-bundle"
     bundle_dir.mkdir()
     (bundle_dir / "bundle.yml").write_text(
@@ -183,13 +291,14 @@ def test_info_expands_full_component_set(project: Path):
     )
     catalog = project / "local-catalog.json"
     entry = catalog_entry_dict(
-        "demo-bundle", download_url=str(bundle_dir / "bundle.yml")
+        "demo-bundle", download_url="https://example.com/demo-bundle.zip"
     )
     write_catalog_file(catalog, {"demo-bundle": entry})
     added = runner.invoke(
         app, ["bundle", "catalog", "add", str(catalog), "--id", "local"]
     )
     assert added.exit_code == 0, added.output
+    _mock_manifest_download(monkeypatch, bundle_dir / "bundle.yml")
 
     result = runner.invoke(app, ["bundle", "info", "demo-bundle", "--json", "--offline"])
     assert result.exit_code == 0, result.output
@@ -207,7 +316,84 @@ def test_info_expands_full_component_set(project: Path):
     assert "Trust" in text.output
 
 
-def test_info_expands_discovery_only_bundle(project: Path):
+def test_info_escapes_catalog_markup(project: Path, monkeypatch):
+    entry = _configure_markup_catalog(project)
+    bundle_dir = project / "markup-bundle"
+    bundle_dir.mkdir()
+    manifest_data = valid_manifest_dict()
+    manifest_data["bundle"]["id"] = MARKUP_BUNDLE_ID
+    manifest_data["integration"] = {
+        "id": "[conceal]markup-integration[/conceal]"
+    }
+    manifest_path = bundle_dir / "bundle.yml"
+    manifest_path.write_text(yaml.safe_dump(manifest_data), encoding="utf-8")
+    _mock_manifest_download(monkeypatch, manifest_path)
+    monkeypatch.setattr(
+        "specify_cli.commands.bundle._manifest_component_view",
+        lambda manifest: [
+            {
+                "kind": "extensions",
+                "id": "[reverse]markup-component[/reverse]",
+                "version": "[strike]2.0.0[/strike]",
+            }
+        ],
+    )
+    monkeypatch.setattr(
+        "specify_cli.commands.bundle._bundle_overlaps",
+        lambda project_root, manifest, *, offline: [
+            "[blink]markup-overlap[/blink]"
+        ],
+    )
+
+    result = runner.invoke(
+        app,
+        ["bundle", "info", MARKUP_BUNDLE_ID, "--offline"],
+    )
+
+    assert result.exit_code == 0, result.output
+    output = " ".join(strip_ansi(result.output).split())
+    for value in (
+        entry["id"],
+        entry["name"],
+        entry["version"],
+        entry["role"],
+        entry["description"],
+        entry["author"],
+        entry["license"],
+        entry["requires"]["speckit_version"],
+        MARKUP_SOURCE_ID,
+        "[conceal]markup-integration[/conceal]",
+        "[reverse]markup-component[/reverse]",
+        "[strike]2.0.0[/strike]",
+        "[blink]markup-overlap[/blink]",
+    ):
+        assert value in output
+
+
+def test_info_escapes_catalog_provides_fallback_markup(project: Path, monkeypatch):
+    markup_count = "[bold]markup-count[/bold]"
+    _configure_markup_catalog(
+        project,
+        provides={"extensions": markup_count},
+    )
+    bundle_dir = project / "markup-bundle"
+    bundle_dir.mkdir()
+    manifest_data = valid_manifest_dict(provides={})
+    manifest_data["bundle"]["id"] = MARKUP_BUNDLE_ID
+    manifest_path = bundle_dir / "bundle.yml"
+    manifest_path.write_text(yaml.safe_dump(manifest_data), encoding="utf-8")
+    _mock_manifest_download(monkeypatch, manifest_path)
+
+    result = runner.invoke(
+        app,
+        ["bundle", "info", MARKUP_BUNDLE_ID, "--offline"],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert markup_count in strip_ansi(result.output)
+
+
+def test_info_expands_discovery_only_bundle(project: Path, monkeypatch):
     # Discovery-only bundles must still be fully inspectable via `info`;
     # only `install` is refused for them.
     bundle_dir = project / "disc-bundle"
@@ -217,7 +403,7 @@ def test_info_expands_discovery_only_bundle(project: Path):
     )
     catalog = project / "disc-catalog.json"
     entry = catalog_entry_dict(
-        "demo-bundle", download_url=str(bundle_dir / "bundle.yml")
+        "demo-bundle", download_url="https://example.com/demo-bundle.zip"
     )
     write_catalog_file(catalog, {"demo-bundle": entry})
     config = {
@@ -230,6 +416,7 @@ def test_info_expands_discovery_only_bundle(project: Path):
     (project / ".specify" / "bundle-catalogs.yml").write_text(
         yaml.safe_dump(config), encoding="utf-8"
     )
+    _mock_manifest_download(monkeypatch, bundle_dir / "bundle.yml")
     result = runner.invoke(app, ["bundle", "info", "demo-bundle", "--json", "--offline"])
     assert result.exit_code == 0, result.output
     payload = json.loads(result.output)
@@ -237,8 +424,9 @@ def test_info_expands_discovery_only_bundle(project: Path):
     assert ("extensions", "ext-a") in components
 
 
-def test_info_resolves_local_zip_download_url(project: Path):
-    # A local .zip artifact as download_url is extracted to read bundle.yml.
+def test_info_expands_zip_sourced_bundle(project: Path, monkeypatch):
+    # A .zip artifact is extracted to read bundle.yml; info expands it. (The
+    # download itself is HTTPS-only now and mocked here — see contract note.)
     bundle_dir = project / "zip-src"
     bundle_dir.mkdir()
     (bundle_dir / "bundle.yml").write_text(
@@ -249,12 +437,15 @@ def test_info_resolves_local_zip_download_url(project: Path):
     catalog = project / "zip-catalog.json"
     write_catalog_file(
         catalog,
-        {"demo-bundle": catalog_entry_dict("demo-bundle", download_url=str(artifact))},
+        {"demo-bundle": catalog_entry_dict(
+            "demo-bundle", download_url="https://example.com/demo-bundle.zip"
+        )},
     )
     added = runner.invoke(
         app, ["bundle", "catalog", "add", str(catalog), "--id", "local"]
     )
     assert added.exit_code == 0, added.output
+    _mock_manifest_download(monkeypatch, artifact)
     result = runner.invoke(app, ["bundle", "info", "demo-bundle", "--json", "--offline"])
     assert result.exit_code == 0, result.output
     payload = json.loads(result.output)
@@ -410,24 +601,15 @@ def test_install_integration_override_cannot_bypass_clash_guard(project: Path):
 # ===== Private GitHub release asset URL resolution =====
 
 
-class FakeBundleResponse:
+class FakeBundleResponse(io.BytesIO):
     """Minimal context-manager response stub for open_url fakes."""
 
     def __init__(self, data: bytes, url: str = "https://api.github.com/repos/org/repo/releases/assets/99"):
-        self._data = data
+        super().__init__(data)
         self._url = url
-
-    def read(self) -> bytes:
-        return self._data
 
     def geturl(self) -> str:
         return self._url
-
-    def __enter__(self):
-        return self
-
-    def __exit__(self, *_):
-        return False
 
 
 def _make_catalog_config(catalog_path: Path, project: Path) -> None:

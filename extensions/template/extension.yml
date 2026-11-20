@@ -56,6 +56,10 @@ provides:
       description: "Create one evidence-backed review report"
       # Optional: Add aliases in the same namespaced format
       aliases: ["speckit.my-extension.example-short"]
+      # Optional: Copy referenced files into generated skills (paths are extension-relative)
+      # resources:
+      #   - references/guide.md
+      #   - scripts/bash/*.sh
 
     # ADD MORE COMMANDS: Copy this block for each command
     # - name: "speckit.my-extension.another-command"
@@ -89,7 +93,7 @@ hooks:
 
   # MULTIPLE COMMANDS ON ONE EVENT: use a list of entries.
   # Add optional `priority` (integer >= 1, default 10) to order them, lowest first.
-  # after_plan:
+  # after_tasks:
   #   - command: "speckit.my-extension.verify"
   #     priority: 5
   #     optional: true

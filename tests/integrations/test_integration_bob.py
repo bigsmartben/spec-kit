@@ -246,7 +246,7 @@ class TestBobDefaultSkillsMode:
 
         expected_commands = {
             "analyze", "clarify", "constitution", "converge", "implement",
-            "plan", "checklist", "specify", "tasks", "taskstoissues",
+            "checklist", "specify", "tasks",
         }
         actual_commands = {f.parent.name.removeprefix("speckit-") for f in created}
         assert actual_commands == expected_commands
@@ -379,6 +379,7 @@ class TestBobInitFlowDefault:
 
     def test_init_default_creates_skills(self, tmp_path):
         from typer.testing import CliRunner
+
         from specify_cli import app
 
         target = tmp_path / "test-proj"
@@ -387,11 +388,13 @@ class TestBobInitFlowDefault:
             "--ignore-agent-tools", "--script", "sh",
         ])
         assert result.exit_code == 0, f"init --integration bob failed: {result.output}"
-        assert (target / ".bob" / "skills" / "speckit-plan" / "SKILL.md").exists()
+        assert (target / ".bob" / "skills" / "speckit-tasks" / "SKILL.md").exists()
+        assert not (target / ".bob" / "skills" / "speckit-plan").exists()
         assert not (target / ".bob" / "commands").exists()
 
     def test_init_default_complete_file_inventory_sh(self, tmp_path):
         from typer.testing import CliRunner
+
         from specify_cli import app
 
         project = tmp_path / "inventory-sh-bob"
@@ -409,7 +412,7 @@ class TestBobInitFlowDefault:
 
         commands = [
             "analyze", "clarify", "constitution", "converge", "implement",
-            "plan", "checklist", "specify", "tasks", "taskstoissues",
+            "checklist", "specify", "tasks",
         ]
         for cmd in commands:
             assert (project / ".bob" / "skills" / f"speckit-{cmd}" / "SKILL.md").exists(), (
@@ -422,6 +425,7 @@ class TestBobInitFlowLegacy:
 
     def test_init_legacy_creates_commands(self, tmp_path):
         from typer.testing import CliRunner
+
         from specify_cli import app
 
         target = tmp_path / "test-proj"
@@ -431,7 +435,8 @@ class TestBobInitFlowLegacy:
             "--ignore-agent-tools", "--script", "sh",
         ])
         assert result.exit_code == 0, f"init --integration bob --legacy-commands failed: {result.output}"
-        assert (target / ".bob" / "commands" / "speckit.plan.md").exists()
+        assert (target / ".bob" / "commands" / "speckit.tasks.md").exists()
+        assert not (target / ".bob" / "commands" / "speckit.plan.md").exists()
         assert not (target / ".bob" / "skills").exists()
 
     def test_init_legacy_does_not_set_ai_skills(self, tmp_path):
@@ -445,8 +450,8 @@ class TestBobInitFlowLegacy:
         legacy projects.)
         """
         from typer.testing import CliRunner
-        from specify_cli import app
-        from specify_cli import load_init_options
+
+        from specify_cli import app, load_init_options
 
         target = tmp_path / "test-proj"
         result = CliRunner().invoke(app, [
@@ -504,6 +509,7 @@ class TestBobRegistrarConfig:
     def test_legacy_mode_project_extension_registration_runs(self, tmp_path):
         """Extension registrar writes to .bob/commands/ for legacy-mode projects."""
         import textwrap
+
         from specify_cli.agents import CommandRegistrar
 
         # Simulate a legacy-mode Bob project: .bob/commands exists, .bob/skills does not
@@ -543,6 +549,7 @@ class TestBobRegistrarConfig:
         BobIntegration.invoke_separator_for_mode(False) -> ".".
         """
         import textwrap
+
         from specify_cli.agents import CommandRegistrar
 
         # Legacy-mode project: .bob/commands exists, ai_skills is NOT set.
@@ -582,10 +589,10 @@ class TestBobUseFlowPreservesLegacyLayout:
         """``use``/``switch``/``upgrade`` on a ``.bob/commands``-only project
         (no stored ``legacy_commands``) must not write ``ai_skills=True``.
         """
+        from specify_cli import load_init_options
         from specify_cli.integrations._helpers import (
             _update_init_options_for_integration,
         )
-        from specify_cli import load_init_options
 
         # Existing Bob 1.x project: legacy commands dir on disk, no ai_skills.
         cmds = tmp_path / ".bob" / "commands"
@@ -604,10 +611,10 @@ class TestBobUseFlowPreservesLegacyLayout:
 
     def test_update_init_options_keeps_skills_project_as_skills(self, tmp_path):
         """A ``.bob/skills`` project stays skills on re-activation."""
+        from specify_cli import load_init_options
         from specify_cli.integrations._helpers import (
             _update_init_options_for_integration,
         )
-        from specify_cli import load_init_options
 
         (tmp_path / ".bob" / "skills" / "speckit-plan").mkdir(parents=True)
         bob = get_integration("bob")
@@ -648,7 +655,9 @@ class TestBobUseFlowPreservesLegacyLayout:
         with ``/speckit.<cmd>`` (dot), not ``/speckit-<cmd>``.
         """
         import json
+
         from typer.testing import CliRunner
+
         from specify_cli import app
 
         # Create a real legacy Bob project (renders shared templates).
@@ -661,9 +670,9 @@ class TestBobUseFlowPreservesLegacyLayout:
         ])
         assert result.exit_code == 0, f"init failed: {result.output}"
 
-        template = target / ".specify" / "templates" / "plan-template.md"
-        assert template.is_file(), "expected a rendered shared plan template"
-        assert "/speckit.plan" in template.read_text(encoding="utf-8")
+        template = target / ".specify" / "templates" / "quickstart-template.md"
+        assert template.is_file(), "expected a rendered shared UAT template"
+        assert "/speckit.specify" in template.read_text(encoding="utf-8")
 
         # Simulate a pre-PR Bob 1.x install: no stored options/separator.
         integ_json = target / ".specify" / "integration.json"
@@ -686,11 +695,11 @@ class TestBobUseFlowPreservesLegacyLayout:
         assert result.exit_code == 0, f"use failed: {result.output}"
 
         rendered = template.read_text(encoding="utf-8")
-        assert "/speckit.plan" in rendered, (
-            "legacy Bob project must keep /speckit.plan (dot) after refresh"
+        assert "/speckit.specify" in rendered, (
+            "legacy Bob project must keep /speckit.specify (dot) after refresh"
         )
-        assert "/speckit-plan" not in rendered, (
-            "shared templates must not be rewritten to the skills /speckit-plan"
+        assert "/speckit-specify" not in rendered, (
+            "shared templates must not be rewritten to skills-style /speckit-specify"
         )
         # And the persisted separator must reflect the legacy layout.
         data = json.loads(integ_json.read_text(encoding="utf-8"))
@@ -925,3 +934,191 @@ class TestBobPostProcessSkillContent:
             bob.post_process_skill_content(sample)
             == _BobSkillsHelper().post_process_skill_content(sample)
         )
+
+
+class TestBobCliDispatch:
+    """Headless dispatch through ``bob run``."""
+
+    @staticmethod
+    def _skills_project(tmp_path):
+        (tmp_path / ".bob" / "skills" / "speckit-specify").mkdir(parents=True)
+        return tmp_path
+
+    @staticmethod
+    def _legacy_project(tmp_path):
+        cmds = tmp_path / ".bob" / "commands"
+        cmds.mkdir(parents=True)
+        (cmds / "speckit.specify.md").write_text("x", encoding="utf-8")
+        return tmp_path
+
+    def test_requires_cli_is_false_for_ide_first_flow(self):
+        """``requires_cli`` must stay False so the IDE-only flow keeps working.
+
+        ``specify init --integration bob`` (without ``--ignore-agent-tools``)
+        treats ``requires_cli=True`` as a hard precheck and fails when the
+        ``bob`` CLI isn't on PATH -- even though the Bob IDE / skills flow can
+        run without it.  Workflow dispatch support is signalled by overriding
+        ``build_exec_args()`` instead, mirroring ``CursorAgentIntegration``.
+        """
+        bob = get_integration("bob")
+        assert bob.config.get("requires_cli") is False
+
+    def test_build_exec_args_default_is_bob_run_with_json(self):
+        """Default argv is ``bob run`` with the headless flags, ``-f json``,
+        then the prompt: ``run`` takes the prompt positionally, not via ``-p``.
+        """
+        bob = get_integration("bob")
+        assert bob.build_exec_args("/speckit-specify some-feature") == [
+            "bob", "run", "--trust", "--accept-license", "-f", "json",
+            "/speckit-specify some-feature",
+        ]
+
+    def test_build_exec_args_text_output_uses_pretty(self):
+        bob = get_integration("bob")
+        assert bob.build_exec_args("/speckit-plan", output_json=False) == [
+            "bob", "run", "--trust", "--accept-license", "-f", "pretty",
+            "/speckit-plan",
+        ]
+
+    def test_build_exec_args_ignores_model(self):
+        """Bob exposes no model flag on ``run``, so *model* is a no-op."""
+        bob = get_integration("bob")
+        assert bob.build_exec_args("/speckit-plan", model="gpt-4") == [
+            "bob", "run", "--trust", "--accept-license", "-f", "json",
+            "/speckit-plan",
+        ]
+
+    def test_build_exec_args_ignores_project_root(self, tmp_path):
+        """Bob uses cwd for project context, so *project_root* is accepted but ignored in CLI args."""
+        bob = get_integration("bob")
+        args_with = bob.build_exec_args("/speckit-plan", project_root=tmp_path)
+        args_without = bob.build_exec_args("/speckit-plan")
+        assert args_with == args_without
+
+    def test_command_invocation_uses_hyphen_in_skills_mode(self):
+        """Skills-mode projects install ``.bob/skills/speckit-<cmd>/``, so the
+        invocation must use the same separator.
+        """
+        bob = get_integration("bob")
+        assert bob.build_command_invocation("speckit.specify") == "/speckit-specify"
+        assert bob.build_command_invocation("speckit.plan", "arg") == "/speckit-plan arg"
+
+    def test_command_invocation_accepts_bare_stem(self):
+        bob = get_integration("bob")
+        assert bob.build_command_invocation("specify") == "/speckit-specify"
+
+    def test_command_invocation_flattens_dots_in_skills_mode(self, tmp_path):
+        """Extension commands install as ``.bob/skills/speckit-git-commit/``.
+
+        ``SkillsIntegration`` derives the skill directory with
+        ``stem.replace(".", "-")``, so the invocation must flatten every dot,
+        not just the ``speckit.`` prefix.
+        """
+        bob = get_integration("bob")
+        root = self._skills_project(tmp_path)
+        assert (
+            bob.build_command_invocation("speckit.git.commit", project_root=root)
+            == "/speckit-git-commit"
+        )
+        assert (
+            bob.build_command_invocation("git.commit", project_root=root)
+            == "/speckit-git-commit"
+        )
+        # Three segments: distinguishes "flatten every dot" from "flatten the
+        # first one".  A two-segment stem cannot tell those apart.
+        assert (
+            bob.build_command_invocation("speckit.a.b.c", project_root=root)
+            == "/speckit-a-b-c"
+        )
+
+    def test_command_invocation_legacy_project_keeps_dots(self, tmp_path):
+        """A legacy project installs ``.bob/commands/speckit.<cmd>.md``.
+
+        The Bob 1.x invocation is ``/speckit.<cmd>`` with dots preserved --
+        the skills flattening must not leak into this layout.
+        """
+        bob = get_integration("bob")
+        root = self._legacy_project(tmp_path)
+        assert (
+            bob.build_command_invocation("speckit.specify", project_root=root)
+            == "/speckit.specify"
+        )
+        assert (
+            bob.build_command_invocation("speckit.git.commit", project_root=root)
+            == "/speckit.git.commit"
+        )
+        assert (
+            bob.build_command_invocation("speckit.specify", "arg", project_root=root)
+            == "/speckit.specify arg"
+        )
+
+    def test_command_invocation_without_project_root_uses_skills_default(self):
+        """No *project_root* -> Bob's documented skills default.
+
+        ``is_skills_mode`` rule 4 makes a project with no detectable layout
+        skills-mode, and ``effective_invoke_separator()`` answers ``-`` in
+        that state, so the invocation must agree rather than falling back to
+        the Bob 1.x spelling.  No production caller reaches this method
+        without a root today; the assertion locks the documented default so a
+        future caller cannot silently inherit the wrong layout.
+        """
+        bob = get_integration("bob")
+        assert bob.build_command_invocation("speckit.specify") == "/speckit-specify"
+        assert (
+            bob.build_command_invocation("speckit.git.commit")
+            == "/speckit-git-commit"
+        )
+
+    def test_dispatch_without_project_root_uses_cwd_layout(self, tmp_path, monkeypatch):
+        """No explicit root -> resolve the layout from the cwd.
+
+        ``dispatch_command`` runs ``bob`` with ``cwd = project_root or <the
+        current directory>``, so with no root the cwd is the project being
+        dispatched into.  A *legacy* cwd is the discriminating case: skills is
+        the layout-unknown default, so only a legacy project proves the cwd
+        was inspected at all.
+        """
+        import subprocess
+
+        captured = {}
+
+        def fake_run(cmd, **kwargs):
+            captured["cmd"] = cmd
+            return subprocess.CompletedProcess(cmd, 0, "", "")
+
+        monkeypatch.setattr(subprocess, "run", fake_run)
+        monkeypatch.chdir(self._legacy_project(tmp_path))
+
+        get_integration("bob").dispatch_command("speckit.git.commit")
+        assert captured["cmd"][-1] == "/speckit.git.commit"
+
+    def test_dispatch_resolves_layout_from_project_root(self, tmp_path, monkeypatch):
+        """Dispatch knows the project, so it must render for that layout.
+
+        This is the seam that carries *project_root* from ``dispatch_command``
+        into invocation building; without it a legacy install is dispatched
+        with the skills spelling and the command is never found.
+        """
+        import subprocess
+
+        captured = {}
+
+        def fake_run(cmd, **kwargs):
+            captured["cmd"] = cmd
+            return subprocess.CompletedProcess(cmd, 0, "", "")
+
+        monkeypatch.setattr(subprocess, "run", fake_run)
+        bob = get_integration("bob")
+
+        bob.dispatch_command(
+            "speckit.specify",
+            args="my feature",
+            project_root=self._legacy_project(tmp_path),
+        )
+        assert captured["cmd"][-1] == "/speckit.specify my feature"
+
+        skills_root = tmp_path / "skills-proj"
+        bob.dispatch_command(
+            "speckit.git.commit", project_root=self._skills_project(skills_root)
+        )
+        assert captured["cmd"][-1] == "/speckit-git-commit"

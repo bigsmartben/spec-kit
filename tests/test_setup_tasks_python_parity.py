@@ -6,16 +6,20 @@ from pathlib import Path
 
 import pytest
 
-from tests.conftest import requires_bash
+from tests.conftest import HAS_BASH, requires_bash
 from tests.parity_helpers import (
     HAS_POWERSHELL,
+    _bash_posix_path,
     bash_cmd,
+    break_wrap_layer,
     clean_env,
+    install_composition_stack,
     install_scripts,
     json_stdout,
     make_repo,
     normalize_status_text,
     ps_cmd,
+    ps_legacy_stdout_cmd,
     py_cmd,
     run,
     write_feature_json,
@@ -24,14 +28,118 @@ from tests.parity_helpers import (
 SCRIPT = "setup-tasks"
 
 
+@pytest.mark.parametrize("feature_env", [False, True], ids=["persisted", "env"])
+@pytest.mark.parametrize(
+    "layer",
+    [
+        "core", "override", "preset", "preset-flat", "preset-registered",
+        "preset-flat-registered", "extension", "extension-flat",
+    ],
+)
+def test_all_variants_setup_tasks_in_bracketed_project(
+    tmp_path: Path, feature_env: bool, layer: str
+) -> None:
+    repo = _setup_repo(tmp_path / "project [v1]")
+    feature = repo / "specs/001-my-feature"
+    for name in ["spec", "tasks"]:
+        (feature / f"{name}.md").write_bytes(f"# User {name}\r\n".encode("utf-8"))
+    (feature / "prototype.html").write_bytes(b"<!doctype html>\n")
+    (feature / "quickstart.md").write_bytes(b"# UAT\n")
+    before = {p: p.read_bytes() for p in feature.iterdir()}
+    expected_path = repo / ".specify/templates/tasks-template.md"
+    if layer == "override":
+        expected_path = repo / ".specify/templates/overrides/tasks-template.md"
+        expected_path.parent.mkdir(parents=True)
+        expected_path.write_bytes(b"# Custom Tasks\n")
+    elif layer != "core":
+        folder = "presets" if layer.startswith("preset") else "extensions"
+        relative = "tasks-template.md" if "flat" in layer else "templates/tasks-template.md"
+        expected_path = repo / ".specify" / folder / "demo" / relative
+        expected_path.parent.mkdir(parents=True)
+        expected_path.write_bytes(b"# Custom Tasks\n")
+        if layer.endswith("registered"):
+            presets = repo / ".specify/presets"
+            (presets / "aaa/templates").mkdir(parents=True)
+            (presets / "aaa/templates/tasks-template.md").write_bytes(b"# Decoy\n")
+            (presets / ".registry").write_bytes(
+                b'{"presets":{"demo":{"priority":1},"aaa":{"enabled":false}}}'
+            )
+    env = clean_env()
+    if feature_env:
+        env["SPECIFY_FEATURE_DIRECTORY"] = "specs/001-my-feature"
+        env["SPECIFY_FEATURE"] = "001-my-feature"
+    commands = [("python", py_cmd(repo, SCRIPT, "--json"))]
+    if HAS_BASH:
+        commands.append(("bash", bash_cmd(repo, SCRIPT, "--json")))
+    if HAS_POWERSHELL:
+        commands.append(("powershell", ps_cmd(repo, SCRIPT, "-Json")))
+    for variant, command in commands:
+        result = run(command, repo, env)
+        assert result.returncode == 0, result.stderr
+        payload = json_stdout(result)
+        for key, path in (("FEATURE_DIR", feature), ("TASKS_TEMPLATE", expected_path)):
+            expected = {path}
+            if variant == "bash":
+                # Git Bash on Windows can print MSYS paths such as /c/Users/...
+                expected.add(Path(_bash_posix_path(path)))
+            assert Path(payload[key]) in expected, (variant, key, payload[key])
+        assert payload["TASKS_TEMPLATE_CONTENT"] == expected_path.read_bytes().decode("utf-8")
+        assert {p: p.read_bytes() for p in feature.iterdir()} == before
+
+
+def test_installed_python_json_preserves_stock_tasks_template(
+    tmp_path: Path,
+) -> None:
+    """The tasks command's actual script must emit JSON for the stock template."""
+    from typer.testing import CliRunner
+
+    from specify_cli import app
+
+    project = tmp_path / "project"
+    initialized = CliRunner().invoke(
+        app,
+        [
+            "init", str(project), "--integration", "codex", "--script", "py",
+            "--ignore-agent-tools", "--non-interactive",
+        ],
+    )
+    assert initialized.exit_code == 0, initialized.output
+    created = run(
+        py_cmd(project, "create-new-feature", "--json", "Add user authentication"),
+        project,
+    )
+    assert created.returncode == 0, created.stderr
+    feature = Path(json_stdout(created)["SPEC_FILE"]).parent
+    (feature / "prototype.html").write_text("<!doctype html>\n", encoding="utf-8")
+    (feature / "quickstart.md").write_text("# UAT\n", encoding="utf-8")
+    template = project / ".specify/templates/tasks-template.md"
+    expected = template.read_bytes().decode("utf-8")
+    assert "[UAT]" in expected
+    env = clean_env()
+    env["PYTHONIOENCODING"] = "cp1252"
+
+    result = run(py_cmd(project, SCRIPT, "--json"), project, env)
+
+    assert result.returncode == 0, result.stderr
+    payload = json_stdout(result)
+    assert payload["TASKS_TEMPLATE_CONTENT"] == expected
+    assert Path(payload["TASKS_TEMPLATE"]) == template
+    assert payload["AVAILABLE_DOCS"] == [
+        "spec.md",
+        "prototype.html",
+        "quickstart.md",
+    ]
+
+
 def _setup_repo(tmp_path: Path) -> Path:
     repo = make_repo(tmp_path)
     install_scripts(repo, SCRIPT)
     write_feature_json(repo)
     feature = repo / "specs" / "001-my-feature"
     feature.mkdir(parents=True)
-    (feature / "plan.md").write_text("# plan\n", encoding="utf-8")
     (feature / "spec.md").write_text("# spec\n", encoding="utf-8")
+    (feature / "prototype.html").write_text("<!doctype html>\n", encoding="utf-8")
+    (feature / "quickstart.md").write_text("# UAT\n", encoding="utf-8")
     templates = repo / ".specify" / "templates"
     templates.mkdir(parents=True)
     (templates / "tasks-template.md").write_text("# Tasks Template\n", encoding="utf-8")
@@ -43,14 +151,22 @@ def repo(tmp_path: Path) -> Path:
     return _setup_repo(tmp_path)
 
 
+@pytest.mark.skipif(not HAS_POWERSHELL, reason="no PowerShell available")
+def test_powershell_json_preserves_non_ascii_template_on_legacy_stdout(repo: Path) -> None:
+    template = repo / ".specify" / "templates" / "tasks-template.md"
+    expected = "# Tasks 🎯\n\nПравила: 功能 → звіт.\n"
+    template.write_bytes(expected.encode("utf-8"))
+
+    result = run(ps_legacy_stdout_cmd(repo, SCRIPT, "-Json"), repo)
+
+    assert result.returncode == 0, result.stderr
+    payload = json_stdout(result)
+    assert payload["TASKS_TEMPLATE_CONTENT"] == expected
+    assert Path(payload["TASKS_TEMPLATE"]) == template
+
+
 @requires_bash
 def test_python_json_output_matches_bash(repo: Path) -> None:
-    feature = repo / "specs" / "001-my-feature"
-    (feature / "research.md").write_text("# research\n", encoding="utf-8")
-    (feature / "data-model.md").write_text("# model\n", encoding="utf-8")
-    (feature / "quickstart.md").write_text("# quickstart\n", encoding="utf-8")
-    (feature / "contracts" / "v1").mkdir(parents=True)
-
     bash = run(bash_cmd(repo, SCRIPT, "--json"), repo)
     py = run(py_cmd(repo, SCRIPT, "--json"), repo)
 
@@ -61,10 +177,6 @@ def test_python_json_output_matches_bash(repo: Path) -> None:
 
 @requires_bash
 def test_python_text_output_matches_bash(repo: Path) -> None:
-    feature = repo / "specs" / "001-my-feature"
-    (feature / "research.md").write_text("# research\n", encoding="utf-8")
-    (feature / "contracts").mkdir()  # present but empty -> reported missing
-
     bash = run(bash_cmd(repo, SCRIPT), repo)
     py = run(py_cmd(repo, SCRIPT), repo)
 
@@ -84,14 +196,52 @@ def test_python_override_template_wins_matches_bash(repo: Path) -> None:
 
     assert py.returncode == bash.returncode == 0
     assert json_stdout(py) == json_stdout(bash)
-    assert json_stdout(py)["TASKS_TEMPLATE"].endswith("overrides/tasks-template.md")
+    resolved = Path(json_stdout(py)["TASKS_TEMPLATE"])
+    assert resolved.parent.name == "overrides"
+    assert resolved.name == "tasks-template.md"
+
+
+@requires_bash
+def test_all_variants_return_composed_tasks_template(repo: Path) -> None:
+    expected = install_composition_stack(
+        repo, "tasks-template", "# Tasks Template\n"
+    )
+
+    results = [
+        run(bash_cmd(repo, SCRIPT, "--json"), repo),
+        run(py_cmd(repo, SCRIPT, "--json"), repo),
+    ]
+    if HAS_POWERSHELL:
+        results.append(run(ps_cmd(repo, SCRIPT, "-Json"), repo))
+
+    assert all(result.returncode == 0 for result in results)
+    for variant, result in zip(("bash", "python", "powershell"), results):
+        assert result.returncode == 0, (variant, result.stderr)
+        assert json_stdout(result)["TASKS_TEMPLATE_CONTENT"] == expected, variant
+
+
+@requires_bash
+def test_all_variants_fail_for_broken_tasks_composition(repo: Path) -> None:
+    install_composition_stack(repo, "tasks-template", "# Tasks Template\n")
+    break_wrap_layer(repo, "tasks-template")
+
+    results = [
+        run(bash_cmd(repo, SCRIPT, "--json"), repo),
+        run(py_cmd(repo, SCRIPT, "--json"), repo),
+    ]
+    if HAS_POWERSHELL:
+        results.append(run(ps_cmd(repo, SCRIPT, "-Json"), repo))
+
+    for variant, result in zip(("bash", "python", "powershell"), results):
+        assert result.returncode != 0, (variant, result.stdout)
+    assert all(result.stdout == "" for result in results)
 
 
 @requires_bash
 @pytest.mark.parametrize(
     "missing",
-    ["plan.md", "spec.md", "tasks-template"],
-    ids=["missing_plan", "missing_spec", "missing_tasks_template"],
+    ["spec.md", "prototype.html", "quickstart.md", "tasks-template"],
+    ids=["missing_spec", "missing_prototype", "missing_quickstart", "missing_tasks_template"],
 )
 def test_python_error_output_matches_bash(repo: Path, missing: str) -> None:
     if missing == "tasks-template":
@@ -182,10 +332,6 @@ def test_all_variants_feature_context_error_matches(
 
 @pytest.mark.skipif(not HAS_POWERSHELL, reason="no PowerShell available")
 def test_python_json_output_matches_powershell(repo: Path) -> None:
-    feature = repo / "specs" / "001-my-feature"
-    (feature / "research.md").write_text("# research\n", encoding="utf-8")
-    (feature / "contracts" / "v1").mkdir(parents=True)
-
     ps = run(ps_cmd(repo, SCRIPT, "-Json"), repo)
     py = run(py_cmd(repo, SCRIPT, "--json"), repo)
 
@@ -205,3 +351,24 @@ def test_missing_template_error_matches_all_variants(repo: Path) -> None:
     assert bash.returncode == ps.returncode == py.returncode == 1
     assert bash.stdout == ps.stdout == py.stdout == ""
     assert bash.stderr == ps.stderr == py.stderr
+
+
+def test_python_text_output_survives_a_legacy_stdout_code_page(repo: Path) -> None:
+    """Text mode must not crash when stdout cannot encode the status glyphs.
+
+    On Windows sys.stdout falls back to the ANSI code page whenever it is not a
+    console — which is every time an agent or a workflow step captures the
+    output. U+2713 is unencodable in cp1252, so printing it raised
+    UnicodeEncodeError and truncated the document listing. The ASCII fallback is
+    the rendering these markers already have in-tree (Test-FileExists in
+    scripts/powershell/common.ps1, and normalize_status_text).
+    """
+    env = clean_env()
+    env["PYTHONIOENCODING"] = "cp1252"
+    result = run(py_cmd(repo, SCRIPT), repo, env=env)
+
+    assert result.returncode == 0, result.stderr
+    assert "UnicodeEncodeError" not in result.stderr
+    for doc in ("spec.md", "prototype.html", "quickstart.md"):
+        assert doc in result.stdout, (doc, result.stdout)
+    assert "[OK] spec.md" in normalize_status_text(result.stdout), result.stdout

@@ -21,6 +21,10 @@
 
 The CLI tool (`specify`) is separate from your project files. Upgrade it to get the latest features and bug fixes.
 
+If you installed from PyPI and want to keep that install route, follow the
+[PyPI upgrade instructions](install/pypi.md#upgrade). Repeating
+`uv tool install specify-cli` does not upgrade an existing installation.
+
 ### Recommended: `specify self upgrade`
 
 The CLI ships with two self-management commands that handle the common case automatically:
@@ -39,7 +43,11 @@ specify self upgrade
 specify self upgrade --tag vX.Y.Z[suffix]
 ```
 
-Bare `specify self upgrade` executes immediately, matching the no-prompt behavior of commands like `pip install -U` and `npm update`. The CLI classifies your runtime into one of: `uv tool`, `pipx`, `uvx (ephemeral)`, source checkout, or unsupported. Only `uv tool` and `pipx` are upgraded automatically; for `uv tool` installs, it runs `uv tool install specify-cli --force --from <git ref>` under the hood so pinned release tags work. The other paths print path-specific guidance and exit 0 without touching anything.
+Bare `specify self upgrade` executes immediately, matching the no-prompt behavior of commands like `pip install -U` and `npm update`. The CLI classifies your runtime into one of: `uv tool`, `pipx`, `uvx (ephemeral)`, source checkout, or unsupported. Only `uv tool` and `pipx` are upgraded automatically; for `uv tool` installs, it runs `uv tool install specify-cli --force --from <git ref>` under the hood so pinned release tags work. On Windows, `uv` cannot replace the tool environment `specify` is running from, so for `uv tool` installs `specify self upgrade` prints that command for you to run once it exits, and exits 0 without touching anything. Stop any other process running from that environment first, such as a `specify mcp` server, or uv can still fail partway through. The other paths print path-specific guidance and exit 0 without touching anything.
+
+Tool detection recognizes current and legacy default installation directories, as well as directories configured with `UV_TOOL_DIR`, `PIPX_HOME`, or `XDG_DATA_HOME`. Keep the same directory environment variables set when upgrading a relocated installation so the installer also targets that location.
+
+`PIPX_HOME` expands a leading `~` to your home directory. `UV_TOOL_DIR` treats it literally as part of a path relative to the working directory. `XDG_DATA_HOME` must be absolute; relative values, including those beginning with `~`, are ignored.
 
 Pinned tags must start with `vMAJOR.MINOR.PATCH`. Optional suffixes are limited to dev, alpha/beta/rc, and/or build metadata forms such as `v1.0.0-rc1`, `v0.8.0.dev0`, `v0.8.0+build.42`, or the combination `v1.0.0-rc1+build.42`; branch names, hash refs, `latest`, and bare versions without `v` are rejected.
 
@@ -95,7 +103,7 @@ When Spec Kit releases new features (like new slash commands, updated templates,
 
 For existing Spec Kit projects, use the manifest-aware upgrade path first:
 
-- ✅ **Integration command/skill files** (`.claude/skills/`, `.github/prompts/`, `.agents/skills/`, etc.)
+- ✅ **Integration command/skill files** (`.claude/skills/`, `.github/skills/`, `.agents/skills/`, etc.)
 - ✅ **Managed shared scripts and templates** (`.specify/scripts/`, `.specify/templates/`) when they are unchanged from the previous managed copy
 - ✅ **Installed extensions** when you run `specify extension update`
 
@@ -106,7 +114,7 @@ The integration upgrade command uses the install manifest to detect local edits.
 These files are **never touched** by the manifest-aware integration/extension upgrade path:
 
 - ✅ **Your specifications** (`specs/001-my-feature/spec.md`, etc.) - **CONFIRMED SAFE**
-- ✅ **Your implementation plans** (`specs/001-my-feature/plan.md`, `tasks.md`, etc.) - **CONFIRMED SAFE**
+- ✅ **Your feature artifacts** (`specs/001-my-feature/spec.md`, `prototype.html`, `quickstart.md`, `tasks.md`, and historical or user-owned `plan.md` files) - **CONFIRMED SAFE**
 - ✅ **Your constitution** (`.specify/memory/constitution.md`) when using `specify integration upgrade`
 - ✅ **Your source code** - **CONFIRMED SAFE**
 - ✅ **Your git history** - **CONFIRMED SAFE**
@@ -140,7 +148,7 @@ specify integration upgrade claude
 specify integration upgrade codex
 ```
 
-See the [integration reference](reference/integrations.md#upgrade-an-integration) for options such as `--script`, `--integration-options`, and `--force`.
+See the [integration reference](integrations/cli.md#upgrade-an-integration) for options such as `--script`, `--integration-options`, and `--force`.
 
 ### 3. Update installed extensions
 
@@ -150,7 +158,7 @@ Run:
 specify extension update
 ```
 
-With no extension argument, this updates all installed extensions. Use `specify extension update <extension-id-or-name>` to update only one extension. See the [extensions reference](reference/extensions.md#update-extensions) for details.
+With no extension argument, this updates all installed extensions. Use `specify extension update <extension-id-or-name>` to update only one extension. See the [extension CLI reference](extensions/cli.md#update-extensions) for details.
 
 ### Fallback: re-run init
 
@@ -201,29 +209,33 @@ ls -la .kilocode/workflows/
 
 # Delete old versions (example filenames - yours may differ)
 rm .kilocode/workflows/speckit.specify-old.md
-rm .kilocode/workflows/speckit.plan-v1.md
+rm .kilocode/workflows/speckit.tasks-v1.md
 ```
 
 Restart your IDE to refresh the command list.
 
 ---
 
-## Behavior change: `/constitution` no longer propagates into templates
+## Historical behavior: `/constitution` no longer propagates into templates
 
-The `/constitution` command ([#3790](https://github.com/github/spec-kit/pull/3790)) is scoped to
-its own artifact. It updates
+This section records earlier releases and does not describe a current core
+Plan phase. The `/constitution` command
+([#3790](https://github.com/github/spec-kit/pull/3790)) is scoped to its own
+artifact. It updates
 `.specify/memory/constitution.md` and writes a Sync Impact Report, and **no longer edits**
 `plan-template.md`, `spec-template.md`, `tasks-template.md`, installed command files, or
 guidance docs.
 
 ### Why
 
-Spec Kit uses **runtime resolution**: `plan`, `tasks`, and `analyze` read
-`.specify/memory/constitution.md` live on every run, and `analyze` is the dedicated drift
-checker. The governed templates carry a pointer, not a copy — `plan-template.md` ships
-`[Gates determined based on constitution file]`, and `/plan` fills that section from the live
-constitution each run. Propagation duplicated the single source of truth and fought the
-preset/override composition system (a `replace` preset shadows an edited core template).
+At the time of that release, Spec Kit used **runtime resolution**: `plan`,
+`tasks`, and `analyze` read `.specify/memory/constitution.md` live on every
+run, and `analyze` was the dedicated drift checker. The governed templates
+carried a pointer, not a copy — legacy `plan-template.md` shipped
+`[Gates determined based on constitution file]`, and the former `/plan`
+command filled that section from the live constitution each run. Propagation
+duplicated the single source of truth and fought the preset/override
+composition system (a `replace` preset shadows an edited core template).
 
 More broadly, presets and extensions — not in-place file edits — are how Spec Kit now governs
 shared assets. Composing policy through the resolution stack keeps it centrally owned, versioned,
@@ -231,24 +243,27 @@ and auditable across repositories, instead of frozen into per-repo copies no cor
 
 ### Is this a breaking change for existing projects?
 
-**No — your workflow keeps working.** You would only notice a difference if you relied on
-`/constitution` editing those files in place. The templates are scaffolds, not authorities. When you
-run `/plan`, it copies the template into a per-feature `plan.md` and re-derives the Constitution
-Check from the live constitution; `/analyze` validates against it. Even if a previous
-`/constitution` run materialized concrete gate text into `.specify/templates/plan-template.md`,
-the live constitution remains the source of truth at runtime.
+**No existing feature content is removed.** You would only notice the historical
+change if you relied on `/constitution` editing files in place. The current
+core flow has no `/plan`; Task reads the constitution directly with the frozen
+Specify contract. Legacy `plan.md` feature files and locally customized
+`plan-template.md` files remain historical or user-owned content.
 
 On a **non-forced upgrade**, a materialized template is *preserved* (its hash diverges from the
 recorded managed copy, so the refresh treats it as a customization and does not overwrite it).
 Nothing regresses.
 
-### Optional cleanup — return to the runtime pointer
+### Legacy template handling
 
-A frozen, pre-filled Constitution Check is a slightly misleading scaffold and can bias the first
-`/plan` pass. To move fully back to runtime resolution, reset the section body in
-`.specify/templates/plan-template.md` to the pointer:
+A frozen, pre-filled Constitution Check may remain in a local
+`.specify/templates/plan-template.md`. Do not delete or reset it as part of
+this migration: it can preserve a team's history or support an optional
+preset/extension that still provides its own Plan command. Leave the file
+unchanged unless that owning process explicitly requires an update.
 
 ```text
+Historical legacy scaffold:
+
 ## Constitution Check
 
 *GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
@@ -256,7 +271,8 @@ A frozen, pre-filled Constitution Check is a slightly misleading scaffold and ca
 [Gates determined based on constitution file]
 ```
 
-Leave the rest of the file untouched. This is cleanup, not a required migration.
+This is a compatibility reference, not an instruction for the current core
+workflow.
 
 ### Keeping the old behavior (opt-in)
 
@@ -345,7 +361,9 @@ If you later decide you want the git extension's commands and hooks, install it 
 specify extension add git
 ```
 
-Projects that do not use Git can still work with Spec Kit by setting `SPECIFY_FEATURE_DIRECTORY` to the feature directory path before planning commands:
+Projects that do not use Git can still work with Spec Kit by setting
+`SPECIFY_FEATURE_DIRECTORY` to the feature directory path before core feature
+commands:
 
 ```bash
 # Bash/Zsh
@@ -420,14 +438,15 @@ This warning appears when you run `specify init --here` (or `specify init .`) in
 
 Only Spec Kit infrastructure files:
 
-- Agent command/skill files (`.claude/skills/`, `.github/prompts/`, etc.)
+- Agent command/skill files (`.claude/skills/`, `.github/skills/`, etc.)
 - Scripts in `.specify/scripts/`
 - Templates in `.specify/templates/`
 - Missing memory files such as `.specify/memory/constitution.md` may be created from templates; an existing constitution is preserved
 
 **What stays untouched:**
 
-- Your `specs/` directory (specifications, plans, tasks)
+- Your `specs/` directory (the frozen contract, task packages, UAT results, and
+  any historical or user-owned plans)
 - Your source code files
 - Your `.git/` directory and git history
 - Any other files not part of Spec Kit templates
@@ -498,15 +517,23 @@ The `specify` CLI tool is used for:
 - **Fallback recovery:** `specify init --here --force` when integration metadata is missing or the manifest-aware path cannot be used
 - **Diagnostics:** `specify check` to verify tool installation
 
-Once you've run `specify init`, the slash commands (like `/speckit.specify`, `/speckit.plan`, etc.) are **permanently installed** in your project's agent folder (`.claude/`, `.github/prompts/`, `.pi/prompts/`, `.omp/commands/`, etc.). Your AI coding agent reads these command files directly—no need to run `specify` again.
+Once you've run `specify init`, the slash commands (such as
+`/speckit.specify`, `/speckit.tasks`, and `/speckit.implement`) are
+**permanently installed** in your project's agent folder (`.claude/`,
+`.github/skills/`, `.pi/prompts/`, `.omp/commands/`, etc.). Your AI coding
+agent reads these command files directly—no need to run `specify` again.
 
 **If your agent isn't recognizing slash commands:**
 
 1. **Verify command files exist:**
 
    ```bash
-   # For GitHub Copilot
-   ls -la .github/prompts/
+   # For GitHub Copilot (default skills layout)
+   ls -la .github/skills/
+
+   # For GitHub Copilot with the commands layout (--integration-options="--commands",
+   # or a project created before skills became the default and upgraded since)
+   ls -la .github/agents/ .github/prompts/
 
    # For Claude
    ls -la .claude/skills/

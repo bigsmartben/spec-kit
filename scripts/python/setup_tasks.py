@@ -10,22 +10,27 @@ from pathlib import Path
 try:
     from common import (
         FeaturePaths,
+        TemplateResolutionError,
         format_speckit_command,
         get_feature_paths,
         resolve_template,
+        resolve_template_content,
     )
 except ImportError:  # pragma: no cover - direct execution from unusual cwd
     sys.path.insert(0, str(Path(__file__).resolve().parent))
     from common import (
         FeaturePaths,
+        TemplateResolutionError,
         format_speckit_command,
         get_feature_paths,
         resolve_template,
+        resolve_template_content,
     )
 
 
 def _json_line(payload: object) -> str:
-    return json.dumps(payload, ensure_ascii=False, separators=(",", ":")) + "\n"
+    # ASCII escapes keep the JSON intact on a legacy Windows stdout code page.
+    return json.dumps(payload, ensure_ascii=True, separators=(",", ":")) + "\n"
 
 
 def _help_text(argv0: str) -> str:
@@ -35,34 +40,51 @@ def _help_text(argv0: str) -> str:
 """
 
 
-def _dir_has_entries(path: Path) -> bool:
-    try:
-        return path.is_dir() and any(path.iterdir())
-    except OSError:
-        return False
-
-
 def _available_docs(paths: FeaturePaths) -> list[str]:
-    docs: list[str] = []
-    if paths.research.is_file():
-        docs.append("research.md")
-    if paths.data_model.is_file():
-        docs.append("data-model.md")
-    if _dir_has_entries(paths.contracts_dir):
-        docs.append("contracts/")
-    if paths.quickstart.is_file():
-        docs.append("quickstart.md")
-    return docs
+    return ["spec.md", "prototype.html", "quickstart.md"]
+
+
+def _status_marker(ok: bool) -> str:
+    """Return the status glyph, downgraded to ASCII when stdout cannot encode it.
+
+    On Windows sys.stdout falls back to the ANSI code page whenever it is not a
+    console - a pipe or a file redirect, which is how agents and workflow steps
+    invoke these scripts - and U+2713 is unencodable in cp1252, so printing it
+    raised UnicodeEncodeError and aborted the report mid-listing.
+    "[OK]"/"[FAIL]" is the ASCII rendering these markers already have in-tree:
+    see Test-FileExists in scripts/powershell/common.ps1 and
+    normalize_status_text in tests/parity_helpers.py.
+    """
+    glyph = "✓" if ok else "✗"
+    try:
+        glyph.encode(getattr(sys.stdout, "encoding", None) or "utf-8")
+    except (LookupError, UnicodeEncodeError):
+        return "[OK]" if ok else "[FAIL]"
+    return glyph
 
 
 def _check_file(path: Path, description: str) -> None:
-    marker = "✓" if path.is_file() else "✗"
-    print(f"  {marker} {description}")
+    print(f"  {_status_marker(path.is_file())} {description}")
 
 
-def _check_dir(path: Path, description: str) -> None:
-    marker = "✓" if _dir_has_entries(path) else "✗"
-    print(f"  {marker} {description}")
+def _require_nonempty(path: Path, description: str, paths: FeaturePaths) -> bool:
+    if not path.is_file():
+        print(f"ERROR: {description} not found in {paths.feature_dir}", file=sys.stderr)
+        print(
+            f"Run {format_speckit_command('specify', paths.repo_root)} first "
+            "to create the frozen requirement contract.",
+            file=sys.stderr,
+        )
+        return False
+    if path.stat().st_size == 0:
+        print(f"ERROR: {description} is empty in {paths.feature_dir}", file=sys.stderr)
+        print(
+            f"Rerun {format_speckit_command('specify', paths.repo_root)} "
+            f"to regenerate {description}.",
+            file=sys.stderr,
+        )
+        return False
+    return True
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -85,26 +107,24 @@ def main(argv: list[str] | None = None) -> int:
         print("ERROR: Failed to resolve feature paths", file=sys.stderr)
         return int(exc.code) if isinstance(exc.code, int) else 1
 
-    if not paths.impl_plan.is_file():
-        print(f"ERROR: plan.md not found in {paths.feature_dir}", file=sys.stderr)
-        print(
-            f"Run {format_speckit_command('plan', paths.repo_root)} first to create the implementation plan.",
-            file=sys.stderr,
-        )
-        return 1
-
-    if not paths.feature_spec.is_file():
-        print(f"ERROR: spec.md not found in {paths.feature_dir}", file=sys.stderr)
-        print(
-            f"Run {format_speckit_command('specify', paths.repo_root)} first to create the feature structure.",
-            file=sys.stderr,
-        )
+    required = (
+        (paths.feature_spec, "spec.md"),
+        (paths.prototype, "prototype.html"),
+        (paths.quickstart, "quickstart.md"),
+    )
+    if not all(_require_nonempty(path, name, paths) for path, name in required):
         return 1
 
     docs = _available_docs(paths)
 
-    tasks_template = resolve_template("tasks-template", paths.repo_root)
-    if tasks_template is None or not tasks_template.is_file():
+    try:
+        tasks_template_content = resolve_template_content(
+            "tasks-template", paths.repo_root
+        )
+    except TemplateResolutionError as exc:
+        print(f"ERROR: {exc}", file=sys.stderr)
+        return 1
+    if tasks_template_content is None:
         print(
             "ERROR: Could not resolve required tasks-template from the template "
             f"override stack for {paths.repo_root}",
@@ -121,22 +141,27 @@ def main(argv: list[str] | None = None) -> int:
         return 1
 
     if json_mode:
+        tasks_template = resolve_template("tasks-template", paths.repo_root)
         sys.stdout.write(
             _json_line(
                 {
                     "FEATURE_DIR": str(paths.feature_dir),
+                    "FEATURE_SPEC": str(paths.feature_spec),
+                    "PROTOTYPE": str(paths.prototype),
+                    "QUICKSTART": str(paths.quickstart),
                     "AVAILABLE_DOCS": docs,
-                    "TASKS_TEMPLATE": str(tasks_template),
+                    "TASKS_TEMPLATE": str(tasks_template) if tasks_template else "",
+                    "TASKS_TEMPLATE_CONTENT": tasks_template_content,
                 }
             )
         )
     else:
+        tasks_template = resolve_template("tasks-template", paths.repo_root)
         print(f"FEATURE_DIR: {paths.feature_dir}")
-        print(f"TASKS_TEMPLATE: {tasks_template}")
+        print(f"TASKS_TEMPLATE: {tasks_template or 'not found'}")
         print("AVAILABLE_DOCS:")
-        _check_file(paths.research, "research.md")
-        _check_file(paths.data_model, "data-model.md")
-        _check_dir(paths.contracts_dir, "contracts/")
+        _check_file(paths.feature_spec, "spec.md")
+        _check_file(paths.prototype, "prototype.html")
         _check_file(paths.quickstart, "quickstart.md")
     return 0
 

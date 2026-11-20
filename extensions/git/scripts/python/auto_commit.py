@@ -169,7 +169,7 @@ def main(argv: list[str]) -> int:
         return 0
 
     # Derive a human-readable command name from the event
-    # e.g., after_specify -> specify, before_plan -> plan
+    # e.g., after_specify -> specify, before_tasks -> tasks
     command_name = re.sub(r"^(after_|before_)", "", event_name)
     phase = "before" if event_name.startswith("before_") else "after"
 

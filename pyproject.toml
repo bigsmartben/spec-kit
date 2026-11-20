@@ -1,6 +1,6 @@
 [project]
 name = "specify-cli"
-version = "0.15.2.dev0"
+version = "1.4.4.dev0"
 description = "Specify CLI, part of GitHub Spec Kit. A tool to bootstrap your projects for Spec-Driven Development (SDD)."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -8,12 +8,14 @@ dependencies = [
     "typer>=0.24.0",
     "click>=8.2.1",
     "rich",
-    "platformdirs",
     "readchar",
     "pyyaml>=6.0",
     "packaging>=23.0",
     "pathspec>=0.12.0",
     "json5>=0.13.0",
+    "mcp>=2.2.0,<3.0.0",
+    "pydantic>=2.13.0,<3.0.0",
+    "lark>=1.3.1,<2.0.0",
 ]
 
 [project.scripts]
@@ -31,7 +33,8 @@ packages = ["src/specify_cli"]
 # Page templates (exclude commands/ — bundled separately below to avoid duplication)
 "templates/checklist-template.md" = "specify_cli/core_pack/templates/checklist-template.md"
 "templates/constitution-template.md" = "specify_cli/core_pack/templates/constitution-template.md"
-"templates/plan-template.md" = "specify_cli/core_pack/templates/plan-template.md"
+"templates/prototype-template.md" = "specify_cli/core_pack/templates/prototype-template.md"
+"templates/quickstart-template.md" = "specify_cli/core_pack/templates/quickstart-template.md"
 "templates/spec-template.md" = "specify_cli/core_pack/templates/spec-template.md"
 "templates/tasks-template.md" = "specify_cli/core_pack/templates/tasks-template.md"
 "templates/vscode-settings.json" = "specify_cli/core_pack/templates/vscode-settings.json"
@@ -50,19 +53,24 @@ packages = ["src/specify_cli"]
 "extensions/agent-context" = "specify_cli/core_pack/extensions/agent-context"
 "extensions/assess" = "specify_cli/core_pack/extensions/assess"
 "extensions/bug" = "specify_cli/core_pack/extensions/bug"
-# Bundled workflows (auto-installed during `specify init`)
+"extensions/github" = "specify_cli/core_pack/extensions/github"
+# Bundled workflows (`specify init` installs only `speckit`; `bugfix`/`assess` are opt-in via first-party bundles)
 "workflows/speckit" = "specify_cli/core_pack/workflows/speckit"
+"workflows/bugfix" = "specify_cli/core_pack/workflows/bugfix"
+"workflows/assess" = "specify_cli/core_pack/workflows/assess"
 # Bundled presets (installable via `specify preset add <name>` or `specify init --preset <name>`)
 "presets/lean" = "specify_cli/core_pack/presets/lean"
 "presets/constitution-sync" = "specify_cli/core_pack/presets/constitution-sync"
-"presets/workflow-preset" = "specify_cli/core_pack/presets/workflow-preset"
-# Community bundle catalog snapshot (used for offline discovery)
+# Bundle catalog snapshots (used for offline discovery)
+"bundles/catalog.json" = "specify_cli/core_pack/bundles/catalog.json"
 "bundles/catalog.community.json" = "specify_cli/core_pack/bundles/catalog.community.json"
 
 [project.optional-dependencies]
 test = [
+    "cryptography",
     "pytest>=7.0",
     "pytest-cov>=4.0",
+    "pytest-xdist>=3.0",
 ]
 
 [tool.pytest.ini_options]

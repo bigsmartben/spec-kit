@@ -4,9 +4,12 @@ from __future__ import annotations
 
 import json
 import os
+import re
+import shlex
 import shutil
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
@@ -48,6 +51,50 @@ def install_scripts(repo: Path, script: str) -> None:
     py_dir.mkdir(parents=True, exist_ok=True)
     shutil.copy(PY_DIR / "common.py", py_dir / "common.py")
     shutil.copy(PY_DIR / f"{py_name}.py", py_dir / f"{py_name}.py")
+    for directory in (bash_dir, ps_dir, py_dir):
+        shutil.copy(
+            PROJECT_ROOT / "src/specify_cli/markdown_sections.py",
+            directory / "markdown_sections.py",
+        )
+
+
+def install_section_stack(
+    repo: Path,
+    content: str,
+    replacement: str,
+    selector: object = "target",
+    *,
+    kind: str = "template",
+) -> tuple[str, Path]:
+    import yaml
+
+    name = "speckit.section-test" if kind == "command" else "section-template"
+    templates = repo / ".specify/templates"
+    core = templates / ("commands" if kind == "command" else "") / f"{name}.md"
+    core.parent.mkdir(parents=True, exist_ok=True)
+    core.write_bytes(content.encode("utf-8"))
+    presets = repo / ".specify/presets"
+    preset = presets / "team"
+    preset.mkdir(parents=True)
+    body = preset / "body.md"
+    body.write_bytes(replacement.encode("utf-8"))
+    (preset / "preset.yml").write_text(
+        yaml.safe_dump({
+            "schema_version": "1.0",
+            "preset": {"id": "team", "name": "Team", "version": "1.0.0", "description": "Sections"},
+            "requires": {"speckit_version": ">=0.1.0"},
+            "provides": {"templates": [{
+                "type": kind, "name": name, "file": "body.md",
+                "strategy": "replace-section", "selector": selector,
+            }]},
+        }, allow_unicode=True),
+        encoding="utf-8",
+    )
+    (presets / ".registry").write_text(
+        json.dumps({"schema_version": "1.0", "presets": {"team": {"priority": 1, "enabled": True}}}),
+        encoding="utf-8",
+    )
+    return name, body
 
 
 def bash_cmd(repo: Path, script: str, *args: str) -> list[str]:
@@ -74,24 +121,237 @@ def ps_cmd(repo: Path, script: str, *args: str) -> list[str]:
     ]
 
 
+def ps_legacy_stdout_cmd(repo: Path, script: str, *args: str) -> list[str]:
+    """ps_cmd with stdout encoded as ISO-8859-1, standing in for a captured Windows console code page."""
+    assert POWERSHELL_EXE, "no PowerShell available; guard the test with HAS_POWERSHELL"
+
+    def quote(word: str) -> str:
+        return "'" + word.replace("'", "''") + "'"
+
+    path = repo / ".specify" / "scripts" / "powershell" / f"{script}.ps1"
+    words = [quote(str(path))] + [
+        arg if re.fullmatch(r"-[A-Za-z]+", arg) else quote(arg) for arg in args
+    ]
+    return [
+        POWERSHELL_EXE,
+        "-NoProfile",
+        "-Command",
+        "$previous = [Console]::OutputEncoding; "
+        "[Console]::OutputEncoding = [System.Text.Encoding]::GetEncoding('iso-8859-1'); "
+        f"try {{ & {' '.join(words)} }} finally {{ [Console]::OutputEncoding = $previous }}; "
+        "exit $LASTEXITCODE",
+    ]
+
+
 def clean_env() -> dict[str, str]:
     env = os.environ.copy()
     for key in list(env):
         if key.startswith("SPECIFY_"):
             env.pop(key)
+    # A --without-pip venv still honors an inherited PYTHONPATH, so leaving
+    # this set could make a "no-PyYAML" test interpreter import PyYAML
+    # anyway, silently skipping the delegated-parsing path under test.
+    env.pop("PYTHONPATH", None)
+    # Tests exercising SPECKIT_PYTHON_EXECUTABLE/SPECKIT_PYTHON set them
+    # explicitly; an ambient value in the host environment would otherwise
+    # silently override the "unset" baseline for every other test.
+    env.pop("SPECKIT_PYTHON_EXECUTABLE", None)
+    env.pop("SPECKIT_PYTHON", None)
+    # The script variants resolve python3 -> python -> py -3 through PATH.
+    # Under `uv run` the venv's bin directory is already first on PATH, so
+    # the scripts see the interpreter the suite runs on, including its
+    # site-packages (PyYAML among them). A direct
+    # `.venv/bin/python -m pytest` — the invocation AGENTS.md prescribes —
+    # leaves PATH untouched, and an ambient python3 without PyYAML then
+    # fails every composed-template test with "PyYAML is required".
+    # Prepend the running interpreter's own directory so subprocesses see
+    # the same Python under either invocation. A Windows venv ships
+    # ``python.exe`` but no ``python3.exe``, so the bin directory alone
+    # cannot shadow an ambient ``python3`` — the first name the script
+    # resolvers probe — and a cached ``python3`` shim (see
+    # :func:`make_python3_path_shim`, shell shim plus a ``.cmd`` for
+    # PowerShell) covers that first candidate on every platform.
+    env["PATH"] = (
+        f"{_python3_shim_dir()}{os.pathsep}"
+        f"{Path(sys.executable).absolute().parent}"
+        f"{os.pathsep}{env.get('PATH', '')}"
+    )
     return env
 
 
+_PYTHON3_SHIM_DIR: Path | None = None
+
+
+def _python3_shim_dir() -> Path:
+    """A cached directory whose ``python3`` execs the suite interpreter.
+
+    Built once per pytest process with :func:`make_python3_path_shim`, which
+    deliberately does not resolve the interpreter so the venv's
+    ``site-packages`` (PyYAML among them) stay reachable.
+    """
+    global _PYTHON3_SHIM_DIR
+    if _PYTHON3_SHIM_DIR is None:
+        _PYTHON3_SHIM_DIR = Path(tempfile.mkdtemp(prefix="spec-kit-parity-shim-"))
+        make_python3_path_shim(_PYTHON3_SHIM_DIR)
+    return _PYTHON3_SHIM_DIR
+
+
+def venv_python3_exe(venv_dir: Path) -> Path:
+    """Path to the python3 executable of a venv created with ``--without-pip``."""
+    if os.name == "nt":
+        return venv_dir / "Scripts" / "python.exe"
+    return venv_dir / "bin" / "python3"
+
+
+def make_yaml_less_venv(venv_dir: Path) -> Path:
+    """Create a ``--without-pip`` venv and return its python3 executable.
+
+    Asserts the interpreter cannot actually import PyYAML, since it could
+    otherwise be visible via an inherited ``PYTHONPATH`` despite
+    ``--without-pip``, silently invalidating tests that assume it lacks one.
+    """
+    subprocess.run(
+        [sys.executable, "-m", "venv", "--without-pip", str(venv_dir)],
+        check=True,
+        capture_output=True,
+    )
+    exe = venv_python3_exe(venv_dir)
+    assert exe.is_file()
+    probe = subprocess.run(
+        [str(exe), "-c", "import yaml"],
+        capture_output=True,
+        env=clean_env(),
+        check=False,
+    )
+    assert probe.returncode != 0, "venv unexpectedly has PyYAML importable"
+    return exe
+
+
+def _bash_posix_path(path: Path) -> str:
+    """Convert a Windows path to the POSIX form the available bash expects.
+
+    Uses ``abspath`` rather than ``Path.resolve()``: the caller may pass a
+    venv's python3, which is typically a symlink, and resolving it would
+    exec the underlying base interpreter from outside the venv directory,
+    silently dropping that venv's site-packages isolation.
+    """
+    resolved = os.path.abspath(path)
+    if os.name != "nt":
+        return resolved
+    try:
+        converted = subprocess.run(
+            [
+                "bash",
+                "-lc",
+                'command -v cygpath >/dev/null 2>&1 && cygpath -u "$1"',
+                "bash",
+                resolved,
+            ],
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+    except OSError:
+        # Bash is not on PATH (e.g. a Windows machine without Git-for-Windows
+        # in it). The converted form is only needed by bash-invoked tests,
+        # which skip when bash is unavailable, so fall through to the static
+        # /mnt/ form rather than failing environment setup for every parity
+        # test, including the ones that never invoke bash.
+        converted = None
+    if converted is not None and converted.returncode == 0 and converted.stdout.strip():
+        return converted.stdout.strip()
+    drive = path.drive.rstrip(":").lower()
+    posix = path.as_posix()
+    return f"/mnt/{drive}{posix[2:]}" if drive else posix
+
+
+def make_python3_path_shim(shim_dir: Path, target: Path | str | None = None) -> Path:
+    """Create a deterministic ``python3`` shim that execs ``target`` (the
+    current pytest interpreter by default), so a test can put a guaranteed
+    interpreter first on PATH as the *default* ``python3`` a script finds via
+    its python3 -> python -> py -3 fallback chain (as opposed to the
+    SPECKIT_PYTHON(_EXECUTABLE) override, which names its interpreter
+    explicitly and never depends on PATH lookup).
+
+    A venv's own bin/Scripts directory is not enough on Windows: it provides
+    ``python.exe``, not ``python3``, so it never actually shadows a PATH
+    lookup for ``python3``. This shim exists precisely to fill that gap.
+    """
+    shim_dir.mkdir(parents=True, exist_ok=True)
+    # Deliberately not .resolve(): a venv's python3 is typically a symlink,
+    # and following it to the underlying base interpreter would exec it
+    # from outside the venv directory, which drops pyvenv.cfg discovery and
+    # silently regains/loses that venv's site-packages (e.g. PyYAML).
+    python_exe = Path(target if target is not None else sys.executable).absolute()
+
+    shell_shim = shim_dir / "python3"
+    shell_shim.write_text(
+        f"#!/usr/bin/env sh\nexec {shlex.quote(_bash_posix_path(python_exe))} \"$@\"\n",
+        encoding="utf-8",
+        newline="\n",
+    )
+    shell_shim.chmod(0o755)
+
+    if os.name == "nt":
+        cmd_shim = shim_dir / "python3.cmd"
+        cmd_shim.write_text(f'@echo off\r\n"{python_exe}" %*\r\n', encoding="utf-8")
+
+    return shim_dir
+
+
+def collation_range_locale() -> str | None:
+    """A locale whose ``[a-z]`` bracket range is collation-ordered, or ``None``.
+
+    glibc resolves a bracket-expression *range* through the locale's collation
+    table, so under ``en_US.UTF-8`` ``[^a-z0-9]`` leaves accented lowercase
+    letters alone while ``C.UTF-8`` and the POSIX locale strip them. Probe
+    ``sed`` directly rather than trusting a locale name: the environments where
+    the divergence cannot be reproduced (no such locale installed, a non-glibc
+    libc, Git-for-Windows) are exactly the ones where the probe comes back
+    clean, so the caller can skip.
+    """
+    for name in ("en_US.UTF-8", "en_US.utf8"):
+        env = clean_env()
+        env["LC_ALL"] = name
+        env["LANG"] = name
+        try:
+            probe = subprocess.run(
+                ["sed", "s/[^a-z0-9]/-/g"],
+                input="é\n",
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                check=False,
+                env=env,
+            )
+        except OSError:  # pragma: no cover - sed missing entirely
+            return None
+        if probe.returncode == 0 and "é" in probe.stdout:
+            return name
+    return None
+
+
 def run(
-    cmd: list[str], repo: Path, env: dict[str, str] | None = None
+    cmd: list[str],
+    repo: Path,
+    env: dict[str, str] | None = None,
+    timeout: float | None = None,
 ) -> subprocess.CompletedProcess[str]:
+    """Run a script variant.
+
+    ``timeout`` guards cases whose regression mode is a hang rather than a bad
+    value; without it such a failure would stall the suite instead of failing
+    it. ``subprocess.TimeoutExpired`` propagates so the test reports the hang.
+    """
     return subprocess.run(
         cmd,
         cwd=repo,
         capture_output=True,
         text=True,
+        encoding="utf-8",
         check=False,
         env=env if env is not None else clean_env(),
+        timeout=timeout,
     )
 
 
@@ -109,12 +369,139 @@ def write_feature_json(
     )
 
 
+def install_composition_stack(
+    repo: Path, template_name: str, core_content: str
+) -> str:
+    """Install wrap/prepend/append presets over a core template."""
+    templates = repo / ".specify" / "templates"
+    templates.mkdir(parents=True, exist_ok=True)
+    (templates / f"{template_name}.md").write_bytes(core_content.encode("utf-8"))
+
+    layers = [
+        ("wrap-pack", 1, "wrap", "## Wrapper\n{CORE_TEMPLATE}\n## End\n"),
+        ("prepend-pack", 2, "prepend", "# Prepended\n"),
+        ("append-pack", 3, "append", "# Appended\n"),
+    ]
+    registry: dict[str, object] = {"presets": {}}
+    registry_presets = registry["presets"]
+    assert isinstance(registry_presets, dict)
+
+    for preset_id, priority, strategy, content in layers:
+        preset_dir = repo / ".specify" / "presets" / preset_id
+        template_dir = preset_dir / "templates"
+        template_dir.mkdir(parents=True)
+        (template_dir / f"{template_name}.md").write_bytes(content.encode("utf-8"))
+        (preset_dir / "preset.yml").write_text(
+            "provides:\n"
+            "  templates:\n"
+            "    - type: template\n"
+            f"      name: {template_name}\n"
+            f"      file: templates/{template_name}.md\n"
+            f"      strategy: {strategy}\n",
+            encoding="utf-8",
+        )
+        registry_presets[preset_id] = {
+            "enabled": True,
+            "priority": priority,
+        }
+
+    (repo / ".specify" / "presets" / ".registry").write_text(
+        json.dumps(registry, separators=(",", ":")) + "\n",
+        encoding="utf-8",
+    )
+
+    appended = "# Appended\n"
+    prepended = "# Prepended\n"
+    wrapper = "## Wrapper\n{CORE_TEMPLATE}\n## End\n"
+    composed = f"{core_content}\n\n{appended}"
+    composed = f"{prepended}\n\n{composed}"
+    return wrapper.replace("{CORE_TEMPLATE}", composed)
+
+
+def break_wrap_layer(repo: Path, template_name: str) -> None:
+    """Replace the installed wrap layer with one missing its placeholder."""
+    (
+        repo
+        / ".specify"
+        / "presets"
+        / "wrap-pack"
+        / "templates"
+        / f"{template_name}.md"
+    ).write_text("# Broken wrapper\n", encoding="utf-8")
+
+
 def normalize_repo_paths(text: str, repo: Path) -> str:
     """Replace the repo path with a placeholder so two-repo runs compare equal."""
     repo_paths = sorted({str(repo), str(repo.resolve())}, key=len, reverse=True)
     for repo_path in repo_paths:
         text = text.replace(repo_path, "<REPO>")
     return text.replace("\r\n", "\n")
+
+
+_PS_PERSISTENCE_HINT = re.compile(r"\$env:(SPECIFY[A-Z0-9_]*) = '((?:[^']|'')*)'")
+_BASH_PERSISTENCE_HINT = re.compile(
+    r"export (SPECIFY[A-Z0-9_]*)=((?:'[^']*'|\"(?:[^\"\\]|\\.)*\"|\\.|[^\s'\"\\])+)"
+)
+
+
+def _unquote_bash_word(word: str) -> str:
+    """Canonicalize one POSIX shell word to its literal value.
+
+    ``shlex.quote`` spells an embedded apostrophe as the ``'"'"'`` seam, so
+    ``'/tmp/O'"'"'Brien'`` is a concatenation of quoted segments: the whole
+    word must be parsed, not stopped at the first apostrophe. The regex above
+    only admits balanced segments, so the index scans below cannot fail.
+    """
+    parts: list[str] = []
+    i = 0
+    while i < len(word):
+        ch = word[i]
+        if ch == "'":
+            end = word.index("'", i + 1)
+            parts.append(word[i + 1 : end])
+            i = end + 1
+        elif ch == '"':
+            i += 1
+            while word[i] != '"':
+                if word[i] == "\\" and word[i + 1] in '"$`\\':
+                    i += 1
+                parts.append(word[i])
+                i += 1
+            i += 1
+        elif ch == "\\":
+            parts.append(word[i + 1])
+            i += 2
+        else:
+            end = i
+            while end < len(word) and word[end] not in "'\"\\":
+                end += 1
+            parts.append(word[i:end])
+            i = end
+    return "".join(parts)
+
+
+def fold_persistence_hints(text: str) -> str:
+    """Reduce shell persistence hints to bare ``KEY=VALUE`` pairs.
+
+    The Python variant prints PowerShell-style hints when running on Windows
+    while the bash variant always prints ``export``-style ones, so a cross-style
+    comparison must fold both spellings (and their quoting) together first.
+    The bash form is parsed as a complete POSIX shell word, so shlex.quote's
+    apostrophe spelling (``'/tmp/O'"'"'Brien'``) collapses to the literal
+    value instead of stopping at the first apostrophe.
+    Cross-variant equality checks only; never bake this into
+    ``normalize_repo_paths``, whose output tests assert on verbatim.
+    """
+
+    def from_powershell(match: re.Match[str]) -> str:
+        value = match.group(2).replace("''", "'")
+        return f"{match.group(1)}={value}"
+
+    def from_bash(match: re.Match[str]) -> str:
+        return f"{match.group(1)}={_unquote_bash_word(match.group(2))}"
+
+    text = _PS_PERSISTENCE_HINT.sub(from_powershell, text)
+    return _BASH_PERSISTENCE_HINT.sub(from_bash, text)
 
 
 def normalize_script_names(text: str, repo: Path, script: str) -> str:

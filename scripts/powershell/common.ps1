@@ -1,6 +1,7 @@
 #!/usr/bin/env pwsh
 # Common PowerShell functions analogous to common.sh
 
+
 # Find repository root by searching upward for .specify directory
 # This is the primary marker for spec-kit projects
 function Find-SpecifyRoot {
@@ -135,7 +136,7 @@ function Save-FeatureJson {
     # Read current value and skip write when unchanged
     if (Test-Path -LiteralPath $fjPath -PathType Leaf) {
         try {
-            $raw = Get-Content -LiteralPath $fjPath -Raw
+            $raw = [System.IO.File]::ReadAllText($fjPath, [System.Text.Encoding]::UTF8)
             $cfg = $raw | ConvertFrom-Json
             if ($cfg.feature_directory -eq $FeatureDirectory) {
                 return
@@ -166,6 +167,12 @@ function Get-FeaturePathsEnv {
         [switch]$ReturnNullOnError
     )
 
+    # SPECIFY_FEATURE_NO_PERSIST is the environment-level equivalent of -NoPersist,
+    # letting an orchestrator (multi-agent runner, CI matrix) guarantee that no
+    # script invocation in the process tree writes .specify/feature.json, even
+    # scripts that don't pass -NoPersist themselves (#4128).
+    $noPersist = [bool]$NoPersist -or $env:SPECIFY_FEATURE_NO_PERSIST -eq '1' -or $env:SPECIFY_FEATURE_NO_PERSIST -eq 'true'
+
     $repoRoot = Get-RepoRoot -ReturnNullOnError:$ReturnNullOnError
     if (-not $repoRoot) { return $null }
     $currentBranch = Get-CurrentBranch
@@ -183,11 +190,11 @@ function Get-FeaturePathsEnv {
         }
         # Persist to feature.json so future sessions without the env var still
         # work - unless the caller opted out for read-only resolution (#3025).
-        if (-not $NoPersist) {
+        if (-not $noPersist) {
             Save-FeatureJson -RepoRoot $repoRoot -FeatureDirectory $env:SPECIFY_FEATURE_DIRECTORY
         }
-    } elseif (Test-Path $featureJson) {
-        $featureJsonRaw = Get-Content -LiteralPath $featureJson -Raw
+    } elseif (Test-Path -LiteralPath $featureJson) {
+        $featureJsonRaw = [System.IO.File]::ReadAllText($featureJson, [System.Text.Encoding]::UTF8)
         try {
             $featureConfig = $featureJsonRaw | ConvertFrom-Json
         } catch {
@@ -228,18 +235,15 @@ function Get-FeaturePathsEnv {
         CURRENT_BRANCH = $currentBranch
         FEATURE_DIR   = $featureDir
         FEATURE_SPEC  = Join-Path $featureDir 'spec.md'
-        IMPL_PLAN     = Join-Path $featureDir 'plan.md'
+        PROTOTYPE     = Join-Path $featureDir 'prototype.html'
         TASKS         = Join-Path $featureDir 'tasks.md'
-        RESEARCH      = Join-Path $featureDir 'research.md'
-        DATA_MODEL    = Join-Path $featureDir 'data-model.md'
         QUICKSTART    = Join-Path $featureDir 'quickstart.md'
-        CONTRACTS_DIR = Join-Path $featureDir 'contracts'
     }
 }
 
 function Test-FileExists {
     param([string]$Path, [string]$Description)
-    if (Test-Path -Path $Path -PathType Leaf) {
+    if (Test-Path -LiteralPath $Path -PathType Leaf) {
         Write-Output "  [OK] $Description"
         return $true
     } else {
@@ -256,13 +260,20 @@ function Test-DirHasFiles {
     # only contents are subdirectories (e.g. contracts/v1/openapi.yaml) as
     # non-empty like bash check_dir. Filtering out subdirectories would
     # mis-report such a directory as empty.
-    if ((Test-Path -Path $Path -PathType Container) -and (Get-ChildItem -Path $Path -ErrorAction SilentlyContinue | Select-Object -First 1)) {
+    if ((Test-Path -LiteralPath $Path -PathType Container) -and (Get-ChildItem -LiteralPath $Path -ErrorAction SilentlyContinue | Select-Object -First 1)) {
         Write-Output "  [OK] $Description"
         return $true
     } else {
         Write-Output "  [FAIL] $Description"
         return $false
     }
+}
+
+# Escape non-ASCII so the JSON reads the same under any console output code page.
+function ConvertTo-AsciiJson {
+    param([Parameter(Mandatory = $true, ValueFromPipeline = $true)]$InputObject)
+    $json = $InputObject | ConvertTo-Json -Compress
+    return [regex]::Replace($json, '[^\x00-\x7F]', { param($m) '\u{0:x4}' -f [int][char]$m.Value })
 }
 
 function Get-InvokeSeparator {
@@ -320,16 +331,130 @@ function Format-SpecKitCommand {
 # Find a usable Python 3 executable (python3, python, or py -3).
 # Returns the command/arguments as an array, or $null if none found.
 function Get-Python3Command {
-    if (Get-Command python3 -ErrorAction SilentlyContinue) { return @('python3') }
-    if (Get-Command python -ErrorAction SilentlyContinue) {
-        $ver = & python --version 2>&1
-        if ($ver -match 'Python 3') { return @('python') }
+    # SPECKIT_PYTHON_EXECUTABLE is the canonical override; SPECKIT_PYTHON is
+    # kept as a deprecated fallback (still used by update-agent-context.sh).
+    $override = if ($env:SPECKIT_PYTHON_EXECUTABLE) { $env:SPECKIT_PYTHON_EXECUTABLE } else { $env:SPECKIT_PYTHON }
+    if ($override -and (Get-Command $override -ErrorAction SilentlyContinue)) {
+        $ver = & $override --version 2>&1
+        if ($ver -match 'Python 3') {
+            & $override -c 'import yaml' *> $null
+            if ($LASTEXITCODE -eq 0) { return @($override) }
+        }
     }
-    if (Get-Command py -ErrorAction SilentlyContinue) {
-        $ver = & py -3 --version 2>&1
-        if ($ver -match 'Python 3') { return @('py', '-3') }
+    $candidates = @()
+    $candidates += ,@('python3')
+    $candidates += ,@('python')
+    $candidates += ,@('py', '-3')
+    foreach ($candidate in $candidates) {
+        $exe = $candidate[0]
+        $resolvedCommand = Get-Command $exe -ErrorAction SilentlyContinue | Select-Object -First 1
+        if (-not $resolvedCommand) {
+            continue
+        }
+        # A .cmd wrapper cannot reliably receive the multiline -c programs used
+        # for manifest and section parsing through Windows PowerShell 5.1.
+        # Prefer a real executable later in the candidate list instead.
+        $resolvedPath = $resolvedCommand.Path
+        if (-not $resolvedPath) {
+            $resolvedPath = $resolvedCommand.Source
+        }
+        $resolvedExtension = [System.IO.Path]::GetExtension([string]$resolvedPath)
+        if ($resolvedExtension -in @('.cmd', '.bat')) {
+            continue
+        }
+        $args = if ($candidate.Count -gt 1) { @($candidate[1..($candidate.Count - 1)]) } else { @() }
+        $savedErrorActionPreference = $ErrorActionPreference
+        try {
+            $ErrorActionPreference = 'Continue'
+            $ver = & $exe @args --version 2>$null
+            if ($LASTEXITCODE -ne 0 -or -not ($ver -match 'Python 3')) {
+                continue
+            }
+            & $exe @args -c 'import yaml' *> $null
+            if ($LASTEXITCODE -eq 0) {
+                return @($candidate)
+            }
+        } finally {
+            $ErrorActionPreference = $savedErrorActionPreference
+        }
     }
     return $null
+}
+
+function Get-NormalizedPriority {
+    param($Value)
+
+    if ($Value -is [bool]) { return 10 }
+    if ($Value -is [string]) {
+        $integerText = $Value.Trim()
+        if ($integerText -cnotmatch '^[+-]?[0-9]+(?:_[0-9]+)*$') { return 10 }
+        $Value = $integerText.Replace('_', '')
+    }
+    try {
+        $parsedPriority = [System.Numerics.BigInteger]$Value
+    } catch {
+        return 10
+    }
+    return $(if ($parsedPriority -ge 1) { $parsedPriority } else { 10 })
+}
+
+function Get-SortedExtensionIds {
+    param([Parameter(Mandatory=$true)][string]$ExtensionsDir)
+
+    $registeredNames = @()
+    $ranked = @()
+    $registryFile = Join-Path $ExtensionsDir '.registry'
+    # Detect any filesystem entry at the registry path without following symlinks.
+    # Test-Path follows links and reports $false for a dangling symlink, so a
+    # broken .registry symlink would otherwise bypass this guard and let the
+    # directory scan below enable every on-disk extension. Enumerating the parent
+    # directory still observes a broken symlink as an entry.
+    $registryEntry = Get-ChildItem -LiteralPath $ExtensionsDir -Force -ErrorAction SilentlyContinue |
+        Where-Object { $_.Name -eq '.registry' } |
+        Select-Object -First 1
+    if ($registryEntry) {
+        if (-not (Test-Path -LiteralPath $registryFile -PathType Leaf)) {
+            throw "Invalid extension registry ${registryFile}: not a regular file"
+        }
+        try {
+            $data = [System.IO.File]::ReadAllText($registryFile, [System.Text.Encoding]::UTF8) | ConvertFrom-Json
+        } catch {
+            throw "Invalid extension registry ${registryFile}: $($_.Exception.Message)"
+        }
+        if ($null -eq $data -or $data -isnot [PSCustomObject]) {
+            throw "Invalid extension registry ${registryFile}: root must be a mapping"
+        }
+        $extensionsProperty = $data.PSObject.Properties['extensions']
+        if ($extensionsProperty) {
+            if ($extensionsProperty.Value -isnot [PSCustomObject]) {
+                throw "Invalid extension registry ${registryFile}: 'extensions' must be a mapping"
+            }
+            $extensions = $extensionsProperty.Value
+        } else {
+            $extensions = [PSCustomObject]@{}
+        }
+        $registeredNames = @($extensions.PSObject.Properties | ForEach-Object { $_.Name })
+        foreach ($entry in $extensions.PSObject.Properties) {
+            if ($entry.Name -cnotmatch '^[a-z0-9-]+$' -or $entry.Value -isnot [PSCustomObject]) {
+                continue
+            }
+            $enabledProperty = $entry.Value.PSObject.Properties['enabled']
+            if ($enabledProperty -and -not [bool]$enabledProperty.Value) { continue }
+            $priority = 10
+            $priorityProperty = $entry.Value.PSObject.Properties['priority']
+            if ($priorityProperty) {
+                $priority = Get-NormalizedPriority -Value $priorityProperty.Value
+            }
+            $ranked += [PSCustomObject]@{ Priority = $priority; Id = $entry.Name }
+        }
+    }
+
+    foreach ($directory in Get-ChildItem -LiteralPath $ExtensionsDir -Directory -ErrorAction SilentlyContinue) {
+        if ($directory.Name -cmatch '^[a-z0-9-]+$' -and $directory.Name -cnotin $registeredNames) {
+            $ranked += [PSCustomObject]@{ Priority = 10; Id = $directory.Name }
+        }
+    }
+    return $ranked | Sort-Object Priority, Id | ForEach-Object { $_.Id }
 }
 
 # Resolve a template name to a file path using the priority stack:
@@ -343,21 +468,23 @@ function Resolve-Template {
         [Parameter(Mandatory=$true)][string]$RepoRoot
     )
 
+    if ($TemplateName -cnotmatch '^[a-z0-9-]+$') { return $null }
+
     $base = Join-Path $RepoRoot '.specify/templates'
 
     # Priority 1: Project overrides
     $override = Join-Path $base "overrides/$TemplateName.md"
-    if (Test-Path $override) { return $override }
+    if (Test-Path -LiteralPath $override) { return $override }
 
     # Priority 2: Installed presets (sorted by priority from .registry)
     $presetsDir = Join-Path $RepoRoot '.specify/presets'
-    if (Test-Path $presetsDir) {
+    if (Test-Path -LiteralPath $presetsDir) {
         $registryFile = Join-Path $presetsDir '.registry'
         $sortedPresets = @()
         $registryParsed = $false
-        if (Test-Path $registryFile) {
+        if (Test-Path -LiteralPath $registryFile) {
             try {
-                $registryData = Get-Content $registryFile -Raw | ConvertFrom-Json
+                $registryData = [System.IO.File]::ReadAllText($registryFile, [System.Text.Encoding]::UTF8) | ConvertFrom-Json
                 if ($null -eq $registryData -or $registryData -isnot [PSCustomObject]) {
                     throw 'Registry root must be an object'
                 }
@@ -372,30 +499,20 @@ function Resolve-Template {
                         param($Entry)
                         if ($Entry.Value -is [PSCustomObject]) {
                             $priorityProperty = $Entry.Value.PSObject.Properties['priority']
-                            if ($priorityProperty) { return $priorityProperty.Value }
+                            if ($priorityProperty) {
+                                return Get-NormalizedPriority -Value $priorityProperty.Value
+                            }
                         }
                         return 10
                     }
-                    if ($presetEntries.Count -gt 1) {
-                        $allNumeric = $true
-                        $allStrings = $true
-                        foreach ($entry in $presetEntries) {
-                            $priority = & $priorityFor $entry
-                            if ($null -eq $priority -or $priority -isnot [ValueType]) {
-                                $allNumeric = $false
-                            }
-                            if ($null -eq $priority -or $priority -isnot [string]) {
-                                $allStrings = $false
-                            }
-                        }
-                        if (-not $allNumeric -and -not $allStrings) {
-                            throw 'Registry priorities are not mutually orderable'
-                        }
-                    }
                     $sortedPresets = $presetEntries |
                         Where-Object { $_.Value -is [PSCustomObject] } |
-                        Where-Object { $null -eq $_.Value.enabled -or $_.Value.enabled -ne $false } |
-                        Sort-Object { & $priorityFor $_ } |
+                        Where-Object {
+                            $enabled = $_.Value.PSObject.Properties['enabled']
+                            -not $enabled -or [bool]$enabled.Value
+                        } |
+                        Where-Object { $_.Name -cmatch '^[a-z0-9-]+$' } |
+                        Sort-Object @{ Expression = { & $priorityFor $_ } }, @{ Expression = { $_.Name } } |
                         ForEach-Object { $_.Name }
                 }
                 $registryParsed = $true
@@ -407,29 +524,36 @@ function Resolve-Template {
         if ($registryParsed) {
             foreach ($presetId in $sortedPresets) {
                 $candidate = Join-Path $presetsDir "$presetId/templates/$TemplateName.md"
-                if (Test-Path $candidate) { return $candidate }
+                if (Test-Path -LiteralPath $candidate) { return $candidate }
+                $candidate = Join-Path $presetsDir "$presetId/$TemplateName.md"
+                if (Test-Path -LiteralPath $candidate) { return $candidate }
             }
         } else {
             # Fallback: alphabetical directory order
-            foreach ($preset in Get-ChildItem -Path $presetsDir -Directory -ErrorAction SilentlyContinue | Where-Object { $_.Name -notlike '.*' } | Sort-Object Name) {
+            foreach ($preset in Get-ChildItem -LiteralPath $presetsDir -Directory -ErrorAction SilentlyContinue | Where-Object { $_.Name -notlike '.*' } | Sort-Object Name) {
                 $candidate = Join-Path $preset.FullName "templates/$TemplateName.md"
-                if (Test-Path $candidate) { return $candidate }
+                if (Test-Path -LiteralPath $candidate) { return $candidate }
+                $candidate = Join-Path $preset.FullName "$TemplateName.md"
+                if (Test-Path -LiteralPath $candidate) { return $candidate }
             }
         }
     }
 
     # Priority 3: Extension-provided templates
     $extDir = Join-Path $RepoRoot '.specify/extensions'
-    if (Test-Path $extDir) {
-        foreach ($ext in Get-ChildItem -Path $extDir -Directory -ErrorAction SilentlyContinue | Where-Object { $_.Name -notlike '.*' } | Sort-Object Name) {
-            $candidate = Join-Path $ext.FullName "templates/$TemplateName.md"
-            if (Test-Path $candidate) { return $candidate }
+    if (Test-Path -LiteralPath $extDir) {
+        foreach ($extensionId in Get-SortedExtensionIds -ExtensionsDir $extDir) {
+            $candidate = Join-Path $extDir "$extensionId/templates/$TemplateName.md"
+            if (-not (Test-Path -LiteralPath $candidate)) {
+                $candidate = Join-Path $extDir "$extensionId/$TemplateName.md"
+            }
+            if (Test-Path -LiteralPath $candidate) { return $candidate }
         }
     }
 
     # Priority 4: Core templates
     $core = Join-Path $base "$TemplateName.md"
-    if (Test-Path $core) { return $core }
+    if (Test-Path -LiteralPath $core) { return $core }
 
     return $null
 }
@@ -443,94 +567,179 @@ function Resolve-TemplateContent {
         [Parameter(Mandatory=$true)][string]$RepoRoot
     )
 
+    if ($TemplateName -cnotmatch '^[a-z0-9-]+$') {
+        return $null
+    }
+
     $base = Join-Path $RepoRoot '.specify/templates'
 
     # Collect all layers (highest priority first)
     $layerPaths = @()
     $layerStrategies = @()
+    $layerSelectors = @()
+    $layerPresets = @()
+    $sectionEngine = Join-Path $PSScriptRoot 'markdown_sections.py'
+    if (-not (Test-Path -LiteralPath $sectionEngine)) {
+        $sectionEngine = Join-Path $PSScriptRoot '../../src/specify_cli/markdown_sections.py'
+    }
 
     # Priority 1: Project overrides (always "replace")
     $override = Join-Path $base "overrides/$TemplateName.md"
-    if (Test-Path $override) {
-        $layerPaths += $override
-        $layerStrategies += 'replace'
+    if (Test-Path -LiteralPath $override) {
+        return [System.IO.File]::ReadAllText(
+            $override,
+            [System.Text.Encoding]::UTF8
+        )
     }
+
+    $effectiveBaseFound = $false
 
     # Priority 2: Installed presets (sorted by priority from .registry)
     $presetsDir = Join-Path $RepoRoot '.specify/presets'
-    if (Test-Path $presetsDir) {
+    if (Test-Path -LiteralPath $presetsDir) {
         $registryFile = Join-Path $presetsDir '.registry'
         $sortedPresets = @()
-        if (Test-Path $registryFile) {
+        $registryParsed = $false
+        if (Test-Path -LiteralPath $registryFile) {
             try {
-                $registryData = Get-Content $registryFile -Raw | ConvertFrom-Json
-                $presets = $registryData.presets
-                if ($presets) {
-                    $sortedPresets = $presets.PSObject.Properties |
-                        Where-Object { $null -eq $_.Value.enabled -or $_.Value.enabled -ne $false } |
-                        Sort-Object { if ($null -ne $_.Value.priority) { $_.Value.priority } else { 10 } } |
+                $registryData = [System.IO.File]::ReadAllText($registryFile, [System.Text.Encoding]::UTF8) | ConvertFrom-Json
+                if ($null -eq $registryData -or $registryData -isnot [PSCustomObject]) {
+                    throw 'Registry root must be an object'
+                }
+                $presetsProperty = $registryData.PSObject.Properties['presets']
+                if ($presetsProperty) {
+                    $presets = $presetsProperty.Value
+                    if ($null -eq $presets -or $presets -isnot [PSCustomObject]) {
+                        throw 'Registry presets must be an object'
+                    }
+                    $presetEntries = @($presets.PSObject.Properties)
+                    $priorityFor = {
+                        param($Entry)
+                        if ($Entry.Value -is [PSCustomObject]) {
+                            $priorityProperty = $Entry.Value.PSObject.Properties['priority']
+                            if ($priorityProperty) {
+                                return Get-NormalizedPriority -Value $priorityProperty.Value
+                            }
+                        }
+                        return 10
+                    }
+                    $sortedPresets = $presetEntries |
+                        Where-Object { $_.Value -is [PSCustomObject] } |
+                        Where-Object {
+                            $enabled = $_.Value.PSObject.Properties['enabled']
+                            -not $enabled -or [bool]$enabled.Value
+                        } |
+                        Where-Object { $_.Name -cmatch '^[a-z0-9-]+$' } |
+                        Sort-Object @{ Expression = { & $priorityFor $_ } }, @{ Expression = { $_.Name } } |
                         ForEach-Object { $_.Name }
                 }
+                $registryParsed = $true
             } catch {
-                $sortedPresets = @()
+                $registryParsed = $false
             }
         }
 
-        if ($sortedPresets.Count -gt 0) {
-            $pyCmd = Get-Python3Command
-            if (-not $pyCmd) {
-                # Check if any preset has strategy fields that would be ignored
-                foreach ($pid in $sortedPresets) {
-                    $mf = Join-Path $presetsDir "$pid/preset.yml"
-                    if ((Test-Path $mf) -and (Select-String -Path $mf -Pattern 'strategy:' -Quiet -ErrorAction SilentlyContinue)) {
-                        Write-Warning "No Python 3 found; preset composition strategies will be ignored"
-                        break
-                    }
-                }
-            }
-            $yamlWarned = $false
-            foreach ($presetId in $sortedPresets) {
+        if (-not $registryParsed) {
+            $sortedPresets = Get-ChildItem -LiteralPath $presetsDir -Directory -ErrorAction SilentlyContinue |
+                Where-Object { $_.Name -cmatch '^[a-z0-9-]+$' } |
+                Sort-Object Name |
+                ForEach-Object { $_.Name }
+        }
+
+        $pyCmd = @(Get-Python3Command)
+        foreach ($presetId in $sortedPresets) {
                 # Read strategy and file path from preset manifest
                 $strategy = 'replace'
+                $selector = ''
                 $manifestFilePath = ''
+                $manifestDeclared = $false
                 $manifest = Join-Path $presetsDir "$presetId/preset.yml"
-                if ((Test-Path $manifest) -and $pyCmd) {
+                if ((Test-Path -LiteralPath $manifest) -and -not $pyCmd) {
+                    throw "Python 3 and PyYAML are required to resolve preset template composition"
+                }
+                if (Test-Path -LiteralPath $manifest) {
                     try {
                         # Use Python to parse YAML manifest for strategy and file path
                         $pyArgs = if ($pyCmd.Count -gt 1) { $pyCmd[1..($pyCmd.Count-1)] } else { @() }
                         $pyStderrFile = [System.IO.Path]::GetTempFileName()
                         $stratResult = & $pyCmd[0] @pyArgs -c @"
-import sys
+import sys, base64
 try:
     import yaml
 except ImportError:
     print('yaml_missing', file=sys.stderr)
-    print('replace\t')
-    sys.exit(0)
+    sys.exit(2)
 try:
-    with open(sys.argv[1]) as f:
+    with open(sys.argv[1], encoding='utf-8') as f:
         data = yaml.safe_load(f)
-    for t in data.get('provides', {}).get('templates', []):
+    if not isinstance(data, dict):
+        raise ValueError('manifest root must be a mapping')
+    if 'provides' not in data:
+        raise ValueError('manifest missing provides section')
+    provides = data['provides']
+    if not isinstance(provides, dict):
+        raise ValueError('manifest provides must be a mapping')
+    if 'templates' not in provides:
+        raise ValueError('manifest provides missing templates')
+    templates = provides['templates']
+    if not isinstance(templates, list):
+        raise ValueError('manifest templates must be a list')
+    if not templates:
+        raise ValueError('manifest must provide at least one template')
+    valid_types = ('template', 'command', 'script')
+    valid_strategies = ('replace', 'prepend', 'append', 'wrap', 'replace-section')
+    for t in templates:
+        if not isinstance(t, dict):
+            raise ValueError('manifest template entries must be mappings')
+        if 'type' not in t or 'name' not in t or 'file' not in t:
+            raise ValueError('manifest template entry missing type, name, or file')
+        for field in ('type', 'name', 'file'):
+            if not isinstance(t[field], str):
+                raise ValueError('manifest template ' + field + ' must be a string')
+        if t['type'] not in valid_types:
+            raise ValueError('invalid manifest template type')
+        strategy = t.get('strategy', 'replace')
+        if not isinstance(strategy, str):
+            raise ValueError('manifest template strategy must be a string')
+        strategy = strategy.lower()
+        if strategy not in valid_strategies:
+            raise ValueError('invalid manifest template strategy')
+        if t['type'] == 'script' and strategy not in ('replace', 'wrap'):
+            raise ValueError('invalid manifest script strategy')
+        if strategy == 'replace-section' or 'selector' in t:
+            import runpy
+            engine = runpy.run_path(sys.argv[3])
+            engine['validate_section_selector'](strategy, t.get('selector'), present='selector' in t)
+    for t in templates:
         if t.get('name') == sys.argv[2] and t.get('type', 'template') == 'template':
-            print(t.get('strategy', 'replace') + '\t' + t.get('file', ''))
+            file_value = t.get('file', '')
+            strategy = t.get('strategy', 'replace')
+            selector = base64.b64encode(t.get('selector', '').encode('utf-8')).decode('ascii')
+            print('found\t' + strategy + '\t' + file_value + '\t' + selector)
             sys.exit(0)
-    print('replace\t')
-except Exception:
-    print('replace\t')
-"@ $manifest $TemplateName 2>$pyStderrFile
+    print('absent\treplace\t')
+except Exception as exc:
+    print(f'manifest_invalid: {exc}', file=sys.stderr)
+    sys.exit(3)
+"@ $manifest $TemplateName $sectionEngine 2>$pyStderrFile
+                        if ($LASTEXITCODE -ne 0) {
+                            if ($LASTEXITCODE -eq 2) {
+                                throw "PyYAML is required to resolve preset template composition"
+                            }
+                            $detail = [System.IO.File]::ReadAllText($pyStderrFile, [System.Text.Encoding]::UTF8)
+                            throw "Invalid preset manifest ${manifest}: $detail"
+        }
                         if ($stratResult) {
-                            $parts = $stratResult.Trim() -split "`t", 2
-                            $strategy = $parts[0].ToLowerInvariant()
-                            if ($parts.Count -gt 1 -and $parts[1]) { $manifestFilePath = $parts[1] }
+                            $parts = $stratResult.Trim() -split "`t", 4
+                            $manifestDeclared = $parts[0] -eq 'found'
+                            $strategy = $parts[1].ToLowerInvariant()
+                            if ($parts.Count -gt 2 -and $parts[2]) { $manifestFilePath = $parts[2] }
+                            if ($parts.Count -gt 3) { $selector = $parts[3] }
                         }
-                        if (-not $yamlWarned -and (Test-Path $pyStderrFile) -and (Get-Content $pyStderrFile -Raw -ErrorAction SilentlyContinue) -match 'yaml_missing') {
-                            Write-Warning "PyYAML not available; composition strategies may be ignored"
-                            $yamlWarned = $true
-                        }
-                        Remove-Item $pyStderrFile -Force -ErrorAction SilentlyContinue
+                        Remove-Item -LiteralPath $pyStderrFile -Force -ErrorAction SilentlyContinue
                     } catch {
-                        $strategy = 'replace'
-                        if ($pyStderrFile) { Remove-Item $pyStderrFile -Force -ErrorAction SilentlyContinue }
+                        if ($pyStderrFile) { Remove-Item -LiteralPath $pyStderrFile -Force -ErrorAction SilentlyContinue }
+                        throw
                     }
                 }
                 # Try manifest file path first, then convention path
@@ -543,46 +752,55 @@ except Exception:
                 }
                 if ($manifestFilePath) {
                     $mf = Join-Path $presetsDir "$presetId/$manifestFilePath"
-                    if (Test-Path $mf) { $candidate = $mf }
+                    if (Test-Path -LiteralPath $mf) { $candidate = $mf }
                 }
-                if (-not $candidate) {
+                if (-not $candidate -and -not $manifestDeclared) {
                     $cf = Join-Path $presetsDir "$presetId/templates/$TemplateName.md"
-                    if (Test-Path $cf) { $candidate = $cf }
+                    if (Test-Path -LiteralPath $cf) { $candidate = $cf }
+                    if (-not $candidate) {
+                        $cf = Join-Path $presetsDir "$presetId/$TemplateName.md"
+                        if (Test-Path -LiteralPath $cf) { $candidate = $cf }
+                    }
                 }
                 if ($candidate) {
                     $layerPaths += $candidate
                     $layerStrategies += $strategy
+                    $layerSelectors += $selector
+                    $layerPresets += $presetId
+                    if ($strategy -eq 'replace') {
+                        $effectiveBaseFound = $true
+                        break
+                    }
                 }
             }
-        } else {
-            # Fallback: alphabetical directory order (no registry or parse failure)
-            foreach ($preset in Get-ChildItem -Path $presetsDir -Directory -ErrorAction SilentlyContinue | Where-Object { $_.Name -notlike '.*' }) {
-                $candidate = Join-Path $preset.FullName "templates/$TemplateName.md"
-                if (Test-Path $candidate) {
-                    $layerPaths += $candidate
-                    $layerStrategies += 'replace'
-                }
-            }
-        }
     }
 
     # Priority 3: Extension-provided templates (always "replace")
     $extDir = Join-Path $RepoRoot '.specify/extensions'
-    if (Test-Path $extDir) {
-        foreach ($ext in Get-ChildItem -Path $extDir -Directory -ErrorAction SilentlyContinue | Where-Object { $_.Name -notlike '.*' } | Sort-Object Name) {
-            $candidate = Join-Path $ext.FullName "templates/$TemplateName.md"
-            if (Test-Path $candidate) {
+    if (-not $effectiveBaseFound -and (Test-Path -LiteralPath $extDir)) {
+        foreach ($extensionId in Get-SortedExtensionIds -ExtensionsDir $extDir) {
+            $candidate = Join-Path $extDir "$extensionId/templates/$TemplateName.md"
+            if (-not (Test-Path -LiteralPath $candidate)) {
+                $candidate = Join-Path $extDir "$extensionId/$TemplateName.md"
+            }
+            if (Test-Path -LiteralPath $candidate) {
                 $layerPaths += $candidate
                 $layerStrategies += 'replace'
+                $layerSelectors += ''
+                $layerPresets += $extensionId
+                $effectiveBaseFound = $true
+                break
             }
         }
     }
 
     # Priority 4: Core templates (always "replace")
     $core = Join-Path $base "$TemplateName.md"
-    if (Test-Path $core) {
+    if (-not $effectiveBaseFound -and (Test-Path -LiteralPath $core)) {
         $layerPaths += $core
         $layerStrategies += 'replace'
+        $layerSelectors += ''
+        $layerPresets += 'core'
     }
 
     if ($layerPaths.Count -eq 0) { return $null }
@@ -590,7 +808,7 @@ except Exception:
     # If the top (highest-priority) layer is replace, it wins entirely --
     # lower layers are irrelevant regardless of their strategies.
     if ($layerStrategies[0] -eq 'replace') {
-        return (Get-Content $layerPaths[0] -Raw)
+        return [System.IO.File]::ReadAllText($layerPaths[0], [System.Text.Encoding]::UTF8)
     }
 
     # Check if any layer uses a non-replace strategy
@@ -600,7 +818,7 @@ except Exception:
     }
 
     if (-not $hasComposition) {
-        return (Get-Content $layerPaths[0] -Raw)
+        return [System.IO.File]::ReadAllText($layerPaths[0], [System.Text.Encoding]::UTF8)
     }
 
     # Find the effective base: scan from highest priority (index 0) downward
@@ -612,16 +830,50 @@ except Exception:
             break
         }
     }
-    if ($baseIdx -lt 0) { return $null }
+    if ($baseIdx -lt 0) {
+        throw "Template '$TemplateName' has composing layers but no replace base"
+    }
 
-    $content = Get-Content $layerPaths[$baseIdx] -Raw
+    $content = [System.IO.File]::ReadAllText(
+        $layerPaths[$baseIdx],
+        [System.Text.Encoding]::UTF8
+    )
 
     for ($i = $baseIdx - 1; $i -ge 0; $i--) {
         $path = $layerPaths[$i]
         $strat = $layerStrategies[$i]
-        $layerContent = Get-Content $path -Raw
+        $layerContent = [System.IO.File]::ReadAllText(
+            $path,
+            [System.Text.Encoding]::UTF8
+        )
 
         switch ($strat) {
+            'replace-section' {
+                $inputFile = [System.IO.Path]::GetTempFileName()
+                $outputFile = [System.IO.Path]::GetTempFileName()
+                $errorFile = [System.IO.Path]::GetTempFileName()
+                try {
+                    $utf8 = New-Object System.Text.UTF8Encoding($false)
+                    [System.IO.File]::WriteAllText($inputFile, $content, $utf8)
+                    $pyArgs = if ($pyCmd.Count -gt 1) { $pyCmd[1..($pyCmd.Count-1)] } else { @() }
+                    $savedErrorActionPreference = $ErrorActionPreference
+                    try {
+                        $ErrorActionPreference = 'Continue'
+                        & $pyCmd[0] @pyArgs $sectionEngine `
+                            --preset $layerPresets[$i] --artifact $TemplateName `
+                            --input $inputFile --output $outputFile `
+                            --selector-base64 -- $layerSelectors[$i] $path 2>$errorFile
+                    } finally {
+                        $ErrorActionPreference = $savedErrorActionPreference
+                    }
+                    if ($LASTEXITCODE -ne 0) {
+                        throw [System.IO.File]::ReadAllText($errorFile, [System.Text.Encoding]::UTF8)
+                    }
+                    $content = [System.IO.File]::ReadAllText($outputFile, [System.Text.Encoding]::UTF8)
+                } finally {
+                    Remove-Item -LiteralPath $inputFile, $outputFile, $errorFile -Force
+                }
+            }
             'replace' { $content = $layerContent }
             'prepend' { $content = "$layerContent`n`n$content" }
             'append'  { $content = "$content`n`n$layerContent" }

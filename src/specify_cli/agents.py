@@ -6,6 +6,7 @@ Used by both the extension system and the preset system to write
 command files into agent-specific directories in the correct format.
 """
 
+import hashlib
 import os
 import re
 from copy import deepcopy
@@ -19,29 +20,20 @@ from ._invocation_style import get_invocation_prefix
 from ._toml_string import escape_toml_basic as _escape_toml_basic
 from ._toml_string import has_illegal_toml_control as _has_illegal_toml_control
 from ._utils import relative_extension_path_violation
+from .integrations._registration import project_registration
 
 
 def _build_agent_configs() -> dict[str, Any]:
     """Derive CommandRegistrar.AGENT_CONFIGS from INTEGRATION_REGISTRY."""
     from specify_cli.integrations import INTEGRATION_REGISTRY
+    from specify_cli.integrations.base import resolve_registrar_config
 
     configs: dict[str, dict[str, Any]] = {}
     for key, integration in INTEGRATION_REGISTRY.items():
         if key == "generic":
             continue
         if integration.registrar_config:
-            config = dict(integration.registrar_config)
-            # Propagate invoke_separator from the integration class when the
-            # registrar_config dict doesn't already declare it explicitly.
-            # SkillsIntegration subclasses (claude, codex, …) set
-            # invoke_separator="-" as a class attribute but omit it from
-            # registrar_config, so without this they would fall back to "."
-            # when register_commands() resolves __SPECKIT_COMMAND_*__ tokens.
-            if "invoke_separator" not in config:
-                config["invoke_separator"] = integration.invoke_separator
-            if integration.dev_no_symlink:
-                config["dev_no_symlink"] = True
-            configs[key] = config
+            configs[key] = resolve_registrar_config(integration)
     return configs
 
 
@@ -58,8 +50,33 @@ class CommandRegistrar:
     AGENT_CONFIGS: dict[str, dict[str, Any]] = {}
     _configs_loaded: bool = False
 
-    def __init__(self) -> None:
-        self._ensure_configs()
+    def __init__(self, project_root: Path | None = None, *, include_generic: bool = True) -> None:
+        from .integrations.installer import registry_synchronized
+
+        @registry_synchronized
+        def snapshot_configs():
+            if project_root is not None:
+                from .integrations import load_installed_integrations
+
+                load_installed_integrations(project_root)
+            self._ensure_configs()
+            self.AGENT_CONFIGS = dict(self.AGENT_CONFIGS)
+
+        snapshot_configs()
+        if project_root is not None and include_generic:
+            from .integrations.generic import registration_directory
+
+            from ._init_options import load_init_options
+
+            opts = load_init_options(project_root)
+            if isinstance(opts, dict) and opts.get("ai") == "generic":
+                self.AGENT_CONFIGS["generic"] = {
+                    "dir": str(registration_directory(project_root)),
+                    "format": "markdown",
+                    "args": "$ARGUMENTS",
+                    "extension": ".md",
+                    "invoke_separator": ".",
+                }
 
     def __init_subclass__(cls, **kwargs: Any) -> None:
         super().__init_subclass__(**kwargs)
@@ -69,37 +86,11 @@ class CommandRegistrar:
     def _ensure_configs(cls) -> None:
         if not cls._configs_loaded:
             try:
-                cls.AGENT_CONFIGS = _build_agent_configs()
+                cls.AGENT_CONFIGS.clear()
+                cls.AGENT_CONFIGS.update(_build_agent_configs())
                 cls._configs_loaded = True
             except ImportError:
                 pass  # Circular import during module init; retry on next access
-
-    @staticmethod
-    def _hyphenate_frontmatter_refs(val: Any) -> Any:
-        """Recursively find any dotted references starting with speckit. and hyphenate them."""
-        if isinstance(val, dict):
-            return {
-                k: CommandRegistrar._hyphenate_frontmatter_refs(v)
-                for k, v in val.items()
-            }
-        elif isinstance(val, list):
-            return [CommandRegistrar._hyphenate_frontmatter_refs(x) for x in val]
-        elif isinstance(val, str):
-            return re.sub(
-                r"\bspeckit\.[A-Za-z0-9-_]+(?:\.[A-Za-z0-9-_]+)*\b",
-                lambda m: m.group(0).replace(".", "-"),
-                val,
-            )
-        return val
-
-    @staticmethod
-    def _hyphenate_body_refs(body: str) -> str:
-        """Hyphenate dotted speckit references in command body text."""
-        return re.sub(
-            r"\bspeckit\.[A-Za-z0-9-_]+(?:\.[A-Za-z0-9-_]+)*\b",
-            lambda m: m.group(0).replace(".", "-"),
-            body,
-        )
 
     @staticmethod
     def parse_frontmatter(content: str) -> tuple[dict, str]:
@@ -157,7 +148,11 @@ class CommandRegistrar:
             return ""
 
         yaml_str = yaml.dump(
-            fm, default_flow_style=False, sort_keys=False, allow_unicode=True
+            fm,
+            default_flow_style=False,
+            sort_keys=False,
+            allow_unicode=True,
+            width=float("inf"),
         )
         return f"---\n{yaml_str}---\n"
 
@@ -197,32 +192,46 @@ class CommandRegistrar:
         if not isinstance(text, str) or not text:
             return text
 
-        for old, new in (
-            ("../../memory/", ".specify/memory/"),
-            ("../../scripts/", ".specify/scripts/"),
-            ("../../templates/", ".specify/templates/"),
-        ):
-            text = text.replace(old, new)
-
-        # Only rewrite top-level style references so existing generated paths
-        # like ".specify/extensions/<ext>/scripts/..." remain intact. When
-        # rendering extension commands, top-level "scripts/" is extension-local.
         scripts_replacement = (
             f".specify/extensions/{extension_id}/scripts/"
             if extension_id
             else ".specify/scripts/"
         )
-        text = re.sub(r'(^|[\s`"\'(])(?:\.?/)?memory/', r"\1.specify/memory/", text)
-        text = re.sub(
-            r'(^|[\s`"\'(])(?:\.?/)?scripts/', rf"\1{scripts_replacement}", text
-        )
-        text = re.sub(
-            r'(^|[\s`"\'(])(?:\.?/)?templates/', r"\1.specify/templates/", text
+
+        # Two or more ``../`` segments are the repo-root signal used by
+        # command templates (``../../scripts/...``) and are matched without
+        # the delimiter allowlist. A single ``../`` stays untouched: from a
+        # nested command file it means one directory up, which is not the
+        # repository root and must not be routed to ``.specify/scripts/``.
+        # A lookbehind only rejects identifier/dot glue (``not../scripts/``,
+        # ``..../scripts/``). Bare ``scripts/`` / ``memory/`` / ``templates/``
+        # still require a recognized boundary so tokens such as
+        # ``myscripts/`` are not rewritten.
+        pattern = re.compile(
+            r"""(?:(?<![.\w])(?P<parent>(?:\.\./){2,})|(?P<boundary>^|[\s`"'(\[{<=])(?P<rel>\.specify/|(?:\.?/))?)(?P<target>scripts|memory|templates)/"""
         )
 
-        return text.replace(".specify/.specify/", ".specify/").replace(
-            ".specify.specify/", ".specify/"
-        )
+        def _replace(m: re.Match) -> str:
+            target = m.group("target")
+
+            if m.group("parent"):
+                # Two or more ../ segments always map to root .specify/<target>/,
+                # including when extension_id would otherwise make scripts/ local.
+                return f".specify/{target}/"
+
+            prefix = m.group("boundary")
+            rel = m.group("rel")
+
+            if rel == ".specify/":
+                # Already normalized to project structure
+                return m.group(0)
+
+            # Top-level or ./ path
+            if target == "scripts":
+                return f"{prefix}{scripts_replacement}"
+            return f"{prefix}.specify/{target}/"
+
+        return pattern.sub(_replace, text)
 
     @staticmethod
     def rewrite_extension_paths(
@@ -398,6 +407,9 @@ class CommandRegistrar:
         source_file: str,
         project_root: Path,
         extension_id: Optional[str] = None,
+        author: object = "github-spec-kit",
+        version: str | None = None,
+        rewrite_paths: bool = True,
     ) -> str:
         """Render a command override as a SKILL.md file.
 
@@ -409,7 +421,8 @@ class CommandRegistrar:
         Spec-kit currently has multiple SKILL.md generators (template packaging,
         init-time conversion, and extension/preset overrides). Keep the skill
         frontmatter keys aligned (name/description/compatibility/metadata, with
-        metadata.author and metadata.source subkeys) to avoid drift across agents.
+        metadata.author, metadata.source, and optional metadata.version subkeys)
+        to avoid drift across agents.
         """
         if not isinstance(frontmatter, dict):
             frontmatter = {}
@@ -417,7 +430,8 @@ class CommandRegistrar:
         agent_config = self.AGENT_CONFIGS.get(agent_name, {})
         if agent_config.get("extension") == "/SKILL.md":
             body = self.resolve_skill_placeholders(
-                agent_name, frontmatter, body, project_root, extension_id=extension_id
+                agent_name, frontmatter, body, project_root, extension_id=extension_id,
+                rewrite_paths=rewrite_paths,
             )
             from specify_cli.integrations.base import IntegrationBase  # noqa: PLC0415
 
@@ -432,17 +446,24 @@ class CommandRegistrar:
             skill_name,
             description,
             f"{source_id}:{source_file}",
+            author=author,
+            version=version,
         )
-        content = self.render_frontmatter(skill_frontmatter) + "\n" + body
+        integration = None
         try:
-            from specify_cli.integrations import get_integration  # noqa: PLC0415
+            from specify_cli.integrations import get_integration
 
             integration = get_integration(agent_name)
-        except Exception:
-            integration = None
-        if hasattr(integration, "post_process_skill_content"):
-            content = integration.post_process_skill_content(content)
-        return content
+        except (ImportError, ValueError, KeyError):
+            pass
+
+        self.apply_argument_hint(frontmatter, skill_frontmatter, integration)
+        skill_content = self.render_frontmatter(skill_frontmatter) + "\n" + body
+        if integration is not None and hasattr(
+            integration, "post_process_skill_content"
+        ):
+            skill_content = integration.post_process_skill_content(skill_content)
+        return skill_content
 
     @staticmethod
     def build_skill_frontmatter(
@@ -450,17 +471,24 @@ class CommandRegistrar:
         skill_name: str,
         description: str,
         source: str,
+        author: object = "github-spec-kit",
+        version: str | None = None,
     ) -> dict:
         """Build consistent SKILL.md frontmatter across all skill generators."""
+        normalized_author = (
+            "github-spec-kit" if author is None or author == "" else str(author)
+        )
         skill_frontmatter = {
             "name": skill_name,
             "description": description,
             "compatibility": "Requires spec-kit project structure with .specify/ directory",
             "metadata": {
-                "author": "github-spec-kit",
+                "author": normalized_author,
                 "source": source,
             },
         }
+        if version and version != "unknown":
+            skill_frontmatter["metadata"]["version"] = version
         return skill_frontmatter
 
     @staticmethod
@@ -497,6 +525,7 @@ class CommandRegistrar:
         body: str,
         project_root: Path,
         extension_id: Optional[str] = None,
+        rewrite_paths: bool = True,
     ) -> str:
         """Resolve script placeholders for skills-backed agents."""
         if not isinstance(frontmatter, dict):
@@ -529,9 +558,11 @@ class CommandRegistrar:
 
         body = body.replace("{ARGS}", "$ARGUMENTS").replace("__AGENT__", agent_name)
 
-        return CommandRegistrar.rewrite_project_relative_paths(
-            body, extension_id=extension_id
-        )
+        if rewrite_paths:
+            return CommandRegistrar.rewrite_project_relative_paths(
+                body, extension_id=extension_id
+            )
+        return body
 
     def _convert_argument_placeholder(
         self, content: str, from_placeholder: str, to_placeholder: str
@@ -594,6 +625,26 @@ class CommandRegistrar:
         return os.path.normpath(name) == name
 
     @staticmethod
+    def _generic_owned_output(path: Path, source_id: str, project_root: Path) -> bool:
+        """Only reuse a generated file if its installed extension still owns its bytes."""
+        from .extensions import ExtensionRegistry
+
+        metadata = ExtensionRegistry(
+            project_root / ".specify" / "extensions"
+        ).get(source_id)
+        hashes = metadata.get("generic_artifact_hashes", {}) if metadata else {}
+        if not isinstance(hashes, dict) or not path.is_file():
+            return False
+        if path.stat().st_nlink > 1:
+            return False
+        if path.is_symlink() and not path.resolve().is_relative_to(
+            (project_root / ".specify/extensions" / source_id).resolve()
+        ):
+            return False
+        relative = path.relative_to(project_root.resolve()).as_posix()
+        return hashes.get(relative) == hashlib.sha256(path.read_bytes()).hexdigest()
+
+    @staticmethod
     def _same_lexical_path(left: Path, right: Path) -> bool:
         """Compare paths after lexical normalization without resolving symlinks."""
         return os.path.normcase(os.path.normpath(os.fspath(left))) == os.path.normcase(
@@ -616,6 +667,18 @@ class CommandRegistrar:
             return None
         return agent
 
+    @staticmethod
+    def _resolve_command_resources(
+        source_dir: Path, commands: List[Dict[str, Any]],
+    ) -> dict[str, list[str]]:
+        from .extensions._skill_resources import resolve_skill_resources
+
+        return {
+            cmd["name"]: resolve_skill_resources(source_dir, cmd["resources"])
+            for cmd in commands if cmd.get("resources")
+        }
+
+    @project_registration
     def register_commands(
         self,
         agent_name: str,
@@ -625,8 +688,14 @@ class CommandRegistrar:
         project_root: Path,
         context_note: Optional[str] = None,
         _resolved_dir: Optional[Path] = None,
+        _resolved_resources: Optional[dict[str, list[str]]] = None,
         link_outputs: bool = False,
         extension_id: Optional[str] = None,
+        author: object = "github-spec-kit",
+        version: str | None = None,
+        previous_resource_hashes: Optional[dict] = None,
+        resource_hashes: Optional[dict] = None,
+        overwrite_modified: bool = False,
     ) -> List[str]:
         """Register commands for a specific agent.
 
@@ -645,6 +714,8 @@ class CommandRegistrar:
                 dev cache and symlink the agent command file to it. Falls back
                 to a normal file write when symlinks are unavailable.
             extension_id: Extension id when rendering extension-owned commands.
+            author: Author attributed in generated skill metadata.
+            version: Supplying component version, omitted from skills if unknown.
 
         Returns:
             List of registered command names
@@ -660,10 +731,20 @@ class CommandRegistrar:
         commands_dir = _resolved_dir or self._resolve_agent_dir(
             agent_name, agent_config, project_root,
         )
+        resolved_resources: dict[str, list[str]] = {}
+        if extension_id and agent_config.get("extension") == "/SKILL.md":
+            resolved_resources = (
+                _resolved_resources
+                if _resolved_resources is not None
+                else self._resolve_command_resources(source_dir, commands)
+            )
+            if resolved_resources and resource_hashes is None:
+                raise ValueError(
+                    "resource_hashes is required when registering commands with skill resources"
+                )
         commands_dir.mkdir(parents=True, exist_ok=True)
 
         registered = []
-        is_cline_ext = agent_name == "cline" and source_id != "core"
         source_root = source_dir.resolve()
 
         # Resolve the command-reference separator for the file THIS registrar
@@ -686,13 +767,14 @@ class CommandRegistrar:
         # ``.bob/commands``.
         _sep = agent_config.get("invoke_separator", ".")
         registrar_writes_skills = agent_config.get("extension") == "/SKILL.md"
+        _integ = None
         try:
             from specify_cli.integrations import get_integration  # noqa: PLC0415
 
             _integ = get_integration(agent_name)
             if _integ is not None:
                 _sep = _integ.invoke_separator_for_mode(registrar_writes_skills)
-        except Exception:
+        except (ImportError, ValueError, KeyError):
             pass
         _prefix = get_invocation_prefix(agent_name, registrar_writes_skills)
 
@@ -761,12 +843,13 @@ class CommandRegistrar:
                         frontmatter[key] = core_frontmatter[key]
                 frontmatter.pop("strategy", None)
 
-            if extension_id:
-                body = self.rewrite_extension_paths(body, extension_id, source_root)
-
-            frontmatter = self._adjust_script_paths(
-                frontmatter, extension_id=extension_id
-            )
+            copy_mode = bool(extension_id and registrar_writes_skills and cmd_info.get("resources"))
+            if not copy_mode:
+                if extension_id:
+                    body = self.rewrite_extension_paths(body, extension_id, source_root)
+                frontmatter = self._adjust_script_paths(
+                    frontmatter, extension_id=extension_id
+                )
 
             for key in agent_config.get("strip_frontmatter_keys", []):
                 frontmatter.pop(key, None)
@@ -776,9 +859,10 @@ class CommandRegistrar:
                 format_name = agent_config.get("format_name")
                 frontmatter["name"] = format_name(cmd_name) if format_name else cmd_name
 
-            if is_cline_ext:
-                frontmatter = self._hyphenate_frontmatter_refs(frontmatter)
-                body = self._hyphenate_body_refs(body)
+            if _integ is not None:
+                frontmatter, body = _integ.process_registered_command(
+                    frontmatter, body, source_id=source_id
+                )
 
             body = self._convert_argument_placeholder(
                 body, "$ARGUMENTS", agent_config["args"]
@@ -811,11 +895,16 @@ class CommandRegistrar:
                     cmd_file,
                     project_root,
                     extension_id=extension_id,
+                    author=author,
+                    version=version,
+                    rewrite_paths=not copy_mode,
                 )
             elif agent_config["format"] == "markdown":
                 body = self.resolve_skill_placeholders(
                     agent_name, frontmatter, body, project_root, extension_id=extension_id
                 )
+                if extension_id:
+                    frontmatter.pop("scripts", None)
                 body = self._convert_argument_placeholder(
                     body, "$ARGUMENTS", agent_config["args"]
                 )
@@ -856,6 +945,9 @@ class CommandRegistrar:
 
             dest_file = commands_dir / f"{output_name}{agent_config['extension']}"
             self._ensure_inside(dest_file, commands_dir)
+            if agent_name == "generic" and (dest_file.exists() or dest_file.is_symlink()):
+                if not self._generic_owned_output(dest_file, source_id, project_root):
+                    continue
             dest_file.parent.mkdir(parents=True, exist_ok=True)
             self._write_registered_output(
                 dest_file,
@@ -872,6 +964,16 @@ class CommandRegistrar:
                 self.write_copilot_prompt(project_root, cmd_name)
 
             registered.append(cmd_name)
+            if copy_mode:
+                from .extensions._skill_resources import deliver_skill_resources
+
+                assert resource_hashes is not None
+                deliver_skill_resources(
+                    project_root, extension_id, commands_dir, output_name, source_dir,
+                    resolved_resources[cmd_name], previous_resource_hashes or {},
+                    resource_hashes,
+                    overwrite_modified=overwrite_modified,
+                )
 
             for alias in aliases:
                 alias_output_name = self._compute_output_name(
@@ -897,6 +999,9 @@ class CommandRegistrar:
                             cmd_file,
                             project_root,
                             extension_id=extension_id,
+                            author=author,
+                            version=version,
+                            rewrite_paths=not copy_mode,
                         )
                     elif agent_config["format"] == "markdown":
                         alias_output = self.render_markdown_command(
@@ -930,12 +1035,18 @@ class CommandRegistrar:
                             cmd_file,
                             project_root,
                             extension_id=extension_id,
+                            author=author,
+                            version=version,
+                            rewrite_paths=not copy_mode,
                         )
 
                 alias_file = (
                     commands_dir / f"{alias_output_name}{agent_config['extension']}"
                 )
                 self._ensure_inside(alias_file, commands_dir)
+                if agent_name == "generic" and (alias_file.exists() or alias_file.is_symlink()):
+                    if not self._generic_owned_output(alias_file, source_id, project_root):
+                        continue
                 alias_file.parent.mkdir(parents=True, exist_ok=True)
                 self._write_registered_output(
                     alias_file,
@@ -950,6 +1061,14 @@ class CommandRegistrar:
                 if agent_name == "copilot":
                     self.write_copilot_prompt(project_root, alias)
                 registered.append(alias)
+                if copy_mode:
+                    assert resource_hashes is not None
+                    deliver_skill_resources(
+                        project_root, extension_id, commands_dir, alias_output_name, source_dir,
+                        resolved_resources[cmd_name], previous_resource_hashes or {},
+                        resource_hashes,
+                        overwrite_modified=overwrite_modified,
+                    )
 
         return registered
 
@@ -965,10 +1084,18 @@ class CommandRegistrar:
         agent_config: dict[str, Any] | None = None,
     ) -> None:
         """Write a rendered agent artifact, optionally as a dev-mode symlink."""
+        from .integrations._file_changes import after_file_change, before_file_change
+
+        if dest_file.is_symlink():
+            before_file_change(dest_file, removal=True)
+            dest_file.unlink()
+            after_file_change(dest_file)
+        before_file_change(dest_file)
         if not link_outputs or (agent_config or {}).get("dev_no_symlink"):
             if dest_file.is_symlink():
                 dest_file.unlink()
             dest_file.write_text(content, encoding="utf-8")
+            after_file_change(dest_file)
             return
 
         rel_output = Path(f"{output_name}{extension}")
@@ -977,8 +1104,10 @@ class CommandRegistrar:
         CommandRegistrar._ensure_inside(cache_file, cache_root)
 
         try:
+            before_file_change(cache_file)
             cache_file.parent.mkdir(parents=True, exist_ok=True)
             cache_file.write_text(content, encoding="utf-8")
+            after_file_change(cache_file)
             if dest_file.exists() or dest_file.is_symlink():
                 dest_file.unlink()
             target = os.path.relpath(cache_file, dest_file.parent)
@@ -990,6 +1119,7 @@ class CommandRegistrar:
             if dest_file.is_symlink():
                 dest_file.unlink()
             dest_file.write_text(content, encoding="utf-8")
+        after_file_change(dest_file)
 
     @staticmethod
     def write_copilot_prompt(project_root: Path, cmd_name: str) -> None:
@@ -1009,7 +1139,11 @@ class CommandRegistrar:
         prompt_file = prompts_dir / f"{cmd_name}.prompt.md"
         CommandRegistrar._ensure_inside(prompt_file, prompts_dir)
         prompt_file.parent.mkdir(parents=True, exist_ok=True)
+        from .integrations._file_changes import after_file_change, before_file_change
+
+        before_file_change(prompt_file)
         prompt_file.write_text(f"---\nagent: {cmd_name}\n---\n", encoding="utf-8")
+        after_file_change(prompt_file)
 
     @staticmethod
     def _resolve_agent_dir(
@@ -1069,6 +1203,11 @@ class CommandRegistrar:
         create_missing_active_skills_dir: bool = False,
         extension_id: Optional[str] = None,
         only_agent: Optional[str] = None,
+        author: object = "github-spec-kit",
+        version: str | None = None,
+        previous_resource_hashes: Optional[dict] = None,
+        resource_hashes: Optional[dict] = None,
+        overwrite_modified: bool = False,
     ) -> Dict[str, List[str]]:
         """Register commands for all detected agents in the project.
 
@@ -1086,6 +1225,8 @@ class CommandRegistrar:
                 skills directory) and is skipped when safe resolution or
                 creation fails.
             extension_id: Extension id when rendering extension-owned commands.
+            author: Author attributed in generated skill metadata.
+            version: Supplying component version, omitted from skills if unknown.
             only_agent: If set, restrict registration to this single agent
                 while keeping all detection and recovery safeguards (#2948).
 
@@ -1109,6 +1250,7 @@ class CommandRegistrar:
                 active_skills_dir = self._resolve_agent_dir(
                     active_skills_agent, active_skills_config, project_root,
                 )
+        targets: list[tuple[str, dict[str, Any], Path, bool]] = []
         active_created_skills_dir: Optional[Path] = None
         for agent_name, agent_config in self.AGENT_CONFIGS.items():
             if only_agent is not None and agent_name != only_agent:
@@ -1182,30 +1324,52 @@ class CommandRegistrar:
             ) or register_missing_active_skills_agent
 
             if should_register:
-                try:
-                    registered = self.register_commands(
-                        agent_name,
-                        commands,
-                        source_id,
-                        source_dir,
-                        project_root,
-                        context_note=context_note,
-                        _resolved_dir=agent_dir,
-                        link_outputs=link_outputs,
-                        extension_id=extension_id,
-                    )
-                    if registered:
-                        results[agent_name] = registered
-                    if register_missing_active_skills_agent:
-                        active_created_skills_dir = (
-                            recovered_active_skills_dir or agent_dir
-                        )
-                except ValueError:
+                targets.append((
+                    agent_name,
+                    agent_config,
+                    agent_dir,
+                    register_missing_active_skills_agent,
+                ))
+
+        resolved_resources: Optional[dict[str, list[str]]] = None
+        if extension_id and any(
+            cfg.get("extension") == "/SKILL.md" for _, cfg, _, _ in targets
+        ):
+            resolved_resources = self._resolve_command_resources(
+                source_dir, commands,
+            )
+            if resolved_resources and resource_hashes is None:
+                raise ValueError(
+                    "resource_hashes is required when registering commands with skill resources"
+                )
+
+        for agent_name, _agent_config, agent_dir, register_missing_active_skills_agent in targets:
+            try:
+                registered = self.register_commands(
+                    agent_name,
+                    commands,
+                    source_id,
+                    source_dir,
+                    project_root,
+                    context_note=context_note,
+                    _resolved_dir=agent_dir,
+                    _resolved_resources=resolved_resources,
+                    link_outputs=link_outputs,
+                    extension_id=extension_id,
+                    author=author,
+                    version=version,
+                    previous_resource_hashes=previous_resource_hashes,
+                    resource_hashes=resource_hashes,
+                    overwrite_modified=overwrite_modified,
+                )
+                if registered:
+                    results[agent_name] = registered
+            except ValueError:
+                continue
+            except OSError:
+                if register_missing_active_skills_agent:
                     continue
-                except OSError:
-                    if register_missing_active_skills_agent:
-                        continue
-                    raise
+                raise
 
         return results
 
@@ -1289,7 +1453,8 @@ class CommandRegistrar:
         return results
 
     def unregister_commands(
-        self, registered_commands: Dict[str, List[str]], project_root: Path
+        self, registered_commands: Dict[str, List[str]], project_root: Path,
+        *, extension_id: Optional[str] = None, resource_hashes: Optional[dict] = None,
     ) -> None:
         """Remove previously registered command files from agent directories.
 
@@ -1303,6 +1468,18 @@ class CommandRegistrar:
             project_root: Path to project root
         """
         self._ensure_configs()
+        if extension_id and resource_hashes is not None:
+            from .extensions._skill_resources import retire_skill_resources
+
+            skill_names = set()
+            for agent_name, cmd_names in registered_commands.items():
+                config = self.AGENT_CONFIGS.get(agent_name, {})
+                if config.get("extension") == "/SKILL.md":
+                    skill_names.update(
+                        self._compute_output_name(agent_name, name, config)
+                        for name in cmd_names if isinstance(name, str)
+                    )
+            retire_skill_resources(project_root, extension_id, resource_hashes, skill_names)
         for agent_name, cmd_names in registered_commands.items():
             if agent_name not in self.AGENT_CONFIGS:
                 continue
@@ -1340,7 +1517,11 @@ class CommandRegistrar:
                         except ValueError:
                             continue
                         if cmd_file.exists() or cmd_file.is_symlink():
+                            from .integrations._file_changes import after_file_change, before_file_change
+
+                            before_file_change(cmd_file, removal=True)
                             cmd_file.unlink()
+                            after_file_change(cmd_file)
                             # For SKILL.md agents each command lives in its own
                             # subdirectory (e.g. .agents/skills/speckit-ext-cmd/
                             # SKILL.md).  Remove the parent dir when it becomes
@@ -1357,7 +1538,11 @@ class CommandRegistrar:
                         project_root / ".github" / "prompts" / f"{cmd_name}.prompt.md"
                     )
                     if prompt_file.exists():
+                        from .integrations._file_changes import after_file_change, before_file_change
+
+                        before_file_change(prompt_file, removal=True)
                         prompt_file.unlink()
+                        after_file_change(prompt_file)
 
 
 # Populate AGENT_CONFIGS after class definition.

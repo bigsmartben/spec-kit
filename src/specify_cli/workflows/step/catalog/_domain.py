@@ -1,0 +1,666 @@
+"""Step catalog discovery, installation, and registry domain API."""
+
+from __future__ import annotations
+
+import hashlib
+import json
+import logging
+import os
+import time
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Any
+
+import yaml
+
+from ...._download_security import (
+    read_response_limited,
+)
+from ..._catalog_cache import read_cache_json, write_cache_json
+from ..._package_registry import PackageRegistry
+
+logger = logging.getLogger(__name__)
+
+
+def _max_json_catalog_bytes() -> int:
+    """Read the step-catalog compatibility size limit at call time."""
+    from . import MAX_JSON_CATALOG_BYTES as configured_limit
+
+    return configured_limit
+
+
+# ---------------------------------------------------------------------------
+# Step catalog errors
+# ---------------------------------------------------------------------------
+
+
+class StepCatalogError(Exception):
+    """Base error for step catalog operations."""
+
+
+class StepValidationError(StepCatalogError):
+    """Validation error for step catalog config or step data."""
+
+
+class _DuplicateCatalogField(StepCatalogError):
+    """An ambiguous JSON object in a step catalog."""
+
+
+def _unique_json_fields(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    result: dict[str, Any] = {}
+    for key, value in pairs:
+        if key in result:
+            raise _DuplicateCatalogField(f"Duplicate field '{key}' in step catalog.")
+        result[key] = value
+    return result
+
+
+# ---------------------------------------------------------------------------
+# StepCatalogEntry
+# ---------------------------------------------------------------------------
+
+
+@dataclass
+class StepCatalogEntry:
+    """Represents a single step catalog source in the catalog stack."""
+
+    url: str
+    name: str
+    priority: int
+    install_allowed: bool
+    description: str = ""
+
+
+# ---------------------------------------------------------------------------
+# StepRegistry
+# ---------------------------------------------------------------------------
+
+
+class StepRegistry(PackageRegistry):
+    """Manages the registry of installed custom step types.
+
+    Tracks installed step types and their metadata in
+    ``.specify/workflows/steps/step-registry.json``. Persistence and record
+    mutation are shared with function packages in
+    :class:`~specify_cli.workflows._package_registry.PackageRegistry`.
+    """
+
+    REGISTRY_FILE = "step-registry.json"
+    RECORDS_KEY = "steps"
+    DIRECTORY = "steps"
+    LABEL = "step"
+    ERROR = StepValidationError
+
+    @property
+    def steps_dir(self) -> Path:
+        return self.base_dir
+
+
+# ---------------------------------------------------------------------------
+# StepCatalog
+# ---------------------------------------------------------------------------
+
+
+class StepCatalog:
+    """Manages step catalog fetching, caching, and searching.
+
+    Resolution order for catalog sources:
+    1. ``SPECKIT_STEP_CATALOG_URL`` env var (overrides all)
+    2. Project-level ``.specify/step-catalogs.yml``
+    3. User-level ``~/.specify/step-catalogs.yml``
+    4. Built-in defaults (official + community)
+    """
+
+    DEFAULT_CATALOG_URL = (
+        "https://raw.githubusercontent.com/github/spec-kit/main/"
+        "workflows/step-catalog.json"
+    )
+    COMMUNITY_CATALOG_URL = (
+        "https://raw.githubusercontent.com/github/spec-kit/main/"
+        "workflows/step-catalog.community.json"
+    )
+    CACHE_DURATION = 3600  # 1 hour
+
+    def __init__(self, project_root: Path) -> None:
+        self.project_root = project_root
+        self.steps_dir = project_root / ".specify" / "workflows" / "steps"
+        self.cache_dir = self.steps_dir / ".cache"
+
+    # -- Catalog resolution -----------------------------------------------
+
+    def _validate_catalog_url(self, url: str) -> None:
+        """Validate that a catalog URL uses HTTPS, including local hosts."""
+        from urllib.parse import urlparse
+
+        # A malformed authority (e.g. an unterminated IPv6 bracket
+        # "https://[::1") makes urlparse / hostname access raise ValueError.
+        # This validator's contract is to raise StepValidationError for a bad
+        # URL, so surface that rather than leaking a raw ValueError past the
+        # command handler (which only catches StepValidationError). Mirrors
+        # specify_cli.catalogs (#3435).
+        try:
+            parsed = urlparse(url)
+            hostname = parsed.hostname
+            _ = parsed.port
+        except (TypeError, ValueError):
+            raise StepValidationError(
+                f"Catalog URL is malformed: {url}"
+            ) from None
+        if parsed.scheme != "https":
+            # A scheme-less value (``example.com/catalog.json``) would otherwise read
+            # "got ://". The value itself is not echoed: callers render errors as Rich markup.
+            got = f"{parsed.scheme}://" if parsed.scheme else "a URL with no scheme"
+            raise StepValidationError(
+                f"Catalog URL must use HTTPS (got {got})."
+            )
+        if not hostname:
+            raise StepValidationError(
+                "Catalog URL must be a valid URL with a host."
+            )
+
+    def _load_catalog_config(
+        self, config_path: Path
+    ) -> list[StepCatalogEntry] | None:
+        """Load catalog stack configuration from a YAML file."""
+        if not config_path.exists():
+            return None
+        try:
+            data = yaml.safe_load(config_path.read_text(encoding="utf-8"))
+        except (yaml.YAMLError, OSError, UnicodeError) as exc:
+            raise StepValidationError(
+                f"Failed to read catalog config {config_path}: {exc}"
+            ) from exc
+        indexed_entries = self._parse_catalog_config(data, config_path)
+        if indexed_entries is None:
+            return None
+        return [entry for _, entry in indexed_entries]
+
+    def _parse_catalog_config(
+        self, data: Any, config_path: Path, *, validate_urls: bool = True
+    ) -> list[tuple[int, StepCatalogEntry]] | None:
+        """Validate and order sources, retaining their original YAML positions."""
+        # Same two guards as WorkflowCatalog._load_catalog_config above, kept in
+        # lockstep: this is the step-catalog twin of that loader and read the
+        # same way. Dropping ``or {}`` stops a falsy non-mapping top level from
+        # being coerced past the isinstance check, and the ``catalogs`` shape
+        # check runs before the emptiness check for the same reason.
+        if data is None:
+            return None
+        if not isinstance(data, dict):
+            raise StepValidationError(
+                f"Invalid catalog config: expected a mapping, "
+                f"got {type(data).__name__}"
+            )
+        catalogs_data = data.get("catalogs")
+        if catalogs_data is None:
+            return None
+        if not isinstance(catalogs_data, list):
+            raise StepValidationError(
+                f"Invalid catalog config: 'catalogs' must be a list, "
+                f"got {type(catalogs_data).__name__}"
+            )
+        if not catalogs_data:
+            return None
+
+        entries: list[tuple[int, StepCatalogEntry]] = []
+        for idx, item in enumerate(catalogs_data):
+            if not isinstance(item, dict):
+                raise StepValidationError(
+                    f"Invalid catalog entry at index {idx}: "
+                    f"expected a mapping, got {type(item).__name__}"
+                )
+            url = str(item.get("url", "")).strip()
+            if not url:
+                continue
+            if validate_urls:
+                self._validate_catalog_url(url)
+            raw_priority = item.get("priority", idx + 1)
+            # bool is an int subclass: reject ``priority: true`` explicitly rather
+            # than silently coercing it to 1 (mirrors CatalogStackBase).
+            if isinstance(raw_priority, bool):
+                raise StepValidationError(
+                    f"Invalid priority for catalog "
+                    f"'{item.get('name', idx + 1)}': "
+                    f"expected integer, got {raw_priority!r}"
+                )
+            try:
+                priority = int(raw_priority)
+            except (TypeError, ValueError, OverflowError):
+                # OverflowError: int(float("inf")) — a ``priority: .inf``.
+                raise StepValidationError(
+                    f"Invalid priority for catalog "
+                    f"'{item.get('name', idx + 1)}': "
+                    f"expected integer, got {raw_priority!r}"
+                )
+            raw_install = item.get("install_allowed", False)
+            if isinstance(raw_install, str):
+                install_allowed = raw_install.strip().lower() in (
+                    "true",
+                    "yes",
+                    "1",
+                )
+            else:
+                install_allowed = bool(raw_install)
+            entries.append(
+                (
+                    idx,
+                    StepCatalogEntry(
+                        url=url,
+                        name=str(item.get("name", f"catalog-{idx + 1}")),
+                        priority=priority,
+                        install_allowed=install_allowed,
+                        description=str(item.get("description", "")),
+                    ),
+                )
+            )
+        entries.sort(key=lambda item: item[1].priority)
+        if not entries:
+            raise StepValidationError(
+                f"Catalog config {config_path} contains {len(catalogs_data)} "
+                f"entries but none have valid URLs."
+            )
+        return entries
+
+    def get_active_catalogs(self) -> list[StepCatalogEntry]:
+        """Get the ordered list of active step catalogs."""
+        # 1. Environment variable override
+        env_url = os.environ.get("SPECKIT_STEP_CATALOG_URL", "").strip()
+        if env_url:
+            self._validate_catalog_url(env_url)
+            return [
+                StepCatalogEntry(
+                    url=env_url,
+                    name="env-override",
+                    priority=1,
+                    install_allowed=True,
+                    description="From SPECKIT_STEP_CATALOG_URL",
+                )
+            ]
+
+        # 2. Project-level config
+        project_config = self.project_root / ".specify" / "step-catalogs.yml"
+        project_entries = self._load_catalog_config(project_config)
+        if project_entries is not None:
+            return project_entries
+
+        # 3. User-level config
+        home = Path.home()
+        user_config = home / ".specify" / "step-catalogs.yml"
+        user_entries = self._load_catalog_config(user_config)
+        if user_entries is not None:
+            return user_entries
+
+        # 4. Built-in defaults
+        return [
+            StepCatalogEntry(
+                url=self.DEFAULT_CATALOG_URL,
+                name="default",
+                priority=1,
+                install_allowed=True,
+                description="Official step types",
+            ),
+            StepCatalogEntry(
+                url=self.COMMUNITY_CATALOG_URL,
+                name="community",
+                priority=2,
+                install_allowed=False,
+                description="Community-contributed step types (discovery only)",
+            ),
+        ]
+
+    # -- Caching ----------------------------------------------------------
+
+    def _get_cache_paths(self, url: str) -> tuple[Path, Path]:
+        """Get cache file paths for a URL (hash-based)."""
+        url_hash = hashlib.sha256(url.encode()).hexdigest()[:16]
+        cache_file = self.cache_dir / f"step-catalog-{url_hash}.json"
+        meta_file = self.cache_dir / f"step-catalog-{url_hash}-meta.json"
+        return cache_file, meta_file
+
+    def _is_url_cache_valid(self, url: str) -> bool:
+        """Check if cached data for a URL is still fresh."""
+        _, meta_file = self._get_cache_paths(url)
+        try:
+            meta = read_cache_json(self.project_root, meta_file)
+            if not isinstance(meta, dict):
+                return False
+            fetched_at = float(meta.get("fetched_at", 0))
+            return (time.time() - fetched_at) < self.CACHE_DURATION
+        except (UnicodeError, json.JSONDecodeError, OSError, TypeError, ValueError):
+            return False
+
+    def _fetch_single_catalog(
+        self, entry: StepCatalogEntry, force_refresh: bool = False
+    ) -> dict[str, Any]:
+        """Fetch a single catalog, using cache when possible."""
+        cache_file, meta_file = self._get_cache_paths(entry.url)
+
+        if not force_refresh and self._is_url_cache_valid(entry.url):
+            try:
+                cached = read_cache_json(
+                    self.project_root, cache_file, object_pairs_hook=_unique_json_fields,
+                )
+                if isinstance(cached, dict):
+                    return cached
+            except _DuplicateCatalogField:
+                raise
+            except (UnicodeDecodeError, json.JSONDecodeError, OSError):
+                # Ignore invalid/unreadable cache and fall back to fetching from source.
+                pass
+
+        from urllib.parse import urlparse
+
+        from specify_cli.authentication.http import URLPolicyError, open_url as _open_url
+
+        def _validate_url(url: str) -> None:
+            # A malformed authority (e.g. "https://[::1") makes urlparse /
+            # hostname access raise ValueError; treat it as a refused fetch
+            # rather than leaking a raw ValueError (this also validates the
+            # post-redirect resp.geturl(), so a hostile redirect target cannot
+            # crash the fetch either).
+            try:
+                parsed = urlparse(url)
+                hostname = parsed.hostname
+                _ = parsed.port
+            except (TypeError, ValueError):
+                raise URLPolicyError(
+                    f"Refusing to fetch catalog from malformed URL: {url}"
+                ) from None
+            if parsed.scheme != "https":
+                raise URLPolicyError(
+                    f"Refusing to fetch catalog from non-HTTPS URL: {url}"
+                )
+            if not hostname:
+                raise URLPolicyError(
+                    f"Refusing to fetch catalog from URL with no hostname: {url}"
+                )
+
+        # Validate EVERY redirect hop, not just the final URL: _open_url follows
+        # redirects, so an https:// entry that 30x-redirects through http:// (or
+        # to a non-HTTPS host mid-chain) could otherwise let a network attacker
+        # rewrite the next hop and slip a payload past a final-URL-only check.
+        # redirect_validator runs before each hop; the geturl() check below is
+        # retained as a defense-in-depth backstop. Mirrors the presets/extensions
+        # catalog fix (#3523 / #3524).
+        def _validate_redirect(_old_url: str, new_url: str) -> None:
+            _validate_url(new_url)
+
+        try:
+            _validate_url(entry.url)
+            with _open_url(
+                entry.url, timeout=30, redirect_validator=_validate_redirect
+            ) as resp:
+                _validate_url(resp.geturl())
+                data = json.loads(
+                    read_response_limited(
+                        resp,
+                        max_bytes=_max_json_catalog_bytes(),
+                        error_type=StepCatalogError,
+                        label="step catalog",
+                    ).decode("utf-8"),
+                    object_pairs_hook=_unique_json_fields,
+                )
+        except _DuplicateCatalogField:
+            raise
+        except URLPolicyError as exc:
+            raise StepCatalogError(
+                f"Failed to fetch catalog from {entry.url}: {exc.reason}"
+            ) from exc
+        except Exception as exc:
+            try:
+                cached = read_cache_json(
+                    self.project_root, cache_file, object_pairs_hook=_unique_json_fields,
+                )
+                if isinstance(cached, dict):
+                    return cached
+            except _DuplicateCatalogField:
+                raise
+            except (UnicodeError, json.JSONDecodeError, ValueError, OSError):
+                # Stale-cache read failed; let the original fetch error propagate.
+                pass
+            raise StepCatalogError(
+                f"Failed to fetch catalog from {entry.url}: {exc}"
+            ) from exc
+
+        if not isinstance(data, dict):
+            raise StepCatalogError(
+                f"Catalog from {entry.url} is not a valid JSON object."
+            )
+
+        try:
+            write_cache_json(self.project_root, cache_file, data, indent=2)
+            write_cache_json(
+                self.project_root, meta_file,
+                {"url": entry.url, "fetched_at": time.time()},
+            )
+        except OSError as exc:
+            logger.warning("Could not safely cache step catalog %s: %s", entry.url, exc)
+
+        return data
+
+    def _get_merged_steps(
+        self, force_refresh: bool = False
+    ) -> dict[str, dict[str, Any]]:
+        """Merge steps from all active catalogs (lower priority number wins)."""
+        catalogs = self.get_active_catalogs()
+        merged: dict[str, dict[str, Any]] = {}
+        fetch_errors = 0
+
+        for entry in reversed(catalogs):
+            try:
+                data = self._fetch_single_catalog(entry, force_refresh)
+            except _DuplicateCatalogField:
+                raise
+            except StepCatalogError:
+                fetch_errors += 1
+                continue
+            steps = data.get("steps", {})
+            if isinstance(steps, dict):
+                for step_id, step_data in steps.items():
+                    if not isinstance(step_data, dict):
+                        continue
+                    step_data["_catalog_name"] = entry.name
+                    step_data["_install_allowed"] = entry.install_allowed
+                    merged[step_id] = step_data
+            elif isinstance(steps, list):
+                seen_in_source: set[str] = set()
+                for step_data in steps:
+                    if not isinstance(step_data, dict):
+                        continue
+                    raw_step_id = step_data.get("id")
+                    if raw_step_id is None:
+                        continue
+                    step_id = str(raw_step_id).strip()
+                    if step_id:
+                        if step_id in seen_in_source:
+                            raise StepCatalogError(
+                                f"Duplicate step ID '{step_id}' in catalog '{entry.name}'."
+                            )
+                        seen_in_source.add(step_id)
+                        step_data["id"] = step_id
+                        step_data["_catalog_name"] = entry.name
+                        step_data["_install_allowed"] = entry.install_allowed
+                        merged[step_id] = step_data
+        if fetch_errors == len(catalogs) and catalogs:
+            raise StepCatalogError("All configured step catalogs failed to fetch.")
+        return merged
+
+    # -- Public API -------------------------------------------------------
+
+    def search(
+        self,
+        query: str | None = None,
+    ) -> list[dict[str, Any]]:
+        """Search step types across all configured catalogs."""
+        from ._versions import available_versions
+
+        merged = self._get_merged_steps()
+        results: list[dict[str, Any]] = []
+
+        for step_id, step_data in merged.items():
+            available_versions(step_data, step_id)
+            step_data.setdefault("id", step_id)
+            if query:
+                q = query.lower()
+                searchable = " ".join(
+                    [
+                        str(step_data.get("name") or ""),
+                        str(step_data.get("description") or ""),
+                        str(step_data.get("id") or ""),
+                    ]
+                ).lower()
+                if q not in searchable:
+                    continue
+            results.append(step_data)
+        return results
+
+    def get_step_info(
+        self, step_id: str, version: str | None = None
+    ) -> dict[str, Any] | None:
+        """Get the current or an exact release from the winning catalog."""
+        from ._versions import select_release
+
+        merged = self._get_merged_steps()
+        step = merged.get(step_id)
+        if step:
+            step.setdefault("id", step_id)
+            return select_release(step, step_id, version)
+        return None
+
+    def get_catalog_configs(self) -> list[dict[str, Any]]:
+        """Return current catalog configuration as a list of dicts."""
+        entries = self.get_active_catalogs()
+        return [
+            {
+                "name": e.name,
+                "url": e.url,
+                "priority": e.priority,
+                "install_allowed": e.install_allowed,
+                "description": e.description,
+            }
+            for e in entries
+        ]
+
+    def add_catalog(self, url: str, name: str | None = None) -> str:
+        """Add a catalog source to the project-level config."""
+        url = url.strip()
+        self._validate_catalog_url(url)
+        config_path = self.project_root / ".specify" / "step-catalogs.yml"
+        normalized_name = str(name).strip() if name is not None else ""
+
+        data: dict[str, Any] = {"catalogs": []}
+        if config_path.exists():
+            try:
+                raw = yaml.safe_load(config_path.read_text(encoding="utf-8"))
+            except (yaml.YAMLError, OSError, UnicodeDecodeError) as exc:
+                raise StepValidationError(
+                    f"Catalog config file is unreadable or malformed: {exc}"
+                ) from exc
+            if raw is None:
+                raw = {}
+            elif not isinstance(raw, dict):
+                raise StepValidationError(
+                    "Catalog config file is corrupted (expected a mapping)."
+                )
+            data = raw
+
+        catalogs = data.get("catalogs", [])
+        if not isinstance(catalogs, list):
+            raise StepValidationError(
+                "Catalog config 'catalogs' must be a list."
+            )
+        for idx, cat in enumerate(catalogs):
+            if (
+                isinstance(cat, dict)
+                and str(cat.get("url", "")).strip() == url
+            ):
+                generated_name = f"catalog-{idx + 1}"
+                existing_name = str(cat.get("name") or generated_name).strip()
+                if not normalized_name or existing_name == normalized_name:
+                    self._load_catalog_config(config_path)
+                    return "unchanged"
+                raise StepValidationError(
+                    f"Catalog URL already configured: {url}"
+                )
+
+        # Coerce existing priorities to int with a safe fallback so a user-edited
+        # step-catalogs.yml with a non-integer priority (e.g. "1") doesn't blow up.
+        def _coerce_priority(value: Any) -> int:
+            try:
+                return int(value)
+            except (TypeError, ValueError, OverflowError):
+                # OverflowError: int(float("inf")) — treat an uncoercible
+                # existing priority as 0 rather than crashing 'catalog add'.
+                return 0
+
+        max_priority = max(
+            (
+                _coerce_priority(cat.get("priority", 0))
+                for cat in catalogs
+                if isinstance(cat, dict)
+            ),
+            default=0,
+        )
+        catalogs.append(
+            {
+                "name": normalized_name or f"catalog-{len(catalogs) + 1}",
+                "url": url,
+                "priority": max_priority + 1,
+                "install_allowed": True,
+                "description": "",
+            }
+        )
+        data["catalogs"] = catalogs
+
+        try:
+            config_path.parent.mkdir(parents=True, exist_ok=True)
+            with open(config_path, "w", encoding="utf-8") as f:
+                yaml.dump(
+                    data, f, default_flow_style=False, sort_keys=False, allow_unicode=True
+                )
+        except OSError as exc:
+            raise StepValidationError(
+                f"Failed to write catalog config {config_path}: {exc}"
+            ) from exc
+        return "added"
+
+    def remove_catalog(self, index: int) -> str:
+        """Remove a project source by its index in the active catalog list."""
+        if os.environ.get("SPECKIT_STEP_CATALOG_URL", "").strip():
+            raise StepValidationError(
+                "The active catalog comes from SPECKIT_STEP_CATALOG_URL. "
+                "Unset that variable to remove a project catalog source."
+            )
+        config_path = self.project_root / ".specify" / "step-catalogs.yml"
+        if not config_path.exists():
+            raise StepValidationError("No step catalog config file found.")
+
+        try:
+            data = yaml.safe_load(config_path.read_text(encoding="utf-8"))
+        except (yaml.YAMLError, OSError, UnicodeDecodeError) as exc:
+            raise StepValidationError(
+                f"Catalog config file is unreadable or malformed: {exc}"
+            ) from exc
+        entries = self._parse_catalog_config(
+            data, config_path, validate_urls=False
+        ) or []
+
+        if index < 0 or index >= len(entries):
+            raise StepValidationError(
+                f"Catalog index {index} out of range (0-{len(entries) - 1})."
+            )
+
+        source_index, entry = entries[index]
+        data["catalogs"].pop(source_index)
+
+        try:
+            with open(config_path, "w", encoding="utf-8") as f:
+                yaml.dump(
+                    data, f, default_flow_style=False, sort_keys=False, allow_unicode=True
+                )
+        except OSError as exc:
+            raise StepValidationError(
+                f"Failed to write catalog config {config_path}: {exc}"
+            ) from exc
+
+        return entry.name

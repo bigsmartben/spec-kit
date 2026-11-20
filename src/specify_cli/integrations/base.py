@@ -21,6 +21,7 @@ import shutil
 import subprocess
 import sys
 from abc import ABC
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -31,6 +32,7 @@ from .._invocation_style import get_invocation_prefix, is_dollar_skills_agent
 from .._toml_string import escape_toml_basic as _escape_toml_basic
 from .._toml_string import has_illegal_toml_control as _has_illegal_toml_control
 from ..events import install_integration_events, remove_integration_events
+from ._capture import run_captured
 
 if TYPE_CHECKING:
     from .manifest import IntegrationManifest
@@ -51,7 +53,9 @@ _CORE_COMMAND_TEMPLATE_ORDER = (
     "analyze",
     "implement",
     "converge",
-    "taskstoissues",
+    "checklist",
+    "specify",
+    "tasks",
 )
 _CORE_COMMAND_TEMPLATE_RANK = {
     command: index for index, command in enumerate(_CORE_COMMAND_TEMPLATE_ORDER)
@@ -68,6 +72,226 @@ def yaml_quote(value: str) -> str:
     return yaml.safe_dump(
         str(value), default_style='"', allow_unicode=True, width=sys.maxsize
     ).strip()
+
+
+def resolve_registrar_config(integration: IntegrationBase) -> dict[str, Any]:
+    """Resolve static registrar overrides and integration-class defaults."""
+    config = dict(integration.registrar_config or {})
+    config.setdefault("invoke_separator", integration.invoke_separator)
+    if integration.dev_no_symlink:
+        config["dev_no_symlink"] = True
+    return config
+
+
+# ---------------------------------------------------------------------------
+# Per-step dispatch settings
+# ---------------------------------------------------------------------------
+
+#: Settings a workflow ``command``/``prompt`` step can request for one CLI
+#: invocation, in the order they are checked. Values are opaque strings that an
+#: integration translates into its CLI's own arguments; see
+#: :func:`check_dispatch_settings`.
+DISPATCH_SETTINGS: tuple[str, ...] = ("reasoning_effort", "context_size")
+
+_DISPATCH_PATHS = ("dispatch_command", "build_exec_args")
+
+# One argv-safe token: no leading "-", whitespace, control characters or shell
+# metacharacters (relevant to Windows ``.cmd`` shims), without restricting any
+# integration's vocabulary.
+_DISPATCH_SETTING_VALUE = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,63}")
+
+
+class DispatchSettingsError(ValueError):
+    """A per-step dispatch setting is malformed or unsupported.
+
+    ``setting`` names the offending setting when known, so a workflow step can
+    report where its value came from.
+    """
+
+    def __init__(self, message: str, *, setting: str | None = None) -> None:
+        super().__init__(message)
+        self.setting = setting
+
+
+def requested_dispatch_settings(
+    *, reasoning_effort: str | None = None, context_size: str | None = None
+) -> dict[str, Any]:
+    """Return the settings that were passed (``is not None``) in check order."""
+    values = {"reasoning_effort": reasoning_effort, "context_size": context_size}
+    return {
+        name: values[name] for name in DISPATCH_SETTINGS if values[name] is not None
+    }
+
+
+def dispatch_setting_value_error(
+    name: str, value: object, *, from_expression: bool = False
+) -> str | None:
+    """Return why *value* is not a valid *name* setting, or ``None`` if it is.
+
+    *from_expression* marks a value that a workflow expression produced, so a
+    non-string gets advice about the expression instead of YAML quoting. A
+    malformed value can come from untrusted expression results (for example
+    captured agent output, which Spec Kit does not print or log), so the
+    message reports only the value's type and length, never its text.
+    """
+    if not isinstance(value, str):
+        type_name = type(value).__name__
+        if from_expression:
+            return (
+                f"'{name}' must be a string, but its expression resolved to "
+                f"{type_name}; make it resolve to a string, for example by "
+                "reading an input declared with type: string."
+            )
+        return (
+            f"'{name}' must be a string, got {type_name}; quote YAML values "
+            "such as 200000, on, or off."
+        )
+    if _DISPATCH_SETTING_VALUE.fullmatch(value) is None:
+        return (
+            f"'{name}' must be 1-64 letters, digits, '.', '_', or '-' starting "
+            f"with a letter or digit, got a string of length {len(value)}."
+        )
+    return None
+
+
+def _defining_class(cls: type, attribute: str) -> type | None:
+    for klass in cls.__mro__:
+        if attribute in vars(klass):
+            return klass
+    return None
+
+
+def _receiving_method(integration: IntegrationBase, via: str) -> str:
+    if via not in _DISPATCH_PATHS:
+        raise ValueError(f"Unknown dispatch path {via!r}.")
+    if (
+        via == "dispatch_command"
+        and _defining_class(type(integration), "dispatch_command")
+        is not IntegrationBase
+    ):
+        return "dispatch_command"
+    return "build_exec_args"
+
+
+def effective_dispatch_settings(
+    integration: IntegrationBase, *, via: str = "build_exec_args"
+) -> frozenset[str]:
+    """Return the dispatch settings *integration* translates on path *via*.
+
+    Support counts only when declared on the class that implements the method
+    receiving the settings: ``dispatch_command`` when *via* is
+    ``"dispatch_command"`` and the integration overrides it, otherwise
+    ``build_exec_args``. A subclass that replaces that method must declare
+    ``supported_dispatch_settings`` itself, so an inherited declaration never
+    vouches for code that does not translate the settings. A declaration that
+    is not a set or frozenset declares nothing.
+    """
+    owner = _defining_class(type(integration), _receiving_method(integration, via))
+    if owner is None:
+        return frozenset()
+    declared = vars(owner).get("supported_dispatch_settings")
+    if not isinstance(declared, (set, frozenset)):
+        return frozenset()
+    return frozenset(name for name in DISPATCH_SETTINGS if name in declared)
+
+
+def _accepts_keyword(function: Any, name: str) -> bool:
+    import inspect
+
+    try:
+        parameters = inspect.signature(function).parameters
+    except (TypeError, ValueError):
+        return False
+    if any(
+        parameter.kind is inspect.Parameter.VAR_KEYWORD
+        for parameter in parameters.values()
+    ):
+        return True
+    parameter = parameters.get(name)
+    return parameter is not None and parameter.kind in (
+        inspect.Parameter.POSITIONAL_OR_KEYWORD,
+        inspect.Parameter.KEYWORD_ONLY,
+    )
+
+
+def _dispatch_setting_supporters(name: str, via: str) -> list[str]:
+    from . import INTEGRATION_REGISTRY
+    from .installer import dispatch_registry
+
+    registry = dispatch_registry.get()
+    if registry is None:
+        registry = INTEGRATION_REGISTRY
+    return sorted(
+        key
+        for key, candidate in registry.items()
+        if name in effective_dispatch_settings(candidate, via=via)
+    )
+
+
+def _unsupported_dispatch_setting_message(
+    integration: IntegrationBase, name: str, via: str
+) -> str:
+    message = f"Integration {integration.key!r} does not support per-step '{name}'."
+    hint = integration.dispatch_setting_hint(name)
+    if isinstance(hint, str) and hint.strip():
+        message = f"{message} {hint.strip()}"
+    supporters = _dispatch_setting_supporters(name, via)
+    if supporters:
+        message = (
+            f"{message} Integrations that support it: {', '.join(supporters)}."
+        )
+    else:
+        message = f"{message} No available integration supports it."
+    return (
+        f"{message} Remove the setting from this step (and from the workflow "
+        "defaults it inherits), or dispatch the step to a supporting integration."
+    )
+
+
+def check_dispatch_settings(
+    integration: IntegrationBase, settings: Mapping[str, Any], *, via: str
+) -> None:
+    """Gate requested per-step dispatch settings before anything is executed.
+
+    Every dispatch path calls this host-owned check when at least one setting
+    is requested; integrations add value rules through
+    :meth:`IntegrationBase.validate_dispatch_setting` but cannot bypass it.
+    *via* names the integration method the settings are dispatched through
+    (``"dispatch_command"`` or ``"build_exec_args"``). Settings are checked in
+    ``DISPATCH_SETTINGS`` order, and every failure raises
+    :class:`DispatchSettingsError` naming the setting.
+    """
+    receiver = _receiving_method(integration, via)
+    unknown = sorted(set(settings) - set(DISPATCH_SETTINGS))
+    if unknown:
+        raise ValueError(f"Unknown dispatch settings: {', '.join(unknown)}.")
+    supported = effective_dispatch_settings(integration, via=via)
+    for name in DISPATCH_SETTINGS:
+        value = settings.get(name)
+        if value is None:
+            continue
+        problem = dispatch_setting_value_error(name, value)
+        if problem is not None:
+            raise DispatchSettingsError(problem, setting=name)
+        if name not in supported:
+            raise DispatchSettingsError(
+                _unsupported_dispatch_setting_message(integration, name, via),
+                setting=name,
+            )
+        if not _accepts_keyword(getattr(integration, receiver), name):
+            raise DispatchSettingsError(
+                f"Integration {integration.key!r} declares per-step '{name}' "
+                f"support, but its {receiver}() does not accept '{name}'.",
+                setting=name,
+            )
+        try:
+            integration.validate_dispatch_setting(name, value)
+        except DispatchSettingsError as exc:
+            if exc.setting is None:
+                exc.setting = name
+            raise
+        except ValueError as exc:
+            raise DispatchSettingsError(str(exc), setting=name) from exc
 
 
 # ---------------------------------------------------------------------------
@@ -129,7 +353,7 @@ class IntegrationBase(ABC):
     # -- Optional ---------------------------------------------------------
 
     invoke_separator: str = "."
-    """Separator used in slash-command invocations (``"."`` → ``/speckit.plan``)."""
+    """Separator used in slash-command invocations (``"."`` → ``/speckit.tasks``)."""
 
     dev_no_symlink: bool = False
     """Whether dev-mode registration should write files instead of symlinks."""
@@ -137,10 +361,24 @@ class IntegrationBase(ABC):
     multi_install_safe: bool = False
     """Whether this integration is declared safe to install alongside others.
 
-    Safe integrations must use a static, unique agent root and command
-    directory. Registry tests enforce those invariants for every
-    integration that sets this flag.
+    Safe integrations must emit no files or use a static, unique agent root
+    and command directory. Registry tests enforce these invariants.
     """
+
+    supported_dispatch_settings: frozenset[str] = frozenset()
+    """Per-step dispatch settings (``DISPATCH_SETTINGS``) this integration translates.
+
+    Declare support on the class that implements the method receiving the
+    settings (``build_exec_args``, or ``dispatch_command`` when overridden), and
+    translate every declared setting there; inherited declarations only cover
+    inherited implementations (see :func:`effective_dispatch_settings`).
+    """
+
+    legacy_flat_command_dir: str | None = None
+    """Previous flat command directory retired after skill replacements exist."""
+
+    legacy_flat_command_extension: str | None = None
+    """File extension used by commands in ``legacy_flat_command_dir``."""
 
     def post_process_command_content(self, content: str) -> str:
         """Transform command content after format rendering.
@@ -154,6 +392,26 @@ class IntegrationBase(ABC):
         The default implementation returns *content* unchanged.
         """
         return content
+
+    def process_registered_command(
+        self, frontmatter: dict[str, Any], body: str, *, source_id: str
+    ) -> tuple[dict[str, Any], str]:
+        """Transform a command's frontmatter and body before it is rendered.
+
+        Called by ``CommandRegistrar.register_commands()`` for every command it
+        registers for this integration, after script paths are adjusted and the
+        ``name`` field is injected, and before ``$ARGUMENTS`` and
+        ``__SPECKIT_COMMAND_*__`` tokens are resolved and the command is
+        rendered.  Unlike ``post_process_command_content()``, which only sees
+        the rendered text, this hook receives the parsed frontmatter and the
+        *source_id* (``"core"`` or an extension/preset id), so an integration
+        can apply rewrites that depend on where a command came from.
+
+        Subclasses may override it; they should return new objects rather
+        than mutating *frontmatter* in place.  The default implementation
+        returns both values unchanged.
+        """
+        return frontmatter, body
 
     # -- Public API -------------------------------------------------------
 
@@ -225,8 +483,8 @@ class IntegrationBase(ABC):
         on-disk layout to avoid silently migrating an existing project to a
         different mode.  The default ignores it.
 
-        The default (command-first integrations, e.g. Copilot's default
-        layout) is skills mode only when ``--skills`` was requested.
+        The default for command-first integrations is skills mode only when
+        ``--skills`` was requested.
         ``SkillsIntegration`` overrides this to return ``True`` by default;
         skills-first integrations that expose a legacy opt-out (e.g. Bob)
         override it to honor their own flag.
@@ -239,6 +497,11 @@ class IntegrationBase(ABC):
         *,
         model: str | None = None,
         output_json: bool = True,
+        integration_args: Sequence[str] | None = None,
+        integration_options: Mapping[str, Any] | None = None,
+        project_root: Path | None = None,
+        reasoning_effort: str | None = None,
+        context_size: str | None = None,
     ) -> list[str] | None:
         """Build CLI arguments for non-interactive execution.
 
@@ -247,8 +510,85 @@ class IntegrationBase(ABC):
         if the integration does not support CLI dispatch.
 
         Subclasses for CLI-based integrations should override this.
+        *reasoning_effort* and *context_size* are passed only when a workflow
+        step requests them and only to integrations that declare them in
+        ``supported_dispatch_settings``; this implementation translates
+        neither and rejects both.
         """
+        self.validate_runtime_config(integration_args, integration_options)
+        self._reject_untranslated_dispatch_settings(
+            reasoning_effort=reasoning_effort, context_size=context_size
+        )
         return None
+
+    def validate_dispatch_setting(self, name: str, value: str) -> None:
+        """Validate one requested dispatch setting value for this integration.
+
+        Called by :func:`check_dispatch_settings` for each supported setting
+        after the host's own checks. Values are opaque by default; override to
+        reject values the CLI would ignore or misread, raising ``ValueError``.
+        Keep *value* out of the message: it can come from captured agent
+        output, which Spec Kit does not print or log.
+        """
+
+    def dispatch_setting_hint(self, setting: str) -> str | None:
+        """Return remediation text for an unsupported *setting*, or ``None``."""
+        return None
+
+    def _reject_untranslated_dispatch_settings(
+        self,
+        *,
+        reasoning_effort: str | None = None,
+        context_size: str | None = None,
+    ) -> None:
+        """Fail when dispatch settings reach a builder that does not translate them.
+
+        Builders that do translate settings consume them before delegating to
+        ``super().build_exec_args()``; reaching a generic builder therefore
+        means the settings would be silently dropped.
+        """
+        requested = requested_dispatch_settings(
+            reasoning_effort=reasoning_effort, context_size=context_size
+        )
+        if not requested:
+            return
+        names = ", ".join(f"'{name}'" for name in requested)
+        raise DispatchSettingsError(
+            f"Integration {self.key!r} does not translate per-step {names}. "
+            "Declare supported_dispatch_settings on the class that implements "
+            "build_exec_args() and consume the settings there instead of "
+            "passing them to a base implementation.",
+            setting=next(iter(requested)),
+        )
+
+    def validate_runtime_config(
+        self,
+        integration_args: Sequence[str] | None = None,
+        integration_options: Mapping[str, Any] | None = None,
+    ) -> None:
+        """Validate per-step CLI configuration for this integration.
+
+        Runtime configuration is deliberately separate from :meth:`options`,
+        which describes install-time ``--integration-options`` accepted by
+        ``specify init`` and the integration management commands. Integrations
+        opt in by overriding this hook and translating the validated values in
+        :meth:`build_exec_args` (or a custom :meth:`dispatch_command`).
+
+        The default accepts empty configuration for backward compatibility and
+        rejects non-empty values instead of silently ignoring a misspelled or
+        unsupported runtime option.
+        """
+        if integration_args:
+            raise ValueError(
+                f"Integration {self.key!r} does not support per-step "
+                "'integration_args'."
+            )
+        if integration_options:
+            option_names = ", ".join(sorted(str(key) for key in integration_options))
+            raise ValueError(
+                f"Integration {self.key!r} does not support per-step "
+                f"'integration_options' ({option_names})."
+            )
 
     def _resolve_executable(self) -> str:
         """Return the executable for this integration's CLI tool.
@@ -330,6 +670,29 @@ class IntegrationBase(ABC):
             invocation = f"{invocation} {args}"
         return invocation
 
+    def _build_dispatch_prompt(
+        self,
+        command_name: str,
+        args: str,
+        project_root: Path | None,
+    ) -> str:
+        """Return the dispatch prompt, given the target *project_root*.
+
+        Seam for integrations whose invocation depends on the project's
+        on-disk layout.  ``build_command_invocation()`` is a two-argument
+        contract implemented by every integration, so widening it to carry a
+        *project_root* would change a broad public surface for the sake of
+        the one caller that needs it.  Dispatch is that caller: it alone
+        knows which project the command is being run against, so dual-mode
+        integrations (e.g. Bob) resolve the layout here instead.
+
+        The default ignores *project_root* and preserves the previous
+        behaviour exactly.
+
+        See issue #4491.
+        """
+        return self.build_command_invocation(command_name, args)
+
     def dispatch_command(
         self,
         command_name: str,
@@ -339,19 +702,47 @@ class IntegrationBase(ABC):
         model: str | None = None,
         timeout: int = 600,
         stream: bool = True,
+        integration_args: Sequence[str] | None = None,
+        integration_options: Mapping[str, Any] | None = None,
+        output_json: bool | None = None,
+        capture_max_bytes: int | None = None,
+        reasoning_effort: str | None = None,
+        context_size: str | None = None,
     ) -> dict[str, Any]:
         """Dispatch a Spec Kit command through this integration's CLI.
 
         By default this builds a slash-command invocation with
-        ``build_command_invocation()`` and passes that prompt to
+        ``_build_dispatch_prompt()`` -- which defers to
+        ``build_command_invocation()`` unless the integration needs the
+        *project_root* to decide -- and passes that prompt to
         ``build_exec_args()`` to construct the CLI command line.
         Integrations with custom dispatch behavior can override
-        ``build_command_invocation()``, ``build_exec_args()``, or
-        ``dispatch_command()`` directly.
+        ``build_command_invocation()``, ``_build_dispatch_prompt()``,
+        ``build_exec_args()``, or ``dispatch_command()`` directly.
 
         When *stream* is ``True`` (the default), stdout and stderr are
         piped directly to the terminal so the user sees live output.
         When ``False``, output is captured and returned in the dict.
+
+        *output_json* selects the CLI's output format independently of
+        *stream*. ``None`` (the default) keeps the historical coupling:
+        text when streaming, structured output when capturing. Pass
+        ``False`` with ``stream=False`` to capture the CLI's textual
+        stdout.
+
+        *capture_max_bytes* selects bounded capture and requires
+        ``stream=False``: each stream is capped at that many raw bytes
+        (``-1`` for no cap) and decoded as UTF-8. The result then also
+        carries ``stdout_truncated``, ``stderr_truncated``, ``timed_out``,
+        and ``interrupted``, and a timeout or interruption is reported
+        there with the output read so far instead of being raised.
+        ``None`` (the default) keeps the unbounded capture, which raises
+        ``subprocess.TimeoutExpired``.
+
+        *reasoning_effort* and *context_size* are per-step dispatch
+        settings. When either is passed, :func:`check_dispatch_settings`
+        validates it first and only the passed settings are forwarded to
+        ``build_exec_args()``, so builders that predate them keep working.
 
         Returns a dict with ``exit_code``, ``stdout``, and ``stderr``.
         Raises ``NotImplementedError`` if the integration does not
@@ -359,11 +750,28 @@ class IntegrationBase(ABC):
         """
         import subprocess
 
-        prompt = self.build_command_invocation(command_name, args)
+        if stream and capture_max_bytes is not None:
+            raise ValueError("capture_max_bytes requires stream=False.")
+
+        self.validate_runtime_config(integration_args, integration_options)
+        dispatch_settings = requested_dispatch_settings(
+            reasoning_effort=reasoning_effort, context_size=context_size
+        )
+        if dispatch_settings:
+            check_dispatch_settings(self, dispatch_settings, via="build_exec_args")
+        prompt = self._build_dispatch_prompt(command_name, args, project_root)
         # When streaming to the terminal, request text output so the
         # user sees readable output instead of raw JSONL events.
+        if output_json is None:
+            output_json = not stream
         exec_args = self.build_exec_args(
-            prompt, model=model, output_json=not stream
+            prompt,
+            model=model,
+            output_json=output_json,
+            integration_args=integration_args,
+            integration_options=integration_options,
+            project_root=project_root,
+            **dispatch_settings,
         )
 
         if exec_args is None:
@@ -406,6 +814,14 @@ class IntegrationBase(ABC):
                 "stdout": "",
                 "stderr": "",
             }
+
+        if capture_max_bytes is not None:
+            return run_captured(
+                exec_args,
+                cwd=cwd,
+                timeout=timeout,
+                max_bytes=capture_max_bytes,
+            ).as_dispatch_result()
 
         result = subprocess.run(
             exec_args,
@@ -475,11 +891,27 @@ class IntegrationBase(ABC):
     def command_filename(self, template_name: str) -> str:
         """Return the destination filename for a command template.
 
-        *template_name* is the stem of the source file (e.g. ``"plan"``).
+        *template_name* is the stem of the source file (e.g. ``"tasks"``).
         Default: ``speckit.{template_name}.md``.  Subclasses override
         to change the extension or naming convention.
         """
         return f"speckit.{template_name}.md"
+
+    def upgrade_output_folders(
+        self,
+        project_root: Path,
+        parsed_options: dict[str, Any] | None,
+        raw_options: str | None,
+    ) -> set[str]:
+        """Return project-relative output directories an upgrade may create.
+
+        ``integration upgrade`` and ``init`` into an existing directory
+        journal writes beneath the integration's config ``folder``. An
+        integration whose output location comes from its options instead
+        lists that location here, so a failed operation removes directories it
+        created. Default: none.
+        """
+        return set()
 
     def stale_cleanup_exclusions(self) -> set[str]:
         """Return project-relative paths that upgrade must never stale-delete.
@@ -530,9 +962,13 @@ class IntegrationBase(ABC):
         written file.  The caller can post-process the file before
         recording it in the manifest.
         """
-        dest_dir.mkdir(parents=True, exist_ok=True)
         dst = dest_dir / filename
+        from ._file_changes import after_file_change, before_file_change
+
+        before_file_change(dst)
+        dest_dir.mkdir(parents=True, exist_ok=True)
         shutil.copy2(src, dst)
+        after_file_change(dst)
         return dst
 
     @staticmethod
@@ -562,9 +998,13 @@ class IntegrationBase(ABC):
         ``\r\n`` sequences in *content* are normalised to ``\n`` before
         writing.  Returns *dest*.
         """
-        dest.parent.mkdir(parents=True, exist_ok=True)
         normalized = content.replace("\r\n", "\n")
+        from ._file_changes import after_file_change, before_file_change
+
+        before_file_change(dest)
+        dest.parent.mkdir(parents=True, exist_ok=True)
         dest.write_bytes(normalized.encode("utf-8"))
+        after_file_change(dest)
         rel = dest.resolve().relative_to(project_root.resolve())
         manifest.record_existing(rel)
         return dest
@@ -600,14 +1040,17 @@ class IntegrationBase(ABC):
         if not scripts_src:
             return []
 
+        from ._file_changes import before_file_change
+
         created: list[Path] = []
         scripts_dest = project_root / ".specify" / "integrations" / self.key / "scripts"
-        scripts_dest.mkdir(parents=True, exist_ok=True)
 
         for src_script in sorted(scripts_src.iterdir()):
             if not src_script.is_file():
                 continue
             dst_script = scripts_dest / src_script.name
+            before_file_change(dst_script)
+            scripts_dest.mkdir(parents=True, exist_ok=True)
             shutil.copy2(src_script, dst_script)
             if dst_script.suffix in (".sh", ".py"):
                 dst_script.chmod(dst_script.stat().st_mode | 0o111)
@@ -623,18 +1066,22 @@ class IntegrationBase(ABC):
         """Replace ``__SPECKIT_COMMAND_<NAME>__`` placeholders with invocations.
 
         Each placeholder encodes a command name in upper-case with
-        underscores (e.g. ``__SPECKIT_COMMAND_PLAN__``,
+        underscores (e.g. ``__SPECKIT_COMMAND_TASKS__``,
         ``__SPECKIT_COMMAND_GIT_COMMIT__``).  The replacement uses
         *separator* to join the segments:
 
-        * ``separator="."`` → ``/speckit.plan``, ``/speckit.git.commit``
+        * ``separator="."`` → ``/speckit.tasks``, ``/speckit.git.commit``
         * ``separator="-"`` → ``/speckit-plan``, ``/speckit-git-commit``
+
+        A hyphen belongs to the segment it sits in rather than separating
+        segments, so ``__SPECKIT_COMMAND_AGENT-CONTEXT_UPDATE__`` resolves to
+        ``/speckit.agent-context.update``.
 
         *prefix* defaults to ``"/"`` but may be ``"$"`` for agents whose
         native skills invocation uses dollar-prefixed chat commands.
         """
         return re.sub(
-            r"__SPECKIT_COMMAND_([A-Z][A-Z0-9_]*)__",
+            r"__SPECKIT_COMMAND_([A-Z][A-Z0-9_-]*)__",
             lambda m: prefix
             + "speckit"
             + separator
@@ -881,6 +1328,20 @@ class IntegrationBase(ABC):
 
         return content
 
+    def preflight_setup(
+        self,
+        project_root: Path,
+        parsed_options: dict[str, Any] | None = None,
+        *,
+        script_type: str | None = None,
+    ) -> None:
+        """Reject a planned ``setup()`` before the CLI writes shared files.
+
+        Install, switch and upgrade call this before touching shared
+        infrastructure. Raise ``ValueError`` or ``OSError`` to refuse.
+        The default accepts every setup.
+        """
+
     def setup(
         self,
         project_root: Path,
@@ -941,7 +1402,15 @@ class IntegrationBase(ABC):
 
         Returns ``(removed, skipped)`` file lists.
         """
-        self.remove_events(project_root, manifest)
+        import inspect
+
+        remove_events = self.remove_events
+        try:
+            inspect.signature(remove_events).bind(project_root, manifest, force=force)
+        except TypeError:
+            remove_events(project_root, manifest)
+        else:
+            remove_events(project_root, manifest, force=force)
         return manifest.uninstall(project_root, force=force)
 
     def emit_events(
@@ -953,19 +1422,37 @@ class IntegrationBase(ABC):
         **opts: Any,
     ) -> list[Path]:
         """Emit native event configuration for this integration."""
-        return install_integration_events(self, project_root, manifest, events or {})
+        return install_integration_events(
+            self, project_root, manifest, events or {}, force=opts.get("force", False)
+        )
 
     def remove_events(
         self,
         project_root: Path,
         manifest: IntegrationManifest,
+        *,
+        force: bool = False,
     ) -> None:
         """Remove Specify-authored event entries from native config."""
-        remove_integration_events(self, project_root, manifest)
+        remove_integration_events(self, project_root, manifest, force=force)
 
     def supports_events(self) -> bool:
         """Return True if this integration supports agent-native events."""
         return bool(getattr(self, "CANONICAL_TO_NATIVE", None) and getattr(self, "events_config_file", None))
+
+    # Context-injection envelope for hook stdout, keyed by canonical event
+    # (with "*" as the fallback). Not every agent injects a hook's plain-text
+    # stdout as model context: Gemini/Tabnine/Qwen/Devin are JSON-only
+    # protocols (plain text becomes user-facing noise), Copilot discards
+    # non-JSON stdout, and Cursor parses stdout as JSON. Values:
+    #   "hookSpecificOutput" → {"hookSpecificOutput": {"additionalContext": ...}}
+    #   "additionalContext"  → {"additionalContext": ...}   (top-level, Copilot)
+    #   "additional_context" → {"additional_context": ...}  (top-level, Cursor)
+    #   "suppress"           → emit nothing (strict-JSON agents on events whose
+    #                          output can't be used)
+    # Absent (no matching key and no "*") → plain stdout passthrough
+    # (Claude/Codex inject plain stdout; opencode injects via its TS plugin).
+    events_context_envelope: dict[str, str] = {}
 
     # -- Convenience helpers for subclasses -------------------------------
 
@@ -1011,7 +1498,16 @@ class MarkdownIntegration(IntegrationBase):
         *,
         model: str | None = None,
         output_json: bool = True,
+        integration_args: Sequence[str] | None = None,
+        integration_options: Mapping[str, Any] | None = None,
+        project_root: Path | None = None,
+        reasoning_effort: str | None = None,
+        context_size: str | None = None,
     ) -> list[str] | None:
+        self.validate_runtime_config(integration_args, integration_options)
+        self._reject_untranslated_dispatch_settings(
+            reasoning_effort=reasoning_effort, context_size=context_size
+        )
         if not self.config or not self.config.get("requires_cli"):
             return None
         args = [self._resolve_executable(), "-p", prompt]
@@ -1048,7 +1544,9 @@ class MarkdownIntegration(IntegrationBase):
                 f"Integration destination {dest} escapes "
                 f"project root {project_root_resolved}"
             ) from exc
-        dest.mkdir(parents=True, exist_ok=True)
+        from ._file_changes import make_directories
+
+        make_directories(dest)
 
         script_type = opts.get("script_type", "sh")
         arg_placeholder = (
@@ -1073,7 +1571,8 @@ class MarkdownIntegration(IntegrationBase):
 
         # Install agent runtime events
         event_files = self.emit_events(
-            project_root, manifest, events=opts.get("events"), parsed_options=parsed_options
+            project_root, manifest, events=opts.get("events"), parsed_options=parsed_options,
+            force=opts.get("force", False),
         )
         created.extend(event_files)
 
@@ -1102,7 +1601,16 @@ class TomlIntegration(IntegrationBase):
         *,
         model: str | None = None,
         output_json: bool = True,
+        integration_args: Sequence[str] | None = None,
+        integration_options: Mapping[str, Any] | None = None,
+        project_root: Path | None = None,
+        reasoning_effort: str | None = None,
+        context_size: str | None = None,
     ) -> list[str] | None:
+        self.validate_runtime_config(integration_args, integration_options)
+        self._reject_untranslated_dispatch_settings(
+            reasoning_effort=reasoning_effort, context_size=context_size
+        )
         if not self.config or not self.config.get("requires_cli"):
             return None
         args = [self._resolve_executable(), "-p", prompt]
@@ -1258,7 +1766,9 @@ class TomlIntegration(IntegrationBase):
                 f"Integration destination {dest} escapes "
                 f"project root {project_root_resolved}"
             ) from exc
-        dest.mkdir(parents=True, exist_ok=True)
+        from ._file_changes import make_directories
+
+        make_directories(dest)
 
         script_type = opts.get("script_type", "sh")
         arg_placeholder = (
@@ -1286,7 +1796,8 @@ class TomlIntegration(IntegrationBase):
 
         # Install agent runtime events
         event_files = self.emit_events(
-            project_root, manifest, events=opts.get("events"), parsed_options=parsed_options
+            project_root, manifest, events=opts.get("events"), parsed_options=parsed_options,
+            force=opts.get("force", False),
         )
         created.extend(event_files)
 
@@ -1489,7 +2000,9 @@ class YamlIntegration(IntegrationBase):
                 f"Integration destination {dest} escapes "
                 f"project root {project_root_resolved}"
             ) from exc
-        dest.mkdir(parents=True, exist_ok=True)
+        from ._file_changes import make_directories
+
+        make_directories(dest)
 
         script_type = opts.get("script_type", "sh")
         arg_placeholder = (
@@ -1528,7 +2041,8 @@ class YamlIntegration(IntegrationBase):
 
         # Install agent runtime events
         event_files = self.emit_events(
-            project_root, manifest, events=opts.get("events"), parsed_options=parsed_options
+            project_root, manifest, events=opts.get("events"), parsed_options=parsed_options,
+            force=opts.get("force", False),
         )
         created.extend(event_files)
 
@@ -1571,7 +2085,16 @@ class SkillsIntegration(IntegrationBase):
         *,
         model: str | None = None,
         output_json: bool = True,
+        integration_args: Sequence[str] | None = None,
+        integration_options: Mapping[str, Any] | None = None,
+        project_root: Path | None = None,
+        reasoning_effort: str | None = None,
+        context_size: str | None = None,
     ) -> list[str] | None:
+        self.validate_runtime_config(integration_args, integration_options)
+        self._reject_untranslated_dispatch_settings(
+            reasoning_effort=reasoning_effort, context_size=context_size
+        )
         if not self.config or not self.config.get("requires_cli"):
             return None
         args = [self._resolve_executable(), "-p", prompt]
@@ -1670,6 +2193,29 @@ class SkillsIntegration(IntegrationBase):
         invocation_prefix = get_invocation_prefix(self.key, True)
         return self._inject_hook_command_note(content, invocation_prefix)
 
+    def _render_core_skill_frontmatter(
+        self, skill_name: str, description: str, source: str
+    ) -> str:
+        """Render shared core provenance with the native skills' quoted layout."""
+        from specify_cli import get_speckit_version
+        from specify_cli.agents import CommandRegistrar
+
+        frontmatter = CommandRegistrar.build_skill_frontmatter(
+            self.key, skill_name, description, source,
+            version=get_speckit_version(),
+        )
+        lines = [
+            f"{key}: {yaml_quote(value)}"
+            for key, value in frontmatter.items()
+            if key != "metadata"
+        ]
+        lines.append("metadata:")
+        lines.extend(
+            f"  {key}: {yaml_quote(value)}"
+            for key, value in frontmatter["metadata"].items()
+        )
+        return "\n".join(lines)
+
     def setup(
         self,
         project_root: Path,
@@ -1716,7 +2262,7 @@ class SkillsIntegration(IntegrationBase):
             raw = src_file.read_text(encoding="utf-8")
 
             # Derive the skill name from the template stem
-            command_name = src_file.stem  # e.g. "plan"
+            command_name = src_file.stem  # e.g. "tasks"
             skill_name = f"speckit-{command_name.replace('.', '-')}"
 
             # Parse frontmatter for description. Locate the closing ``---`` on
@@ -1782,13 +2328,14 @@ class SkillsIntegration(IntegrationBase):
             if not description:
                 description = f"Spec Kit: {command_name} workflow"
 
-            from specify_cli.agents import CommandRegistrar
-
-            skill_frontmatter = CommandRegistrar.build_skill_frontmatter(
-                self.key,
-                skill_name,
-                description,
-                f"templates/commands/{src_file.name}",
+            frontmatter_text = self._render_core_skill_frontmatter(
+                skill_name, description, f"templates/commands/{src_file.name}"
+            )
+            skill_content = (
+                f"---\n"
+                f"{frontmatter_text}\n"
+                f"---\n"
+                f"{processed_body}"
             )
             frontmatter_text = yaml.safe_dump(
                 skill_frontmatter, sort_keys=False, width=1000
@@ -1808,7 +2355,8 @@ class SkillsIntegration(IntegrationBase):
 
         # Install agent runtime events
         event_files = self.emit_events(
-            project_root, manifest, events=opts.get("events"), parsed_options=parsed_options
+            project_root, manifest, events=opts.get("events"), parsed_options=parsed_options,
+            force=opts.get("force", False),
         )
         created.extend(event_files)
 

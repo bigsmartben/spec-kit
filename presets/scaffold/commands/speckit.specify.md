@@ -1,5 +1,5 @@
 ---
-description: "Create a feature specification (preset override)"
+description: "Create the feature specification, prototype, and pending UAT baseline (preset override)"
 scripts:
   sh: scripts/bash/create-new-feature.sh "{ARGS}"
   ps: scripts/powershell/create-new-feature.ps1 "{ARGS}"
@@ -11,34 +11,28 @@ $ARGUMENTS
 
 ## Goal
 
-Create one feature specification at the `SPEC_FILE` returned by `{SCRIPT}`.
+1. Create the feature branch and initial directory by running
+   `{SCRIPT} --json --short-name "<short-name>" "<description>"`. The JSON
+   output contains `BRANCH_NAME` and `SPEC_FILE`; derive the feature directory
+   from `SPEC_FILE`.
 
-## Normative Authority
+2. Resolve the composed templates using the script variant installed by
+   `.specify/init-options.json`:
+   - Bash: `.specify/scripts/bash/resolve-template.sh <template-name> --json`
+   - PowerShell: `.specify/scripts/powershell/resolve-template.ps1 <template-name> -Json`
+   - Python: the selected Python interpreter on
+     `.specify/scripts/python/resolve_template.py <template-name> --json`
+   Use `spec-template`, `prototype-template`, and `quickstart-template`. Stop
+   if any composition fails.
 
-- `templates/spec-template.md` defines the persistent document shape.
-- The user input owns feature intent; do not add unstated scope.
+3. Write `spec.md` from the composed spec template.
 
-## Operating Boundaries
+4. Write `prototype.html` from the composed prototype template. It must be
+   self-contained executable HTML, define unique `data-spec-ref` anchors, and
+   act as the construction contract for visible and interactive behavior.
 
-- Run `{SCRIPT}` once to resolve `BRANCH_NAME` and `SPEC_FILE`.
-- Read the selected specification template.
-- Write only `SPEC_FILE`.
-- Stop if the script fails or the feature description is empty.
+5. Write `quickstart.md` from the composed UAT template. Define stable `UAT-*`
+   scenarios mapped to requirements and exact prototype anchors. Every status
+   must be `PENDING`, with no actual result, evidence, deviation, or conclusion.
 
-## Procedure
-
-1. Run `{SCRIPT} --json --short-name "<short-name>" "<description>"`.
-2. Read `BRANCH_NAME` and `SPEC_FILE` from the JSON result.
-3. Render `templates/spec-template.md` using only supported requirements.
-4. Preserve ambiguity as an explicit clarification gap.
-5. Validate the required sections and acceptance criteria.
-
-## Validation
-
-- `PASS`: `SPEC_FILE` exists and contains testable acceptance criteria.
-- `BLOCKED`: input or path resolution is unavailable.
-- Use blocker code `PRESET_SPEC_INPUT_MISSING` for missing feature intent.
-
-## Report
-
-Return mode, branch, changed path, validation status, blockers, and gaps.
+6. Validate that all three artifacts agree, then report all paths.

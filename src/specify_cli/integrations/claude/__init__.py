@@ -2,23 +2,34 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping, Sequence
+from pathlib import Path
 from typing import Any
 
-from ..base import SkillsIntegration
+from ..base import (
+    IntegrationOption,
+    SkillsIntegration,
+    check_dispatch_settings,
+    requested_dispatch_settings,
+)
+from ..manifest import IntegrationManifest
 from ..._utils import dump_frontmatter
+
+# ``--effort`` levels accepted by Claude Code 2.1.318. The CLI only warns about
+# any other value and runs with its default effort, so per-step
+# ``reasoning_effort`` is limited to these.
+EFFORT_LEVELS: tuple[str, ...] = ("low", "medium", "high", "xhigh", "max")
 
 # Mapping of command template stem → argument-hint text shown inline
 # when a user invokes the slash command in Claude Code.
 ARGUMENT_HINTS: dict[str, str] = {
     "specify": "Describe the feature you want to specify",
-    "plan": "Optional guidance for the planning phase",
     "tasks": "Optional task generation constraints",
     "implement": "Optional implementation guidance or task filter",
     "analyze": "Optional focus areas for analysis",
     "clarify": "Optional areas to clarify in the spec",
     "constitution": "Principles or values for the project constitution",
     "checklist": "Domain or focus area for the checklist",
-    "taskstoissues": "Optional filter or label for GitHub issues",
 }
 
 # Per-command frontmatter overrides for skills that should run in a forked
@@ -64,10 +75,116 @@ class ClaudeIntegration(SkillsIntegration):
     }
     events_config_file = ".claude/settings.json"
     events_format = "json-nested"
+    supported_dispatch_settings = frozenset({"reasoning_effort"})
+
+    # Set by ``setup()`` from ``--no-model-invocation``; applies to core
+    # command skills only, since mandatory extension hooks rely on the model
+    # invoking the hook skill. Integrations are process-wide singletons, so
+    # preset overrides re-registered later in the same run (init, upgrade,
+    # or a switch that installs Claude) see the same value. Commands that
+    # rewrite skills without calling setup() (e.g. ``preset add``,
+    # ``integration use``) get the default.
+    _disable_model_invocation: bool = False
+
+    @classmethod
+    def options(cls) -> list[IntegrationOption]:
+        opts = super().options()
+        opts.append(
+            IntegrationOption(
+                "--no-model-invocation",
+                is_flag=True,
+                default=False,
+                help=(
+                    "Install core command skills as user-invocable only "
+                    "(disable-model-invocation: true)"
+                ),
+            )
+        )
+        return opts
+
+    def build_exec_args(
+        self,
+        prompt: str,
+        *,
+        model: str | None = None,
+        output_json: bool = True,
+        integration_args: Sequence[str] | None = None,
+        integration_options: Mapping[str, Any] | None = None,
+        project_root: Path | None = None,
+        reasoning_effort: str | None = None,
+        context_size: str | None = None,
+    ) -> list[str] | None:
+        """Build ``claude -p`` arguments, adding ``--effort`` when requested."""
+        # super() validates the runtime config, once, before the gate runs, so
+        # its errors come first, as in dispatch_command().
+        args = super().build_exec_args(
+            prompt,
+            model=model,
+            output_json=output_json,
+            integration_args=integration_args,
+            integration_options=integration_options,
+            project_root=project_root,
+        )
+        settings = requested_dispatch_settings(
+            reasoning_effort=reasoning_effort, context_size=context_size
+        )
+        if settings:
+            check_dispatch_settings(self, settings, via="build_exec_args")
+        if args is not None and reasoning_effort is not None:
+            args.extend(["--effort", reasoning_effort])
+        return args
+
+    def validate_dispatch_setting(self, name: str, value: str) -> None:
+        """Reject effort levels that Claude Code would silently ignore.
+
+        The value can be captured agent output, so the error does not repeat it.
+        """
+        if name == "reasoning_effort" and value not in EFFORT_LEVELS:
+            raise ValueError(
+                "Claude Code 'reasoning_effort' must be one of "
+                f"{', '.join(EFFORT_LEVELS)}. To pass a newer level, set "
+                'SPECKIT_INTEGRATION_CLAUDE_EXTRA_ARGS="--effort <value>" '
+                "instead of 'reasoning_effort'."
+            )
+
+    def dispatch_setting_hint(self, setting: str) -> str | None:
+        if setting == "context_size":
+            return (
+                "Choose a long-context model with the step's 'model' field "
+                "instead."
+            )
+        return None
+
+    def setup(
+        self,
+        project_root: Path,
+        manifest: IntegrationManifest,
+        parsed_options: dict[str, Any] | None = None,
+        **opts: Any,
+    ) -> list[Path]:
+        self._disable_model_invocation = (
+            (parsed_options or {}).get("no_model_invocation") is True
+        )
+        try:
+            return super().setup(
+                project_root, manifest, parsed_options=parsed_options, **opts
+            )
+        except BaseException:
+            self._disable_model_invocation = False
+            raise
 
     @staticmethod
     def inject_argument_hint(content: str, hint: str) -> str:
-        """Insert ``argument-hint`` after the first ``description:`` in YAML frontmatter.
+        """Insert ``argument-hint`` after the ``description:`` scalar in YAML frontmatter.
+
+        A long ``description`` gets folded by the YAML dumper across
+        indented continuation lines (plain or quoted), and an embedded
+        paragraph break can add unindented blank lines inside a quoted
+        scalar. Inserting the new line right after the *first* line of
+        that scalar — instead of after the whole scalar — either produces
+        invalid YAML or gets silently absorbed into the description
+        string (#4044), so every continuation line (indented, or blank)
+        is skipped first.
 
         Skips injection if ``argument-hint:`` already exists in the
         frontmatter to avoid duplicate keys.
@@ -90,15 +207,29 @@ class ClaudeIntegration(SkillsIntegration):
         in_fm = False
         dash_count = 0
         injected = False
-        for line in lines:
+        i = 0
+        n = len(lines)
+        while i < n:
+            line = lines[i]
             stripped = line.rstrip("\n\r")
             if stripped == "---":
                 dash_count += 1
                 in_fm = dash_count == 1
                 out.append(line)
+                i += 1
                 continue
             if in_fm and not injected and stripped.startswith("description:"):
                 out.append(line)
+                i += 1
+                # Skip past folded/quoted continuation lines of the scalar
+                # before inserting, so the new key lands after it ends.
+                # Blank lines count too: PyYAML emits unindented blank
+                # lines for embedded "\n\n" inside a quoted scalar.
+                while i < n and (
+                    lines[i][:1] in (" ", "\t") or lines[i].rstrip("\r\n") == ""
+                ):
+                    out.append(lines[i])
+                    i += 1
                 # Preserve the exact line-ending style (\r\n vs \n)
                 if line.endswith("\r\n"):
                     eol = "\r\n"
@@ -111,6 +242,7 @@ class ClaudeIntegration(SkillsIntegration):
                 injected = True
                 continue
             out.append(line)
+            i += 1
         return "".join(out)
 
     def _render_skill(self, template_name: str, frontmatter: dict[str, Any], body: str) -> str:
@@ -127,9 +259,10 @@ class ClaudeIntegration(SkillsIntegration):
         return f"---\n{frontmatter_text}\n---\n\n{body.strip()}\n"
 
     def _build_skill_fm(self, name: str, description: str, source: str) -> dict:
+        from specify_cli import get_speckit_version
         from specify_cli.agents import CommandRegistrar
         return CommandRegistrar.build_skill_frontmatter(
-            self.key, name, description, source
+            self.key, name, description, source, version=get_speckit_version()
         )
 
     @staticmethod
@@ -149,7 +282,13 @@ class ClaudeIntegration(SkillsIntegration):
             if dash_count == 1 and stripped.startswith(f"{key}:"):
                 return content
 
-        # Inject before the closing --- of frontmatter
+        # Inject before the closing --- of frontmatter. Preserve the
+        # existing EOL style, but default to "\n" (rather than "") when the
+        # closing delimiter is the last line of the file with no trailing
+        # newline -- otherwise the injected text glues onto the "---"
+        # (e.g. "user-invocable: true---"), destroying the delimiter so a
+        # later call's pre-scan/injection never finds a second "---" and
+        # silently drops that key entirely.
         out: list[str] = []
         dash_count = 0
         injected = False
@@ -163,19 +302,15 @@ class ClaudeIntegration(SkillsIntegration):
                     elif line.endswith("\n"):
                         eol = "\n"
                     else:
-                        eol = ""
+                        eol = "\n"
                     out.append(f"{key}: {value}{eol}")
                     injected = True
             out.append(line)
         return "".join(out)
 
     @staticmethod
-    def _skill_stem_from_content(content: str) -> str | None:
-        """Derive the command stem (e.g. ``analyze``) from a skill's frontmatter.
-
-        Reads the ``name:`` field of the first frontmatter block and strips
-        the ``speckit-`` prefix. Returns ``None`` when no name is present.
-        """
+    def _skill_name_from_content(content: str) -> str | None:
+        """Return the ``name:`` field of a skill's first frontmatter block."""
         dash_count = 0
         for line in content.splitlines():
             stripped = line.rstrip("\r\n")
@@ -186,10 +321,16 @@ class ClaudeIntegration(SkillsIntegration):
                 continue
             if dash_count == 1 and stripped.startswith("name:"):
                 name = stripped[len("name:"):].strip().strip('"').strip("'")
-                if name.startswith("speckit-"):
-                    return name[len("speckit-"):]
                 return name or None
         return None
+
+    @staticmethod
+    def _is_core_command_skill(name: str | None) -> bool:
+        from specify_cli.extensions import CORE_COMMAND_NAMES  # lazy: avoids circular import
+
+        return bool(name) and name.startswith("speckit-") and (
+            name.removeprefix("speckit-") in CORE_COMMAND_NAMES
+        )
 
     def post_process_skill_content(self, content: str) -> str:
         """Inject Claude-specific frontmatter flags, hook notes, and any
@@ -198,12 +339,20 @@ class ClaudeIntegration(SkillsIntegration):
         Applied by every skill-generation path (setup, presets, extensions),
         so command-specific frontmatter (argument-hint, fork context) stays
         consistent however the SKILL.md was produced.
+
+        ``disable-model-invocation`` is ``true`` for core command skills when
+        the last ``setup()`` in this process was given
+        ``--no-model-invocation``, else ``false``.
         """
         updated = super().post_process_skill_content(content)
         updated = self._inject_frontmatter_flag(updated, "user-invocable")
-        updated = self._inject_frontmatter_flag(updated, "disable-model-invocation", "false")
+        name = self._skill_name_from_content(updated)
+        disable = self._disable_model_invocation and self._is_core_command_skill(name)
+        updated = self._inject_frontmatter_flag(
+            updated, "disable-model-invocation", "true" if disable else "false"
+        )
 
-        stem = self._skill_stem_from_content(updated)
+        stem = name.removeprefix("speckit-") if name else None
         if stem:
             hint = ARGUMENT_HINTS.get(stem, "")
             if hint:

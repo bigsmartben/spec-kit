@@ -20,6 +20,7 @@ from pathlib import Path
 import pytest
 
 from tests.conftest import requires_bash
+from tests.parity_helpers import WINDOWS_POWERSHELL
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent.parent
 EXT_DIR = PROJECT_ROOT / "extensions" / "git"
@@ -100,6 +101,40 @@ def _add_sibling_worktree(project: Path, path: Path, branch: str) -> None:
     )
 
 
+def _add_prompt_probe_remote(project: Path) -> Path:
+    """Add an ssh remote whose transport logs GIT_TERMINAL_PROMPT and fails.
+
+    Git runs core.sshCommand with the environment of the fetch or ls-remote
+    that contacts the remote, so the log shows whether git was allowed to
+    prompt for credentials. No network is used. Returns the log path.
+    """
+    git_dir = project / ".git"
+    probe = git_dir / "prompt-probe.sh"
+    probe.write_text(
+        "#!/bin/sh\n"
+        'echo "${GIT_TERMINAL_PROMPT-unset}" >> "$(dirname "$0")/prompt-probe.log"\n'
+        "exit 1\n",
+        encoding="utf-8",
+        newline="\n",
+    )
+    subprocess.run(
+        ["git", "remote", "add", "origin", "ssh://git@example.invalid/repo.git"],
+        cwd=project,
+        check=True,
+    )
+    subprocess.run(
+        ["git", "config", "core.sshCommand", f'sh "{probe.as_posix()}"'],
+        cwd=project,
+        check=True,
+    )
+    return git_dir / "prompt-probe.log"
+
+
+def _probe_log(log: Path) -> list[str]:
+    """GIT_TERMINAL_PROMPT values seen by the probe remote, one per contact."""
+    return log.read_text(encoding="utf-8").split() if log.exists() else []
+
+
 # Git identity env vars for CI runners without global git config
 _GIT_ENV = {
     "GIT_AUTHOR_NAME": "Test User",
@@ -122,12 +157,18 @@ def _run_bash(script_name: str, cwd: Path, *args: str, env_extra: dict | None = 
     )
 
 
-def _run_pwsh(script_name: str, cwd: Path, *args: str, env_extra: dict | None = None) -> subprocess.CompletedProcess:
-    """Run an extension PowerShell script."""
+def _run_pwsh(
+    script_name: str,
+    cwd: Path,
+    *args: str,
+    env_extra: dict | None = None,
+    exe: str = "pwsh",
+) -> subprocess.CompletedProcess:
+    """Run an extension PowerShell script (pwsh unless *exe* names another host)."""
     script = cwd / ".specify" / "extensions" / "git" / "scripts" / "powershell" / script_name
     env = {**os.environ, **_GIT_ENV, **(env_extra or {})}
     return subprocess.run(
-        ["pwsh", "-NoProfile", "-File", str(script), *args],
+        [exe, "-NoProfile", "-File", str(script), *args],
         cwd=cwd,
         capture_output=True,
         text=True,
@@ -145,7 +186,7 @@ class TestGitExtensionManifest:
 
         m = ExtensionManifest(EXT_DIR / "extension.yml")
         assert m.id == "git"
-        assert m.version == "1.0.0"
+        assert m.version == "1.0.9"
 
     def test_manifest_commands(self):
         """Manifest declares expected commands."""
@@ -159,6 +200,18 @@ class TestGitExtensionManifest:
         assert "speckit.git.initialize" in names
         assert "speckit.git.commit" in names
 
+    def test_catalog_version_matches_manifest(self):
+        from specify_cli.extensions import ExtensionManifest
+
+        manifest = ExtensionManifest(EXT_DIR / "extension.yml")
+        catalog = json.loads(
+            (PROJECT_ROOT / "extensions" / "catalog.json").read_text(
+                encoding="utf-8"
+            )
+        )
+
+        assert catalog["extensions"]["git"]["version"] == manifest.version
+
     def test_manifest_hooks(self):
         """Manifest declares expected hooks."""
         from specify_cli.extensions import ExtensionManifest
@@ -168,8 +221,16 @@ class TestGitExtensionManifest:
         assert "before_specify" in m.hooks
         assert "after_specify" in m.hooks
         assert "after_implement" in m.hooks
+        assert "before_plan" not in m.hooks
+        assert "after_plan" not in m.hooks
         assert m.hooks["before_constitution"]["command"] == "speckit.git.initialize"
         assert m.hooks["before_specify"]["command"] == "speckit.git.feature"
+
+    def test_plan_events_are_not_in_bundled_config_or_docs(self):
+        for relative in ("config-template.yml", "git-config.yml", "README.md"):
+            text = (EXT_DIR / relative).read_text(encoding="utf-8")
+            assert "before_plan" not in text
+            assert "after_plan" not in text
 
     def test_manifest_command_files_exist(self):
         """All command files referenced in the manifest exist."""
@@ -283,6 +344,361 @@ class TestInitializeRepoPowerShell:
         project = _setup_project(tmp_path, git=True)
         result = _run_pwsh("initialize-repo.ps1", project)
         assert result.returncode == 0
+
+
+@pytest.mark.parametrize(
+    "exe",
+    [
+        pytest.param(
+            "pwsh",
+            marks=pytest.mark.skipif(not HAS_PWSH, reason="pwsh not available"),
+            id="pwsh",
+        ),
+        pytest.param(
+            WINDOWS_POWERSHELL,
+            marks=pytest.mark.skipif(
+                not WINDOWS_POWERSHELL, reason="Windows PowerShell 5.1 not available"
+            ),
+            id="windows-powershell-5.1",
+        ),
+    ],
+)
+class TestInitializeRepoPowerShellStderr:
+    """git warnings on stderr must not fail initialize-repo.ps1.
+
+    With $ErrorActionPreference = 'Stop', Windows PowerShell 5.1 turns every
+    line a native command writes to redirected stderr into a terminating
+    error, even when the command exits 0. PowerShell 7 does not, so only the
+    windows-powershell-5.1 case can reproduce it.
+    """
+
+    def test_crlf_warnings_do_not_abort_initial_commit(self, tmp_path: Path, exe: str):
+        """LF files with core.autocrlf=true still get the initial commit."""
+        project = _setup_project(tmp_path / "proj", git=False)
+        (project / "notes.txt").write_bytes(b"line one\nline two\n")
+        env = {
+            "GIT_CONFIG_COUNT": "1",
+            "GIT_CONFIG_KEY_0": "core.autocrlf",
+            "GIT_CONFIG_VALUE_0": "true",
+        }
+
+        result = _run_pwsh("initialize-repo.ps1", project, env_extra=env, exe=exe)
+
+        assert result.returncode == 0, result.stdout + result.stderr
+        assert "[OK] Git repository initialized" in result.stdout
+        log = subprocess.run(
+            ["git", "log", "--format=%s"],
+            cwd=project, capture_output=True, text=True,
+        )
+        assert log.stdout.strip() == "[Spec Kit] Initial commit"
+
+    def test_commit_failure_is_still_reported(self, tmp_path: Path, exe: str):
+        """A failing git commit still exits 1 and leaves no commit behind."""
+        project = _setup_project(tmp_path / "proj", git=False)
+        hooks = tmp_path / "hooks"
+        hooks.mkdir()
+        hook = hooks / "pre-commit"
+        hook.write_bytes(b'#!/bin/sh\necho "pre-commit: rejected" >&2\nexit 1\n')
+        hook.chmod(0o755)
+        # autocrlf=false keeps the hook's message the only stderr output.
+        env = {
+            "GIT_CONFIG_COUNT": "2",
+            "GIT_CONFIG_KEY_0": "core.autocrlf",
+            "GIT_CONFIG_VALUE_0": "false",
+            "GIT_CONFIG_KEY_1": "core.hooksPath",
+            "GIT_CONFIG_VALUE_1": str(hooks),
+        }
+
+        result = _run_pwsh("initialize-repo.ps1", project, env_extra=env, exe=exe)
+
+        assert result.returncode == 1
+        assert "pre-commit: rejected" in result.stdout + result.stderr
+        commits = subprocess.run(
+            ["git", "rev-list", "--all", "--count"],
+            cwd=project, capture_output=True, text=True,
+        )
+        assert commits.stdout.strip() == "0"
+
+
+@pytest.mark.parametrize(
+    "exe",
+    [
+        pytest.param(
+            "pwsh",
+            marks=pytest.mark.skipif(not HAS_PWSH, reason="pwsh not available"),
+            id="pwsh",
+        ),
+        pytest.param(
+            WINDOWS_POWERSHELL,
+            marks=pytest.mark.skipif(
+                not WINDOWS_POWERSHELL, reason="Windows PowerShell 5.1 not available"
+            ),
+            id="windows-powershell-5.1",
+        ),
+    ],
+)
+class TestPowerShellBracketedProjectPath:
+    def test_initialize_repo(self, tmp_path: Path, exe: str):
+        """initialize-repo.ps1 reads its config and commits in a path containing [ and ]."""
+        project = _setup_project(tmp_path / "proj [v2]", git=False)
+        _write_config(project, 'init_commit_message: "bracketed init"\n')
+
+        result = _run_pwsh("initialize-repo.ps1", project, exe=exe)
+
+        assert result.returncode == 0, result.stdout + result.stderr
+        log = subprocess.run(
+            ["git", "log", "--format=%s", "-1"],
+            cwd=project, capture_output=True, text=True,
+        )
+        assert log.stdout.strip() == "bracketed init"
+
+    def test_create_feature_branch(self, tmp_path: Path, exe: str):
+        """create-new-feature-branch.ps1 numbers past existing specs in a bracketed path.
+
+        Core common.ps1 goes under .specify/scripts/powershell, where `specify init`
+        installs it: Windows PowerShell 5.1 started in a bracketed directory begins
+        in $PSHOME, so core Get-RepoRoot resolves the project from the script location.
+        """
+        project = _setup_project(tmp_path / "proj [v2]")
+        core_ps = project / ".specify" / "scripts" / "powershell"
+        core_ps.mkdir(parents=True)
+        shutil.copy(CORE_COMMON_PS, core_ps / "common.ps1")
+        (project / "specs" / "001-login-page").mkdir(parents=True)
+
+        result = _run_pwsh(
+            "create-new-feature-branch.ps1", project,
+            "-Json", "-ShortName", "payment-export", "Add payment export",
+            exe=exe,
+        )
+
+        assert result.returncode == 0, result.stdout + result.stderr
+        assert json.loads(result.stdout)["BRANCH_NAME"] == "002-payment-export"
+        branch = subprocess.run(
+            ["git", "branch", "--show-current"],
+            cwd=project, capture_output=True, text=True,
+        )
+        assert branch.stdout.strip() == "002-payment-export"
+
+    def test_create_feature_branch_with_git_common_only(self, tmp_path: Path, exe: str):
+        """Without core scripts, create-new-feature-branch.ps1 loads git-common.ps1 in a bracketed path."""
+        project = _setup_project(tmp_path / "proj [v2]")
+        (project / "scripts" / "powershell" / "common.ps1").unlink()
+
+        result = _run_pwsh(
+            "create-new-feature-branch.ps1", project,
+            "-Json", "-ShortName", "payment-export", "Add payment export",
+            exe=exe,
+        )
+
+        assert result.returncode == 0, result.stdout + result.stderr
+        assert json.loads(result.stdout)["BRANCH_NAME"] == "001-payment-export"
+
+    def test_git_common_detects_git(self, tmp_path: Path, exe: str):
+        """git-common.ps1 Test-HasGit finds the repository at a bracketed path."""
+        project = _setup_project(tmp_path / "proj [v2]")
+        script = EXT_PS / "git-common.ps1"
+
+        result = subprocess.run(
+            [
+                exe, "-NoProfile", "-Command",
+                f". '{script}'; if (Test-HasGit -RepoRoot '{project}') {{ exit 0 }} else {{ exit 1 }}",
+            ],
+            capture_output=True, text=True,
+        )
+
+        assert result.returncode == 0, result.stdout + result.stderr
+
+    def test_auto_commit_message_file(self, tmp_path: Path, exe: str):
+        """auto-commit.ps1 reads its config and -MessageFile in a bracketed path."""
+        project = _setup_project(tmp_path / "proj [v2]")
+        _write_config(project, (
+            "commit_style: conventional\n"
+            "auto_commit:\n"
+            "  default: false\n"
+            "  after_specify:\n"
+            "    enabled: true\n"
+        ))
+        (project / "new-file.txt").write_text("content")
+        msg_file = project / "commit-msg.txt"
+        msg_file.write_text("feat: add payment export\n")
+
+        result = _run_pwsh(
+            "auto-commit.ps1", project, "after_specify", "-MessageFile", str(msg_file),
+            exe=exe,
+        )
+
+        assert result.returncode == 0, result.stdout + result.stderr
+        assert not msg_file.exists()
+        log = subprocess.run(
+            ["git", "log", "--format=%s", "-1"],
+            cwd=project, capture_output=True, text=True,
+        )
+        assert log.stdout.strip() == "feat: add payment export"
+
+    def test_auto_commit_keeps_disabled_event(self, tmp_path: Path, exe: str):
+        """An event disabled in git-config.yml stays off under default: true in a bracketed path."""
+        project = _setup_project(tmp_path / "proj [v2]")
+        _write_config(project, (
+            "auto_commit:\n"
+            "  default: true\n"
+            "  after_specify:\n"
+            "    enabled: false\n"
+        ))
+        (project / "new-file.txt").write_text("content")
+
+        result = _run_pwsh("auto-commit.ps1", project, "after_specify", exe=exe)
+
+        assert result.returncode == 0, result.stdout + result.stderr
+        count = subprocess.run(
+            ["git", "rev-list", "--count", "HEAD"],
+            cwd=project, capture_output=True, text=True,
+        )
+        assert count.stdout.strip() == "1"
+
+
+@pytest.mark.parametrize(
+    "exe",
+    [
+        pytest.param(
+            "pwsh",
+            marks=pytest.mark.skipif(not HAS_PWSH, reason="pwsh not available"),
+            id="pwsh",
+        ),
+        pytest.param(
+            WINDOWS_POWERSHELL,
+            marks=pytest.mark.skipif(
+                not WINDOWS_POWERSHELL, reason="Windows PowerShell 5.1 not available"
+            ),
+            id="windows-powershell-5.1",
+        ),
+    ],
+)
+class TestCreateFeaturePowerShellLegacyStdout:
+    @staticmethod
+    def _run_legacy_stdout(
+        project: Path,
+        exe: str,
+        *args: str,
+        env_extra: dict[str, str] | None = None,
+    ) -> subprocess.CompletedProcess[bytes]:
+        def quote(word: str) -> str:
+            return "'" + word.replace("'", "''") + "'"
+
+        script = (
+            project
+            / ".specify"
+            / "extensions"
+            / "git"
+            / "scripts"
+            / "powershell"
+            / "create-new-feature-branch.ps1"
+        )
+        words = [quote(str(script))] + [
+            arg if re.fullmatch(r"-[A-Za-z]+", arg) else quote(arg) for arg in args
+        ]
+        env = {**os.environ, **_GIT_ENV, **(env_extra or {})}
+        return subprocess.run(
+            [
+                exe,
+                "-NoProfile",
+                "-Command",
+                "$previous = [Console]::OutputEncoding; "
+                "[Console]::OutputEncoding = [System.Text.Encoding]::GetEncoding('iso-8859-1'); "
+                f"try {{ & {' '.join(words)} }} finally {{ [Console]::OutputEncoding = $previous }}; "
+                "exit $LASTEXITCODE",
+            ],
+            cwd=project,
+            capture_output=True,
+            env=env,
+        )
+
+    @pytest.mark.parametrize(
+        "layout",
+        ["core_common", "git_common_only", "stale_core_common"],
+    )
+    @pytest.mark.parametrize(
+        ("branch_override", "expected_num"),
+        [
+            ("équipe/042-后台-🚀", "042"),
+            ("équipe-后台", "équipe-后台"),
+        ],
+    )
+    def test_json_mode_escapes_non_ascii_branch_on_legacy_stdout(
+        self,
+        tmp_path: Path,
+        exe: str,
+        layout: str,
+        branch_override: str,
+        expected_num: str,
+    ):
+        project = _setup_project(tmp_path / "proj", git=False)
+        common_ps = project / "scripts" / "powershell" / "common.ps1"
+        if layout == "git_common_only":
+            common_ps.unlink()
+        elif layout == "stale_core_common":
+            common_ps.write_text(
+                "function Get-RepoRoot { return (Get-Location).Path }\n",
+                encoding="utf-8",
+            )
+
+        result = self._run_legacy_stdout(
+            project,
+            exe,
+            "-Json",
+            "-DryRun",
+            "Add feature",
+            env_extra={"GIT_BRANCH_NAME": branch_override},
+        )
+
+        assert result.returncode == 0, result.stderr.decode("utf-8", errors="replace")
+        assert result.stdout.isascii(), result.stdout
+        payload = json.loads(result.stdout.decode("utf-8"))
+        assert payload == {
+            "BRANCH_NAME": branch_override,
+            "FEATURE_NUM": expected_num,
+            "DRY_RUN": True,
+        }
+
+    def test_creates_non_ascii_branch_and_emits_ascii_json(
+        self, tmp_path: Path, exe: str
+    ):
+        project = _setup_project(tmp_path / "proj")
+        result = self._run_legacy_stdout(
+            project,
+            exe,
+            "-Json",
+            "Add feature",
+            env_extra={"GIT_BRANCH_NAME": "équipe/042-后台"},
+        )
+
+        assert result.returncode == 0, result.stderr.decode("utf-8", errors="replace")
+        assert result.stdout.isascii(), result.stdout
+        payload = json.loads(result.stdout.decode("utf-8"))
+        assert payload == {"BRANCH_NAME": "équipe/042-后台", "FEATURE_NUM": "042"}
+        head = subprocess.run(
+            ["git", "rev-parse", "--abbrev-ref", "HEAD"],
+            cwd=project,
+            capture_output=True,
+            check=True,
+        )
+        assert head.stdout.decode("utf-8").strip() == "équipe/042-后台"
+
+    def test_overlong_non_ascii_override_fails_without_json_stdout(
+        self, tmp_path: Path, exe: str
+    ):
+        project = _setup_project(tmp_path / "proj", git=False)
+        overlong = "001-" + ("功" * 81)
+        result = self._run_legacy_stdout(
+            project,
+            exe,
+            "-Json",
+            "-DryRun",
+            "Add feature",
+            env_extra={"GIT_BRANCH_NAME": overlong},
+        )
+
+        assert result.returncode != 0
+        assert result.stdout.strip() == b""
 
 
 # ── create-new-feature-branch.sh Tests ──────────────────────────────────────────────
@@ -582,6 +998,31 @@ class TestCreateFeatureBash:
         data = json.loads(result.stdout)
         assert data["BRANCH_NAME"] == "001-next"
         assert data["FEATURE_NUM"] == "001"
+
+    @pytest.mark.parametrize("extra_args", [(), ("--dry-run",)], ids=["fetch", "dry-run"])
+    def test_remote_lookup_disables_terminal_prompt(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, extra_args: tuple[str, ...]
+    ):
+        """Branch numbering must not wait on a git credential prompt (#5199).
+
+        The redirects hide git's output but not a prompt written to the
+        terminal, so the fetch and the dry-run ls-remote both need
+        GIT_TERMINAL_PROMPT=0. A failing remote must not stop the script.
+        """
+        monkeypatch.delenv("GIT_TERMINAL_PROMPT", raising=False)
+        project = _setup_project(tmp_path)
+        log = _add_prompt_probe_remote(project)
+
+        result = _run_bash(
+            "create-new-feature-branch.sh", project,
+            "--json", *extra_args, "--short-name", "probe", "Probe feature",
+        )
+
+        assert result.returncode == 0, result.stderr
+        assert json.loads(result.stdout)["BRANCH_NAME"] == "001-probe"
+        calls = _probe_log(log)
+        assert calls, "the probe remote was never contacted"
+        assert set(calls) == {"0"}
 
     def test_no_git_graceful_degradation(self, tmp_path: Path):
         """create-new-feature-branch.sh works without git (outputs branch name, skips branch creation)."""
@@ -934,6 +1375,57 @@ class TestCreateFeaturePowerShell:
         assert data["BRANCH_NAME"] == "jdoe/app-a/custom-branch"
         assert data["FEATURE_NUM"] == "jdoe/app-a/custom-branch"
 
+    @pytest.mark.parametrize("extra_args", [(), ("-DryRun",)], ids=["fetch", "dry-run"])
+    def test_remote_lookup_disables_terminal_prompt(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, extra_args: tuple[str, ...]
+    ):
+        """Branch numbering must not wait on a git credential prompt (#5199)."""
+        monkeypatch.delenv("GIT_TERMINAL_PROMPT", raising=False)
+        project = _setup_project(tmp_path)
+        log = _add_prompt_probe_remote(project)
+
+        result = _run_pwsh(
+            "create-new-feature-branch.ps1", project,
+            "-Json", *extra_args, "-ShortName", "probe", "Probe feature",
+        )
+
+        assert result.returncode == 0, result.stderr
+        json_line = [ln for ln in result.stdout.splitlines() if ln.strip().startswith("{")]
+        assert json_line, f"No JSON in output: {result.stdout}"
+        assert json.loads(json_line[-1])["BRANCH_NAME"] == "001-probe"
+        calls = _probe_log(log)
+        assert calls, "the probe remote was never contacted"
+        assert set(calls) == {"0"}
+
+    @pytest.mark.parametrize("caller_value", ["1", None], ids=["set", "unset"])
+    def test_fetch_restores_caller_terminal_prompt(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, caller_value: str | None
+    ):
+        """The fetch guard must not leak into, or clear, the caller's GIT_TERMINAL_PROMPT."""
+        if caller_value is None:
+            monkeypatch.delenv("GIT_TERMINAL_PROMPT", raising=False)
+        else:
+            monkeypatch.setenv("GIT_TERMINAL_PROMPT", caller_value)
+        project = _setup_project(tmp_path)
+        log = _add_prompt_probe_remote(project)
+        script = project / ".specify" / "extensions" / "git" / "scripts" / "powershell" / "create-new-feature-branch.ps1"
+        command = (
+            f"& '{script}' -Json -ShortName probe 'Probe feature' | Out-Null; "
+            "'after=' + [Environment]::GetEnvironmentVariable('GIT_TERMINAL_PROMPT')"
+        )
+        env = {**os.environ, **_GIT_ENV}
+        result = subprocess.run(
+            ["pwsh", "-NoProfile", "-Command", command],
+            cwd=project,
+            capture_output=True,
+            text=True,
+            env=env,
+        )
+
+        assert result.returncode == 0, result.stderr
+        assert set(_probe_log(log)) == {"0"}
+        assert result.stdout.splitlines()[-1] == f"after={caller_value or ''}"
+
     def test_no_git_graceful_degradation(self, tmp_path: Path):
         """create-new-feature-branch.ps1 works without git."""
         project = _setup_project(tmp_path, git=False)
@@ -1066,20 +1558,20 @@ class TestAutoCommitBash:
         _write_config(project, (
             "auto_commit:\n"
             "  default: false\n"
-            "  after_plan:\n"
+            "  after_custom:\n"
             "    enabled: true\n"
-            '    message: "[Project] Plan complete"\n'
+            '    message: "[Project] Custom complete"\n'
         ))
         (project / "new-file.txt").write_text("content")
 
-        result = _run_bash("auto-commit.sh", project, "after_plan")
+        result = _run_bash("auto-commit.sh", project, "after_custom")
         assert result.returncode == 0
 
         log = subprocess.run(
             ["git", "log", "--oneline", "-1"],
             cwd=project, capture_output=True, text=True,
         )
-        assert "[Project] Plan complete" in log.stdout
+        assert "[Project] Custom complete" in log.stdout
 
     def test_default_true_with_no_event_key(self, tmp_path: Path):
         """auto-commit.sh uses default: true when event key is absent."""
@@ -1158,11 +1650,11 @@ class TestAutoCommitBash:
         _write_config(project, (
             "auto_commit:\n"
             "  default: false\n"
-            "  after_plan:\n"
+            "  after_custom:\n"
             "    enabled: true\n"
         ))
         (project / "new-file.txt").write_text("content")
-        result = _run_bash("auto-commit.sh", project, "after_plan")
+        result = _run_bash("auto-commit.sh", project, "after_custom")
         assert result.returncode == 0
         assert "\u2713" not in result.stderr, "Must not use Unicode checkmark"
 
@@ -1507,11 +1999,11 @@ class TestAutoCommitPowerShell:
         _write_config(project, (
             "auto_commit:\n"
             "  default: false\n"
-            "  after_plan:\n"
+            "  after_custom:\n"
             "    enabled: true\n"
         ))
         (project / "new-file.txt").write_text("content")
-        result = _run_pwsh("auto-commit.ps1", project, "after_plan")
+        result = _run_pwsh("auto-commit.ps1", project, "after_custom")
         assert result.returncode == 0
         assert "\u2713" not in result.stdout, "Must not use Unicode checkmark"
 
@@ -1781,6 +2273,106 @@ class TestAutoCommitPowerShellCommitStyle:
         assert "[Spec Kit] Add specification" in log.stdout
 
 
+# ── PowerShell UTF-8 input tests ─────────────────────────────────────────────
+
+
+@pytest.mark.parametrize(
+    "exe",
+    [
+        pytest.param(
+            "pwsh",
+            marks=pytest.mark.skipif(not HAS_PWSH, reason="pwsh not available"),
+            id="pwsh",
+        ),
+        pytest.param(
+            WINDOWS_POWERSHELL,
+            marks=pytest.mark.skipif(
+                not WINDOWS_POWERSHELL, reason="Windows PowerShell 5.1 not available"
+            ),
+            id="windows-powershell-5.1",
+        ),
+    ],
+)
+class TestPowerShellUtf8Inputs:
+    """Non-ASCII text in git-config.yml and in -MessageFile must reach git unchanged.
+
+    Without -Encoding, Get-Content in Windows PowerShell 5.1 decodes BOM-less
+    UTF-8 with the ANSI code page, so accented letters and dashes came out
+    garbled in commit messages and branch names. PowerShell 7 reads UTF-8 by
+    default, so only the windows-powershell-5.1 case can reproduce it.
+    """
+
+    TEXT = "café — naïve résumé"
+
+    @staticmethod
+    def _git_lines(project: Path, *args: str) -> list[str]:
+        out = subprocess.run(
+            ["git", *args], cwd=project, capture_output=True, check=True
+        )
+        return out.stdout.decode("utf-8").splitlines()
+
+    def test_auto_commit_reads_message_file_as_utf8(self, tmp_path: Path, exe: str):
+        project = _setup_project(tmp_path)
+        _write_config(project, (
+            "commit_style: conventional\n"
+            "auto_commit:\n"
+            "  default: false\n"
+            "  after_specify:\n"
+            "    enabled: true\n"
+        ))
+        (project / "new-file.txt").write_text("content")
+        msg_file = project / "commit-msg.txt"
+        msg_file.write_text(f"feat: {self.TEXT}\n", encoding="utf-8")
+
+        result = _run_pwsh(
+            "auto-commit.ps1", project, "after_specify", "-MessageFile", str(msg_file),
+            exe=exe,
+        )
+
+        assert result.returncode == 0, result.stdout + result.stderr
+        assert self._git_lines(project, "log", "-1", "--format=%s") == [f"feat: {self.TEXT}"]
+
+    def test_auto_commit_reads_configured_message_as_utf8(self, tmp_path: Path, exe: str):
+        project = _setup_project(tmp_path)
+        _write_config(project, (
+            "auto_commit:\n"
+            "  default: false\n"
+            "  after_specify:\n"
+            "    enabled: true\n"
+            f'    message: "{self.TEXT}"\n'
+        ))
+        (project / "new-file.txt").write_text("content")
+
+        result = _run_pwsh("auto-commit.ps1", project, "after_specify", exe=exe)
+
+        assert result.returncode == 0, result.stdout + result.stderr
+        assert self._git_lines(project, "log", "-1", "--format=%s") == [self.TEXT]
+
+    def test_initialize_repo_reads_init_commit_message_as_utf8(self, tmp_path: Path, exe: str):
+        project = _setup_project(tmp_path, git=False)
+        _write_config(project, f'init_commit_message: "{self.TEXT}"\n')
+
+        result = _run_pwsh("initialize-repo.ps1", project, exe=exe)
+
+        assert result.returncode == 0, result.stdout + result.stderr
+        assert self._git_lines(project, "log", "-1", "--format=%s") == [self.TEXT]
+
+    def test_create_branch_reads_branch_prefix_as_utf8(self, tmp_path: Path, exe: str):
+        project = _setup_project(tmp_path)
+        _write_config(project, 'branch_prefix: "équipe"\n')
+
+        result = _run_pwsh(
+            "create-new-feature-branch.ps1", project,
+            "-ShortName", "guided-tour", "Add guided tour",
+            exe=exe,
+        )
+
+        assert result.returncode == 0, result.stdout + result.stderr
+        assert self._git_lines(project, "branch", "--show-current") == [
+            "équipe/001-guided-tour"
+        ]
+
+
 # ── auto-commit.ps1 CRLF warning tests (issue #2253) ────────────────────────
 
 
@@ -1856,24 +2448,24 @@ class TestAutoCommitPowerShellCRLF:
         _write_config(project, (
             "auto_commit:\n"
             "  default: false\n"
-            "  after_plan:\n"
+            "  after_custom:\n"
             "    enabled: true\n"
-            '    message: "[Project] Plan done"\n'
+            '    message: "[Project] Custom done"\n'
         ))
         subprocess.run(
             ["git", "config", "core.autocrlf", "true"],
             cwd=project, check=True,
         )
-        (project / "plan.txt").write_bytes(b"plan\ncontent\n")
+        (project / "custom.txt").write_bytes(b"custom\ncontent\n")
 
-        result = _run_pwsh("auto-commit.ps1", project, "after_plan")
+        result = _run_pwsh("auto-commit.ps1", project, "after_custom")
         assert result.returncode == 0
 
         log = subprocess.run(
             ["git", "log", "--format=%s", "-1"],
             cwd=project, capture_output=True, text=True,
         )
-        assert "[Project] Plan done" in log.stdout.strip()
+        assert "[Project] Custom done" in log.stdout.strip()
 
     def test_no_changes_still_skips_with_autocrlf(self, tmp_path: Path):
         """Script correctly detects 'no changes' even with core.autocrlf=true."""

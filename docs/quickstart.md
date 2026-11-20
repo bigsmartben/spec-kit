@@ -1,16 +1,33 @@
-# 快速开始
+<a id="quick-start-guide"></a>
+
+# Spec-Driven Development Quickstart
 
 这份指南面向本仓库分发版的 Spec Kit。它保留核心 Spec-Driven Development 流程，默认只安装 `git` 扩展和 `workflow-preset`；技术调研、HTML 预览和上下文维护均按需启用。
 
-> [!NOTE]
-> 自动化脚本同时提供 Bash (`.sh`) 和 PowerShell (`.ps1`) 版本。`specify` CLI 会按系统自动选择，也可以通过 `--script sh|ps` 显式指定。
+Use SDD to build a feature or application from a specification. For a repair,
+follow the [bug-fixing quickstart](guides/bugfix.md); to decide whether an idea
+deserves investment, follow the [idea assessment quickstart](guides/assessment.md).
+These are independent processes, not prerequisites for this guide.
 
-## 推荐流程
+> [!NOTE]
+> Automation scripts are provided as Bash (`.sh`), PowerShell (`.ps1`), and Python (`.py`) variants. Interactive `specify init` prompts you to choose one; non-interactive runs (no TTY, or `--non-interactive`) default to a shell variant for your OS. Pass `--script sh|ps|py` to select explicitly.
+
+The process steps here use GitHub Copilot's default skills mode (`/speckit-*`).
+For other agents or modes, see
+[Command invocation](integrations/cli.md#command-invocation).
+Invoke each `/speckit-*` skill separately in your agent's chat and review the
+result before moving to the next step. These are agent skills, not terminal
+commands; only CLI installation and project setup use the terminal.
+
+## Recommended Process
 
 > [!TIP]
 > Spec Kit 会根据当前 Git 分支自动识别 active feature，例如 `001-photo-album`。切换规格时通常只需要切换分支。
 
-生产功能建议使用默认增强链路：
+After installing Spec Kit, each skill below is a step in the process. Two paths are common:
+
+Establish a constitution once per project with `/speckit-constitution` before
+starting either path.
 
 ```text
 /speckit.constitution             # 同时托管 constitution.md 与 architecture.md
@@ -24,271 +41,165 @@
 /speckit.converge
 ```
 
-`/speckit.checklist` 在规划前根据 `spec.md` 生成多领域需求门禁；`/speckit.clarify` 修复其中的产品决策缺口并重评门禁。Planning Readiness 是运行时聚合结果，不会生成独立文件。`/speckit.analyze` 在实现前检查 spec、plan 和 tasks 的一致性；`/speckit.converge` 在实现后对照 feature artifacts 检查剩余缺口。如果 converge 追加了新任务，继续运行 `/speckit.implement` 并再次 converge，直到功能收敛。
+1. `/speckit-specify`
+2. `/speckit-tasks`
+3. `/speckit-implement`
 
-接手旧仓库时仍运行 `/speckit.constitution`，但明确指定 brownfield（老项目）模式、允许检查的仓库范围，以及每项证据的角色。代码、README、Git 历史或约定路径不会自动成为架构事实。
+**Full path** — for production features, adding `/speckit-clarify`, `/speckit-checklist`, and `/speckit-analyze` as quality gates:
 
-小实验可以安装 `lean` 预设后走轻量路径：
+1. `/speckit-constitution` (once per project)
+2. `/speckit-specify`
+3. `/speckit-clarify`
+4. `/speckit-checklist`
+5. `/speckit-tasks`
+6. `/speckit-analyze`
+7. `/speckit-implement`
 
-```bash
-specify preset add lean
-```
+### Install Specify
 
-```text
-/speckit.specify -> /speckit.checklist -> /speckit.clarify -> /speckit.plan -> /speckit.tasks -> /speckit.implement
-```
-
-## 1. 安装 Specify
-
-推荐使用 [uv](https://docs.astral.sh/uv/) 持久安装：
-
-```bash
-uv tool install specify-cli --from git+https://github.com/bigsmartben/spec-kit.git
-```
-
-从仓库地址安装：
+**In your terminal**, install the CLI from PyPI (requires [uv](install/uv.md)), then initialize your project:
 
 ```bash
-uv tool install specify-cli --from git+https://github.com/bigsmartben/spec-kit.git
+uv tool install specify-cli
+specify init taskify --integration copilot
+cd taskify
 ```
 
-也可以一次性运行：
+`init` lets you pick your coding agent interactively, or pass it explicitly with `--integration` (e.g. `--integration copilot`). For CI and AI agent harnesses, add `--non-interactive` so unspecified choices use documented defaults instead of hanging on an arrow-key picker.
 
-```bash
-uvx --from git+https://github.com/bigsmartben/spec-kit.git specify init my-project
-```
+> [!NOTE]
+> Prefer `pipx`, one-time `uvx` runs, a pinned release, or an offline/air-gapped setup? See the [Installation Guide](installation.md) for all supported methods.
+> Adding Spec Kit to a repository that already contains code? Follow
+> [Adopting Spec Kit in an Existing Project](how-to/existing-projects.md) before
+> starting the workflow below.
 
-显式选择脚本类型：
+Launch your coding agent in the project directory. Invoke the following skills
+in its chat, one at a time.
 
-```bash
-specify init my-project --script ps  # Force PowerShell
-specify init my-project --script sh  # Force POSIX shell
-```
+<a id="step-1-speckitconstitution--set-the-ground-rules"></a>
 
-## 2. 初始化项目
+### Step 1: `/speckit-constitution` — set the ground rules
 
-选择你正在使用的 AI 编码助手：
-
-```bash
-specify init my-project --integration codex
-cd my-project
-```
-
-在已有仓库中初始化：
-
-```bash
-specify init . --integration codex --force
-```
-
-如果 agent 工具没有安装，但你只想先生成 Spec Kit 文件：
-
-```bash
-specify init my-project --integration copilot --ignore-agent-tools
-```
-
-Codex 和部分 agent 支持 skills 模式：
-
-```bash
-specify init my-project --integration codex --integration-options="--skills"
-```
-
-查看当前支持的集成：
-
-```bash
-specify integration list
-```
-
-## 3. 建立项目原则与架构
-
-在编码助手中先建立项目原则和独立的项目架构：
+Establishes the project's guiding principles, which every later step is evaluated against. Run it once up front, passing your principles as arguments.
 
 ```text
-/speckit.constitution Greenfield. Use this conversation as the selected source, exclude repository scaffolding, and update both Constitution and Architecture.
+/speckit-constitution Taskify is a "Security-First" application. All user inputs must be validated. We use a microservices architecture. Code must be fully documented.
 ```
 
-`/speckit.constitution` 会先确认输入协议：新项目/老项目/修订模式、目标、用户选择的来源、排除来源、仓库检查范围，以及本轮允许更新 Constitution、Architecture 或两者。`uc.md` 只是可选外部输入之一，不是门槛。
+<a id="step-2-speckitspecify--describe-what-to-build"></a>
 
-架构产物固定为一个文件：
+### Step 2: `/speckit-specify` — describe what to build
+
+Creates the feature specification from a natural-language description and
+freezes the observable user experience before implementation. The command
+produces `spec.md`, a self-contained `prototype.html`, and a pending UAT
+baseline in `quickstart.md`. The prototype is the construction contract for
+layout and interaction, while each `UAT-*` case maps a user-observable scenario
+to requirements and exact prototype anchors. Specify defines acceptance only;
+it does not execute or mark UAT as passed.
 
 ```text
-.specify/memory/architecture.md
+/speckit-specify Develop Taskify, a team productivity platform where predefined users create projects, assign tasks, comment, and move tasks across Kanban columns (To Do, In Progress, In Review, Done). Five users (one product manager, four engineers), three sample projects, no login for this first phase.
 ```
 
-其推理顺序是 System Boundary（系统边界）→ Conceptual Model（概念模型）→ Technical Decisions & Evidence（技术决策与证据）→ Planning Guardrails & Gaps（规划守则与缺口），不再生成 4+1、多视图或 PoC 目录。
+<a id="step-3-speckitclarify--resolve-ambiguities"></a>
 
-需要维护 agent 上下文文件时，显式运行 `specify extension add agent-context`；CLI 本身不会写入或迁移这些文件。
+### Step 3: `/speckit-clarify` — resolve ambiguities
 
-## 4. 确认项目架构
-
-项目架构已在 `/speckit.constitution` 阶段创建或修订。开始 feature（功能）规格前，确认该文件已经表达架构目标、用户授权来源，以及至少一个明确的责任边界：
-
-主要产物：
+Asks targeted questions about anything underspecified and folds the answers back
+into the frozen Specify contract. Run it before task generation, optionally with
+a focus area.
 
 ```text
-.specify/memory/architecture.md
+/speckit-clarify Focus on task card behavior — status changes, comment permissions, and user assignment.
 ```
 
-后续 `/speckit.plan` 必须读取它：`research.md` 遵循已有技术决策和证据，`data-model.md` 保留概念及不变量，`contracts/` 保留系统边界和依赖方向，`plan.md` 与 `quickstart.md` 继续携带适用约束和缺口。若 feature 需要改变项目架构，停止 plan 并返回 `/speckit.constitution`。
+<a id="step-4-speckitchecklist--validate-the-spec"></a>
 
-## 5. 创建、检查并澄清规格
+### Step 4: `/speckit-checklist` — validate the spec
 
-创建功能规格时只描述用户目标、业务规则和验收语义，不要过早指定技术栈：
+Generates a custom quality checklist — "unit tests for your requirements" — to confirm the spec is complete, clear, and consistent before you break the work down. These custom checklists are reviewer-owned requirements-quality review artifacts: mark an item `[x]` only when the reviewer determines that requirement-quality criterion is satisfied. Checked custom items do not mean implementation work is complete.
 
 ```text
-/speckit.specify Build a photo album app. Users can create albums, group photos by date, reorder albums by drag and drop, and preview photos as tiles. The UI must support mobile browsing and desktop bulk organization.
+/speckit-checklist
 ```
 
-生成 requirements、behavior、UX、security、NFR 和 visual 领域的需求门禁：
+<a id="step-5-speckittasks--break-the-work-down"></a>
+
+### Step 5: `/speckit-tasks` — break the work down
+
+Reads only `spec.md`, `prototype.html`, `quickstart.md`, and the project
+constitution. It creates independently deliverable requirement-level work
+packages in `tasks.md` without choosing a stack, architecture, files, or
+implementation paths. Every `FR-*`, `SC-*`, prototype `data-spec-ref`, and
+`UAT-*` must map to at least one package. Delivery obligations use `[BUILD]`;
+every UAT also has one explicit `[UAT]` execution task.
+
+If the frozen contract is internally inconsistent or a required mapping is
+missing, Task stops and sends the issue back to Specify or Clarify. It does not
+invent requirements or technical design to fill the gap.
 
 ```text
-/speckit.checklist
+/speckit-tasks
 ```
 
-如果门禁中存在产品决策缺口，再运行：
+<a id="step-6-speckitanalyze--check-consistency"></a>
+
+### Step 6: `/speckit-analyze` — check consistency
+
+Reports conflicts, gaps, and ambiguities across `spec.md`, `prototype.html`,
+`quickstart.md`, and `tasks.md`. It is read-only. Return requirement, prototype,
+or UAT problems to Specify or Clarify, and return coverage or neutrality
+problems to Task before implementing.
 
 ```text
-/speckit.clarify Focus on album permissions, empty states, reorder conflict behavior, responsive UI states, and validation boundaries.
+/speckit-analyze
 ```
 
-检查生成的领域清单：
+<a id="step-7-speckitimplement--build-it"></a>
+
+### Step 7: `/speckit-implement` — build it
+
+Owns the technical decisions: the stack, architecture, file structure, and
+implementation paths. It executes the work packages in `tasks.md` in dependency
+order and performs the mapped UAT scenarios.
+
+Before implementation, it reads checklist checkbox state as a gate and asks
+before proceeding if any checklist items are unchecked; it does not change any
+checklist files or markers. The built-in `checklists/requirements.md` checklist
+is maintained by `/speckit-specify` and `/speckit-clarify`, while custom
+checklists remain reviewer-owned.
+
+Within `quickstart.md`, Implement updates only the corresponding UAT entry's
+`Status`, `Actual Result`, `Evidence`, and `Deviation` fields. It must not change
+the frozen requirements, actions, expected results, references, or identifiers.
+Set status to `PASS`, `FAIL`, or `BLOCKED` only from observed execution; a UAT
+task is complete only when its matching scenario passes.
+Run it once to build everything, or scope it to a set of work packages at a time.
 
 ```text
-specs/<feature>/checklists/requirements.md
-specs/<feature>/checklists/behavior.md
-specs/<feature>/checklists/ux.md
-specs/<feature>/checklists/security.md
-specs/<feature>/checklists/nfr.md
-specs/<feature>/checklists/visual.md
+/speckit-implement
 ```
 
-如果清单指出产品决策缺失，使用 `/speckit.clarify` 修复；provider 证据缺口返回来源证据流程。所有适用门禁通过后，`/speckit.plan` 才会写入规划产物。
-
-## 6. 预览 UI/UX 规格
-
-对 UI、流程或交互有不确定性时，先生成保真度合适的预览产物：
-
-```bash
-specify extension add preview
-```
-
-```text
-/speckit.preview.wireflow mid mobile album browsing and reorder flow
-```
-
-打开输出文件评审：
-
-```text
-specs/<feature>/preview/wireflow.html
-```
-
-这个文件只用于实现前评审 flow、信息架构、状态和交互假设，不会修改生产代码。也可以按需要使用 `/speckit.preview.wireflow low` 或 `/speckit.preview.wireflow high`。
-
-## 7. 生成计划与行为契约
-
-规划阶段再指定技术栈和工程约束：
-
-```text
-/speckit.plan Use Vite, TypeScript, SQLite, and a minimal dependency set. Store photo metadata locally and do not upload images.
-```
-
-默认 `workflow-preset` 会把已通过 readiness gate 的需求投影为 BDD、UIF 和 fixture intent，并在规划中正式化为契约。常见产物包括：
-
-```text
-specs/<feature>/behavior/bdd.draft.feature
-specs/<feature>/behavior/uif.intent.json
-specs/<feature>/behavior/data-fixtures.intent.json
-specs/<feature>/contracts/bdd/
-specs/<feature>/contracts/uif/
-specs/<feature>/contracts/behavior/
-specs/<feature>/quickstart.md
-specs/<feature>/behavior/behavior-testability.md
-```
-
-`behavior/behavior-testability.md` 在计划收尾时把 Required Case、正式契约、fixture、assertion、视觉/NFR 引用和 `quickstart.md` 路径映射为 Task Readiness；它不属于需求清单目录。
-
-## 8. 拆任务、分析并实现
-
-生成任务：
-
-```text
-/speckit.tasks
-```
-
-默认任务生成会从 BDD、UIF、行为契约、接口契约、`research.md` 和 `quickstart.md` 派生测试层级、fixture/mock/sandbox 策略和验证证据要求。
-
-实现前做一致性检查：
-
-```text
-/speckit.analyze
-```
-
-开始实现：
-
-```text
-/speckit.implement
-```
-
-`/speckit.implement` 使用标准单会话流程读取完整任务和规划上下文，按阶段执行 `tasks.md`、运行验证，并标记完成项目。
-
-## 9. 收敛验证
-
-实现后运行 converge，检查当前代码是否已经覆盖 feature artifacts，并把未完成工作追加回 `tasks.md`：
-
-```text
-/speckit.converge
-```
-
-如果 converge 追加了新任务，重新运行 `/speckit.implement`，再运行 `/speckit.converge`，直到它报告功能已收敛。
+> [!TIP]
+> For a full reference on each command — arguments, outputs, work-package
+> boundaries, UAT ownership, and how the commands interact — see
+> [Agentic SDD](reference/agentic-sdd.md).
 
 大型项目可以分阶段实现和验证，例如先完成核心结构，再做交互行为，最后补齐评论、权限、分配等垂直切片，避免单次上下文过载。
 
-## 10. 可选：运行带 review gate 的 workflow
+- **Be explicit** about what you're building and why
+- **Don't focus on tech stack** during specification phase
+- **Freeze** requirements, prototype behavior, and UAT expectations before task generation
+- **Keep Task technology-neutral** and route contract conflicts back to Specify
+- **Validate** full FR, SC, prototype, and UAT coverage before coding
+- **Let Implement own** architecture, files, implementation paths, and UAT evidence
 
 如果你想体验可恢复的端到端 workflow：
 
-```bash
-specify workflow add speckit
-specify workflow run speckit --input spec="Build a small photo album app with album reorder and tile preview"
-specify workflow status
-specify workflow resume <run_id>
-```
-
-内置 `speckit` workflow 会串联 specify、plan、tasks、implement，并在 spec review 和 plan review 处暂停等待人工确认。
-
-## 常见操作
-
-查看增强能力：
-
-```bash
-specify extension search
-specify preset search
-specify workflow search
-```
-
-安装可选增强能力：
-
-```bash
-specify extension add arch
-specify extension add discovery
-specify extension add preview
-specify extension add agent-context
-specify preset add workflow-preset
-```
-
-升级当前项目中的 integration 文件：
-
-```bash
-specify integration upgrade
-```
-
-卸载某个 integration：
-
-```bash
-specify integration uninstall <key>
-```
-
-## 下一步
-
-- 阅读 [完整方法论](../spec-driven.md)。
-- 查看 [扩展系统](../extensions/README.md)、[预设系统](../presets/README.md) 和 [workflow 系统](../workflows/README.md)。
-- 本地开发 CLI 时参考 [local-development](./local-development.md)。
+- See the [Agentic SDD](reference/agentic-sdd.md) reference for full detail on every command
+- Learn how to [customize the process](how-to/customization.md) with extensions, presets, workflows, and bundles
+- Read the [complete methodology](https://github.com/github/spec-kit/blob/main/spec-driven.md) for in-depth guidance
+- Compare the [core templates](https://github.com/github/spec-kit/tree/main/templates) with
+  [community walkthroughs](community/walkthroughs.md) to see how Spec-Driven Development is used in real projects
+- Explore the [source code on GitHub](https://github.com/github/spec-kit)

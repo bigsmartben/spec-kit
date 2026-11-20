@@ -8,8 +8,8 @@ from __future__ import annotations
 import pytest
 
 from specify_cli.bundler import BundlerError
-from specify_cli.bundler.models.manifest import BundleManifest
-from tests.bundler_helpers import valid_manifest_dict
+from specify_cli.bundles.manifest import BundleManifest
+from tests.specify_cli.bundles.helpers import valid_manifest_dict
 
 
 def test_valid_manifest_has_no_structural_errors():
@@ -100,6 +100,26 @@ def test_non_integer_priority_raises_actionable_error():
         BundleManifest.from_dict(data)
 
 
+@pytest.mark.parametrize(
+    ("kind", "priority"), [("presets", 0), ("presets", -3), ("extensions", 0)]
+)
+def test_non_positive_priority_is_rejected(kind, priority):
+    """Preset and extension installs reject a priority below 1, so validation must too."""
+    data = valid_manifest_dict()
+    data["provides"][kind][0]["priority"] = priority
+    errors = BundleManifest.from_dict(data).structural_errors()
+    assert any(
+        "priority must be 1 or higher" in e and f"got {priority}" in e for e in errors
+    ), errors
+
+
+@pytest.mark.parametrize("kind", ["presets", "extensions"])
+def test_priority_of_one_is_accepted(kind):
+    data = valid_manifest_dict()
+    data["provides"][kind][0]["priority"] = 1
+    assert BundleManifest.from_dict(data).structural_errors() == []
+
+
 def test_non_step_components_must_be_pinned():
     data = valid_manifest_dict()
     data["provides"]["extensions"] = [{"id": "ext-unpinned"}]
@@ -162,6 +182,25 @@ def test_string_mcp_rejected_not_split_per_character():
     data = valid_manifest_dict()
     data["requires"]["mcp"] = "github"
     with pytest.raises(BundlerError, match="'requires.mcp' must be a list of strings"):
+        BundleManifest.from_dict(data)
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("tags", [1]),
+        ("requires.tools", [False]),
+        ("requires.mcp", [{}]),
+    ],
+)
+def test_string_list_fields_reject_non_string_members(field, value):
+    data = valid_manifest_dict()
+    if field == "tags":
+        data["tags"] = value
+    else:
+        data["requires"][field.split(".", 1)[1]] = value
+
+    with pytest.raises(BundlerError, match="must be a list of strings"):
         BundleManifest.from_dict(data)
 
 

@@ -60,10 +60,11 @@ class TestGrokInitFlow:
         )
 
         assert result.exit_code == 0, f"init --integration grok failed: {result.output}"
-        assert (target / ".grok" / "skills" / "speckit-plan" / "SKILL.md").exists()
+        assert (target / ".grok" / "skills" / "speckit-tasks" / "SKILL.md").exists()
+        assert not (target / ".grok" / "skills" / "speckit-plan").exists()
         assert (target / ".grok" / "skills" / "speckit-specify" / "SKILL.md").exists()
 
-    def test_plan_skill_has_no_context_placeholder(self, tmp_path):
+    def test_tasks_skill_has_no_context_placeholder(self, tmp_path):
         """Core skills must not carry a context-file placeholder."""
         target = tmp_path / "test-proj"
         target.mkdir()
@@ -72,8 +73,8 @@ class TestGrokInitFlow:
         manifest = IntegrationManifest("grok", target)
         integration.setup(target, manifest, script_type="sh")
 
-        plan_skill = target / ".grok" / "skills" / "speckit-plan" / "SKILL.md"
-        content = plan_skill.read_text(encoding="utf-8")
+        tasks_skill = target / ".grok" / "skills" / "speckit-tasks" / "SKILL.md"
+        content = tasks_skill.read_text(encoding="utf-8")
         assert "__CONTEXT_FILE__" not in content
 
     def test_build_exec_args_uses_headless_prompt_flag(self):
@@ -121,11 +122,11 @@ class TestGrokNextSteps:
         assert ".grok/skills" in result.output, (
             f"Expected .grok/skills install path in next steps but got:\n{result.output}"
         )
-        assert "/speckit-plan" in result.output, (
-            f"Expected /speckit-plan in next steps but got:\n{result.output}"
+        assert "/speckit-tasks" in result.output, (
+            f"Expected /speckit-tasks in next steps but got:\n{result.output}"
         )
-        assert "/speckit.plan" not in result.output, (
-            f"Should not show /speckit.plan for Grok skills mode:\n{result.output}"
+        assert "/speckit.tasks" not in result.output, (
+            f"Should not show /speckit.tasks for Grok skills mode:\n{result.output}"
         )
 
 

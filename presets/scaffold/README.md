@@ -8,7 +8,7 @@ A contract-first starter for a custom Spec Kit Preset.
 |----------|------|-------------|
 | `spec-template` | template | Custom feature specification template (overrides core and extensions) |
 | `myext-template` | template | Override of the myext extension's report template |
-| `speckit.specify` | command | Custom specification command (overrides core) |
+| `speckit.specify` | command | Custom specification command producing spec, prototype, and pending UAT baseline (overrides core) |
 | `speckit.myext.myextcmd` | command | Override of the myext extension's myextcmd command |
 
 ## Development
@@ -47,15 +47,13 @@ Required fields:
 
 ## Template Types
 
-- **template** — Document scaffolds (spec-template.md, plan-template.md, tasks-template.md, etc.)
-- **command** — AI agent workflow prompts (e.g. speckit.specify, speckit.plan)
+- **template** — Document scaffolds (spec-template.md, prototype-template.md, quickstart-template.md, tasks-template.md, etc.)
+- **command** — AI agent workflow prompts (e.g. speckit.specify, speckit.tasks)
 - **script** — Custom scripts (reserved for future use)
 
 Composition strategies:
 
-- `replace`, `prepend`, `append`, and `wrap` for Template or Command.
-- `replace` and `wrap` only for Script.
-- `wrap` requires `{CORE_TEMPLATE}` or `$CORE_SCRIPT`.
+See the [Preset Publishing Guide](https://github.github.io/spec-kit/presets/publishing.html) for details on submitting to the catalog.
 
 ## Normative Reference
 

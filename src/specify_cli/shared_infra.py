@@ -2,12 +2,12 @@
 
 from __future__ import annotations
 
+import contextlib
 import hashlib
 import hmac
 import logging
 import os
 import re
-import tempfile
 from pathlib import Path
 from typing import Any
 
@@ -15,6 +15,27 @@ from .integrations.base import IntegrationBase
 from .integrations.manifest import IntegrationManifest
 
 logger = logging.getLogger(__name__)
+
+# Managed ``.specify/.gitignore``. Keeps machine-local Spec Kit state out of
+# version control while leaving shareable project files (specs, constitution,
+# templates, scripts, extension config) tracked. Patterns are relative to the
+# ``.specify/`` directory the file lives in.
+SPECIFY_GITIGNORE_CONTENT = """\
+# Machine-local Spec Kit state — not meant to be shared.
+# Managed by the Specify CLI; safe to edit (your changes are preserved on refresh).
+
+# Local pointer to the current feature directory. Rewritten every time you
+# switch features, so it is per-checkout state rather than something to share.
+feature.json
+
+# Per-machine extension config overrides.
+extensions/*/local-config.yml
+
+# Executable adapter packages and their per-checkout provenance registry.
+# Execution consent is stored separately in the user's local trust registry.
+integrations/packages/
+integrations/packages.json
+"""
 
 # Matches a SHA-256 digest in its normalized form: exactly 64 hexadecimal
 # characters. Callers lowercase the declared value before matching (see
@@ -168,6 +189,8 @@ def _ensure_safe_shared_directory(
     context: str = "shared infrastructure directory",
 ) -> None:
     """Create a shared infra directory without following symlinked parents."""
+    from .integrations._file_changes import directory_created
+
     root = project_path.resolve()
     rel = _shared_relative_path(project_path, directory)
     current = project_path
@@ -188,6 +211,7 @@ def _ensure_safe_shared_directory(
         if not create:
             raise ValueError(f"{context.capitalize()} does not exist: {label}")
         current.mkdir()
+        directory_created(current)
         if current.is_symlink():
             raise SymlinkedSharedPathError(f"Refusing to use symlinked {context}: {label}")
         try:
@@ -217,6 +241,60 @@ def _validate_safe_shared_directory(project_path: Path, directory: Path) -> None
             raise ValueError(f"Shared infrastructure directory escapes project root: {label}") from None
 
 
+@contextlib.contextmanager
+def _exclusive_project_lock(project_root: Path, lock_name: str, *, context: str):
+    """Hold an exclusive inter-process lock on ``.specify/<lock_name>``.
+
+    Callers use one lock file per mutable project resource so that its
+    directory and registry changes are serialized across processes. Every
+    failure to acquire the lock is raised as ``OSError``.
+    """
+    project_root = Path(project_root)
+    lock_dir = project_root / ".specify"
+    try:
+        _ensure_safe_shared_directory(
+            project_root, lock_dir, context=f"{context} lock directory"
+        )
+    except ValueError as exc:
+        raise OSError(str(exc)) from exc
+    lock_file = lock_dir / lock_name
+    if lock_file.is_symlink():
+        raise OSError(f"Refusing to use symlinked {context} lock: {lock_file}")
+
+    flags = os.O_RDWR | os.O_CREAT
+    flags |= getattr(os, "O_NOFOLLOW", 0)
+    flags |= getattr(os, "O_CLOEXEC", 0)
+    fd = os.open(lock_file, flags, 0o600)
+    try:
+        if lock_file.is_symlink():
+            raise OSError(f"Refusing to use symlinked {context} lock: {lock_file}")
+        # Call the lock primitives through their modules so tests can observe
+        # contention by patching ``msvcrt.locking`` / ``fcntl.flock``.
+        if os.name == "nt":
+            import errno
+            import msvcrt
+            import time
+
+            if os.fstat(fd).st_size == 0:
+                os.write(fd, b"\0")
+            while True:
+                os.lseek(fd, 0, os.SEEK_SET)
+                try:
+                    msvcrt.locking(fd, msvcrt.LK_NBLCK, 1)
+                    break
+                except OSError as exc:
+                    if exc.errno not in (errno.EACCES, errno.EDEADLK):
+                        raise
+                    time.sleep(0.05)
+        else:
+            import fcntl
+
+            fcntl.flock(fd, fcntl.LOCK_EX)
+        yield
+    finally:
+        os.close(fd)
+
+
 def _ensure_safe_shared_destination(
     project_path: Path,
     dest: Path,
@@ -241,6 +319,26 @@ def _ensure_safe_shared_destination(
             raise ValueError(f"Shared infrastructure destination escapes project root: {label}") from None
 
 
+def _shared_script_mode(src_path: Path, content: bytes) -> int:
+    """Return the mode a shared script is written with.
+
+    Packaged scripts are 0644. A POSIX shell script that starts with a shebang
+    and no execute bit yet gets one for each class that can read it (always for
+    the owner), the rule ``ensure_executable_scripts`` applies, so a refresh that
+    rewrites it leaves it runnable without a separate chmod pass. A script that
+    already has an execute bit keeps its mode.
+    """
+    mode = src_path.stat().st_mode & 0o777
+    if (
+        os.name != "nt"
+        and src_path.suffix == ".sh"
+        and content.startswith(b"#!")
+        and not mode & 0o111
+    ):
+        mode |= ((mode & 0o444) >> 2) | 0o100
+    return mode
+
+
 def _write_shared_text(project_path: Path, dest: Path, content: str) -> None:
     _write_shared_bytes(project_path, dest, content.encode("utf-8"))
 
@@ -253,17 +351,18 @@ def _write_shared_bytes(
     mode: int = 0o644,
 ) -> None:
     _ensure_safe_shared_destination(project_path, dest)
-    fd, temp_name = tempfile.mkstemp(prefix=f".{dest.name}.", dir=dest.parent)
-    temp_path = Path(temp_name)
-    try:
-        with os.fdopen(fd, "wb") as fh:
-            fh.write(content)
-        temp_path.chmod(mode)
-        _ensure_safe_shared_destination(project_path, dest)
-        os.replace(temp_path, dest)
-    finally:
-        if temp_path.exists():
-            temp_path.unlink()
+    from .integrations._file_changes import (
+        after_file_change,
+        atomic_write_bytes,
+        before_file_change,
+    )
+
+    before_file_change(dest)
+    atomic_write_bytes(
+        dest, content, mode, exact=True,
+        before_replace=lambda: _ensure_safe_shared_destination(project_path, dest),
+    )
+    after_file_change(dest)
 
 
 _BASH_FORMAT_COMMAND_RE = re.compile(
@@ -385,6 +484,13 @@ def refresh_shared_templates(
             console.print(f"    {rel}")
 
 
+def script_variant_dirs(script_type: str) -> tuple[str, ...]:
+    """Return the ``scripts/`` variant directories installed for *script_type*."""
+    if script_type == "py":
+        return ("python", "powershell" if os.name == "nt" else "bash")
+    return ("bash" if script_type == "sh" else "powershell",)
+
+
 def install_shared_infra(
     project_path: Path,
     script_type: str,
@@ -433,15 +539,11 @@ def install_shared_infra(
     planned_copies: list[tuple[Path, str, bytes, int]] = []
     planned_templates: list[tuple[Path, str, str]] = []
     # Track every shared path the current bundle produces so we can detect
-    # manifest entries the core no longer ships (stale-script cleanup, #3076).
+    # manifest entries the core no longer ships (stale shared-infra cleanup).
     seen_rels: set[str] = set()
     scanned_variant_dirs: set[str] = set()
-    shell_variant = "powershell" if os.name == "nt" else "bash"
-    variant_dirs = (
-        ("python", shell_variant)
-        if script_type == "py"
-        else ("bash" if script_type == "sh" else "powershell",)
-    )
+    scanned_templates = False
+    variant_dirs = script_variant_dirs(script_type)
 
     def _decide_overwrite(rel: str, dst: Path) -> tuple[bool, str | None]:
         """Return (write, bucket) where bucket is 'skip', 'preserved', or None."""
@@ -503,7 +605,11 @@ def install_shared_infra(
                 dest_variant = dest_scripts / variant_dir
                 if not _ensure_or_bucket_dir(dest_variant):
                     continue
-                for src_path in variant_src.rglob("*"):
+                section_engine = Path(__file__).with_name("markdown_sections.py")
+                sources = list(variant_src.rglob("*"))
+                if any(path.name in ("common.sh", "common.ps1", "common.py") for path in sources):
+                    sources.append(section_engine)
+                for src_path in sources:
                     if not src_path.is_file():
                         continue
                     # Python bytecode caches are local artifacts, not
@@ -515,7 +621,10 @@ def install_shared_infra(
                     # stale-cleanup cannot treat its managed scripts as obsolete.
                     scanned_variant_dirs.add(variant_dir)
 
-                    rel_path = src_path.relative_to(variant_src)
+                    rel_path = (
+                        Path(src_path.name) if src_path == section_engine
+                        else src_path.relative_to(variant_src)
+                    )
                     dst_path = dest_variant / rel_path
                     rel = dst_path.relative_to(project_path).as_posix()
                     seen_rels.add(rel)
@@ -555,13 +664,9 @@ def install_shared_infra(
                     content = _resolve_dynamic_command_refs(
                         content, invoke_separator, invoke_prefix
                     )
+                    data = content.encode("utf-8")
                     planned_copies.append(
-                        (
-                            dst_path,
-                            rel,
-                            content.encode("utf-8"),
-                            src_path.stat().st_mode & 0o777,
-                        )
+                        (dst_path, rel, data, _shared_script_mode(src_path, data))
                     )
 
     templates_src = shared_templates_source(core_pack=core_pack, repo_root=repo_root)
@@ -571,6 +676,7 @@ def install_shared_infra(
             for src in templates_src.iterdir():
                 if not src.is_file() or src.name == "vscode-settings.json" or src.name.startswith("."):
                     continue
+                scanned_templates = True
 
                 dst = dest_templates / src.name
                 rel = dst.relative_to(project_path).as_posix()
@@ -607,6 +713,36 @@ def install_shared_infra(
                     content, invoke_separator, invoke_prefix
                 )
                 planned_templates.append((dst, rel, content))
+
+    # Managed ``.specify/.gitignore`` — keeps machine-local state (the
+    # ``feature.json`` pointer and per-machine ``local-config.yml`` overrides)
+    # out of git while leaving everything else shareable. Routed through the
+    # same overwrite/skip/preserve policy as templates so ``--force`` refreshes
+    # it and user edits are preserved. Like every other shared-infra file it is
+    # tracked in ``speckit.manifest.json`` (not the per-integration manifest) and
+    # is therefore intentionally left in place by ``integration uninstall``.
+    specify_dir = project_path / ".specify"
+    if _ensure_or_bucket_dir(specify_dir):
+        gitignore_dst = specify_dir / ".gitignore"
+        gitignore_rel = gitignore_dst.relative_to(project_path).as_posix()
+        seen_rels.add(gitignore_rel)
+        if _safe_dest_or_bucket(gitignore_dst, gitignore_rel):
+            write, bucket = _decide_overwrite(gitignore_rel, gitignore_dst)
+            if write:
+                planned_templates.append(
+                    (gitignore_dst, gitignore_rel, SPECIFY_GITIGNORE_CONTENT)
+                )
+            elif bucket == "preserved":
+                preserved_user_files.append(gitignore_rel)
+            else:
+                skipped_files.append(gitignore_rel)
+                if gitignore_dst.is_file() and gitignore_rel not in prior_hashes:
+                    try:
+                        manifest.record_existing(gitignore_rel, recovered=True)
+                    except (OSError, ValueError) as exc:
+                        console.print(
+                            f"[yellow]⚠[/yellow]  could not record {gitignore_rel} in manifest: {exc}"
+                        )
 
     for dst_path, rel, content, mode in planned_copies:
         if not _ensure_or_bucket_dir(dst_path.parent):
@@ -656,22 +792,35 @@ def install_shared_infra(
         if refresh_hint:
             console.print(refresh_hint)
 
-    # Remove stale managed scripts: paths a previous install recorded that the
+    # Remove stale managed shared files: paths a previous install recorded that the
     # current core no longer ships — e.g. the legacy
     # ``scripts/<variant>/update-agent-context.sh`` superseded by the bundled
-    # agent-context extension. Left behind, such an orphan can crash when it
-    # sources a refreshed ``common.sh`` (#3076). Only run when the script source
-    # was actually scanned (so a missing/empty source never triggers mass
-    # deletion), scoped to the selected variants, and only for *managed* copies —
+    # agent-context extension, or a removed core page template. Left behind, an
+    # orphan script can crash when it sources a refreshed ``common.sh`` (#3076).
+    # Only run after the corresponding source category was actually scanned (so a
+    # missing/empty source never triggers mass deletion). Normal stale cleanup
+    # is scoped to selected variants; exact retired Plan assets are recognized
+    # across every historical runtime. Copies are removed only for managed
+    # content or after explicit ``force`` —
     # a user-customized file (hash diverges), a symlink, or a recovered entry is
     # preserved by ``_is_managed``.
-    if scanned_variant_dirs:
+    if scanned_variant_dirs or scanned_templates:
         stale_removed: list[str] = []
-        script_prefixes = tuple(
+        managed_prefixes = tuple(
             f".specify/scripts/{variant_dir}/" for variant_dir in scanned_variant_dirs
         )
+        if scanned_templates:
+            managed_prefixes += (".specify/templates/",)
+        retired_plan_paths = {
+            ".specify/scripts/bash/setup-plan.sh",
+            ".specify/scripts/powershell/setup-plan.ps1",
+            ".specify/scripts/python/setup_plan.py",
+            ".specify/templates/plan-template.md",
+        }
         for rel in list(prior_hashes):
-            if rel in seen_rels or not rel.startswith(script_prefixes):
+            if rel in seen_rels or (
+                rel not in retired_plan_paths and not rel.startswith(managed_prefixes)
+            ):
                 continue
             # Guard corrupted/hand-edited manifest keys BEFORE any filesystem
             # access: absolute, ``..``, or (on Windows) drive-relative keys such
@@ -693,15 +842,24 @@ def install_shared_infra(
             if not dst.exists() and not dst.is_symlink():
                 manifest.remove(rel)
                 continue
-            if not _is_managed(rel, dst):
-                continue  # user-modified / symlink / recovered → preserve
-            # Never unlink through a symlinked ancestor (writes/deletes could
-            # escape the project root). The safe-destination check buckets such
-            # paths under ``symlinked_files`` and we leave them in place.
             if not _safe_dest_or_bucket(dst, rel):
                 continue
+            if not _is_managed(rel, dst):
+                # A regular stale file with a recorded hash is user-modified.
+                # Preserve it unless the caller explicitly authorized force.
+                if not force or manifest.is_recovered(rel) or dst.is_symlink():
+                    if dst.is_file() and not dst.is_symlink():
+                        console.print(
+                            "[yellow]⚠[/yellow]  Preserved customized stale "
+                            f"shared infrastructure: {rel}"
+                        )
+                    continue
             try:
+                from .integrations._file_changes import after_file_change, before_file_change
+
+                before_file_change(dst, removal=True)
                 dst.unlink()
+                after_file_change(dst)
             except OSError as exc:
                 console.print(f"[yellow]⚠[/yellow]  could not remove stale {rel}: {exc}")
                 continue
@@ -711,7 +869,7 @@ def install_shared_infra(
         if stale_removed:
             console.print(
                 f"[yellow]⚠[/yellow]  Removed {len(stale_removed)} obsolete shared "
-                "script(s) left by a previous install:"
+                "infrastructure file(s) left by a previous install:"
             )
             for path in stale_removed:
                 console.print(f"    {path}")

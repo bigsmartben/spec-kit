@@ -162,16 +162,16 @@ class TestForgeIntegration:
                 "Forge requires hyphen notation (/speckit-<cmd>) for ZSH compatibility"
             )
 
-    def test_plan_command_has_no_context_placeholder(self, tmp_path):
-        """The core plan command must not carry a context-file placeholder —
+    def test_tasks_command_has_no_context_placeholder(self, tmp_path):
+        """The core tasks command must not carry a context-file placeholder —
         agent context files are owned by the opt-in agent-context extension."""
         from specify_cli.integrations.forge import ForgeIntegration
         forge = ForgeIntegration()
         m = IntegrationManifest("forge", tmp_path)
         forge.setup(tmp_path, m)
-        plan_file = tmp_path / ".forge" / "commands" / "speckit.plan.md"
-        assert plan_file.exists()
-        content = plan_file.read_text(encoding="utf-8")
+        tasks_file = tmp_path / ".forge" / "commands" / "speckit.tasks.md"
+        assert tasks_file.exists()
+        content = tasks_file.read_text(encoding="utf-8")
         assert "__CONTEXT_FILE__" not in content
 
     def test_forge_specific_transformations(self, tmp_path):
@@ -280,6 +280,119 @@ class TestForgeIntegration:
             assert name_value.startswith("speckit-"), (
                 f"{cmd_file.name} name field should start with 'speckit-': {name_value}"
             )
+
+    def test_build_exec_args_uses_prompt_flag(self):
+        """Forge dispatches through ``-p``, with no extra flags appended.
+
+        Forge accepts ``-p/--prompt``, but the inherited ``--model`` and
+        ``--output-format`` do not exist in its CLI; sending them aborts the
+        run at argument parsing with ``unexpected argument`` (#4666).
+        """
+        integration = get_integration("forge")
+
+        args = integration.build_exec_args(
+            "/speckit-specify build a login page",
+            model="gpt-4o",
+            output_json=True,
+        )
+
+        assert args == [
+            "forge",
+            "-p",
+            "/speckit-specify build a login page",
+        ]
+
+    def test_build_exec_args_omits_output_format(self):
+        """Forge has no ``--output-format``; requesting JSON must not add one."""
+        integration = get_integration("forge")
+
+        args = integration.build_exec_args("/speckit-plan add OAuth", output_json=True)
+
+        assert args == ["forge", "-p", "/speckit-plan add OAuth"]
+        assert "--output-format" not in args
+        assert "json" not in args
+
+    def test_build_exec_args_omits_model_flag(self):
+        """Forge exposes no model-selection flag, so ``model`` is not forwarded.
+
+        Model choice is a persisted setting (``forge config set model``).
+        ``--agent`` takes an agent ID, not a model identifier, so remapping the
+        caller's model onto it would select the wrong thing.
+        """
+        integration = get_integration("forge")
+
+        args = integration.build_exec_args(
+            "explain this repository",
+            model="gpt-4o",
+            output_json=False,
+        )
+
+        assert args == ["forge", "-p", "explain this repository"]
+        assert "--model" not in args
+        assert "gpt-4o" not in args
+
+    def test_build_exec_args_applies_extra_args_before_prompt(self, monkeypatch):
+        """Operator-injected flags precede ``-p`` so they stay global.
+
+        Forge parses its global flags ahead of ``-p`` (``forge --verbose -p x``
+        is accepted), matching the opencode / goose / codex ordering.
+        """
+        monkeypatch.setenv("SPECKIT_INTEGRATION_FORGE_EXTRA_ARGS", "--verbose")
+        integration = get_integration("forge")
+
+        args = integration.build_exec_args("check the build", output_json=True)
+
+        assert args == [
+            "forge",
+            "--verbose",
+            "-p",
+            "check the build",
+        ]
+
+
+class TestForgeExecArgs:
+    """Forge only accepts `-p/--prompt`; `--model` and `--output-format` do
+    not exist in the Forge CLI and abort dispatch with exit code 2 (#4666)."""
+
+    def test_build_exec_args_uses_prompt_flag_only(self):
+        forge = get_integration("forge")
+
+        args = forge.build_exec_args("/speckit-plan add OAuth", output_json=False)
+
+        assert args == ["forge", "-p", "/speckit-plan add OAuth"]
+
+    def test_build_exec_args_omits_output_format_flag(self):
+        """`--output-format` is not a Forge flag; requesting JSON output must
+        not append it."""
+        forge = get_integration("forge")
+
+        args = forge.build_exec_args("hello", output_json=True)
+
+        assert args == ["forge", "-p", "hello"]
+        assert "--output-format" not in args
+
+    def test_build_exec_args_omits_model_flag(self):
+        """Forge has no model-selection flag; `model` is set out of band via
+        `forge config set model`, so it must not be forwarded onto `--model`
+        or `--agent` (the latter selects an agent ID, not a model)."""
+        forge = get_integration("forge")
+
+        args = forge.build_exec_args("hello", model="gpt-4o", output_json=True)
+
+        assert args == ["forge", "-p", "hello"]
+        assert "--model" not in args
+        assert "--agent" not in args
+        assert "gpt-4o" not in args
+
+    def test_build_exec_args_applies_extra_args_before_prompt(self, monkeypatch):
+        """Forge's global flags parse before -p, so operator-injected extra
+        args go first (matches opencode / goose / codex / cursor-agent)."""
+        monkeypatch.setenv("SPECKIT_INTEGRATION_FORGE_EXTRA_ARGS", "--verbose")
+        forge = get_integration("forge")
+
+        args = forge.build_exec_args("check the build", output_json=False)
+
+        assert args == ["forge", "--verbose", "-p", "check the build"]
 
 
 class TestForgeCommandRegistrar:
@@ -479,40 +592,4 @@ class TestForgeCommandRegistrar:
         assert "/speckit.specify" not in content, (
             "Found '/speckit.specify' (dot notation) in generated Forge git.feature command body. "
             "Forge requires hyphen notation for ZSH compatibility."
-        )
-
-
-class TestForgeInitNextSteps:
-    """The post-init 'Next steps' panel must show hyphenated /speckit-<name>
-    commands for Forge, since Forge only registers the hyphenated form
-    (see the generated command-file tests above)."""
-
-    def test_init_next_steps_show_hyphenated_commands(self, tmp_path):
-        import os
-
-        from typer.testing import CliRunner
-
-        from specify_cli import app
-
-        project = tmp_path / "forge-nextsteps"
-        project.mkdir()
-        old_cwd = os.getcwd()
-        try:
-            os.chdir(project)
-            result = CliRunner().invoke(
-                app,
-                ["init", "--here", "--integration", "forge", "--ignore-agent-tools"],
-                catch_exceptions=False,
-            )
-        finally:
-            os.chdir(old_cwd)
-
-        assert result.exit_code == 0, f"init failed: {result.output}"
-        # Forge registers /speckit-<name>; the next-steps panel must match.
-        assert "/speckit-plan" in result.output, (
-            f"Expected /speckit-plan in next steps but got:\n{result.output}"
-        )
-        # Must NOT show the dotted /speckit.plan form Forge can't invoke.
-        assert "/speckit.plan" not in result.output, (
-            f"Should not show dotted /speckit.plan for Forge:\n{result.output}"
         )

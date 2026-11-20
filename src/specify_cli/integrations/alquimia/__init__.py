@@ -11,14 +11,12 @@ from ..base import SkillsIntegration
 # when a user invokes the slash command in Alquimia AI.
 ARGUMENT_HINTS: dict[str, str] = {
     "specify": "Describe the feature you want to specify",
-    "plan": "Optional guidance for the planning phase",
     "tasks": "Optional task generation constraints",
     "implement": "Optional implementation guidance or task filter",
     "analyze": "Optional focus areas for analysis",
     "clarify": "Optional areas to clarify in the spec",
     "constitution": "Principles or values for the project constitution",
     "checklist": "Domain or focus area for the checklist",
-    "taskstoissues": "Optional filter or label for GitHub issues",
 }
 
 
@@ -57,15 +55,25 @@ class AlquimiaAIIntegration(SkillsIntegration):
         return f"---\n{frontmatter_text}\n---\n\n{body.strip()}\n"
 
     def _build_skill_fm(self, name: str, description: str, source: str) -> dict:
+        from specify_cli import get_speckit_version
         from specify_cli.agents import CommandRegistrar
 
         return CommandRegistrar.build_skill_frontmatter(
-            self.key, name, description, source
+            self.key, name, description, source, version=get_speckit_version()
         )
 
     @staticmethod
     def inject_argument_hint(content: str, hint: str) -> str:
-        """Insert ``argument-hint`` after the first ``description:`` in YAML frontmatter.
+        """Insert ``argument-hint`` after the ``description:`` scalar in YAML frontmatter.
+
+        A long ``description`` gets folded by the YAML dumper across
+        indented continuation lines (plain or quoted), and an embedded
+        paragraph break can add unindented blank lines inside a quoted
+        scalar. Inserting the new line right after the *first* line of
+        that scalar — instead of after the whole scalar — either produces
+        invalid YAML or gets silently absorbed into the description
+        string (#4044), so every continuation line (indented, or blank)
+        is skipped first.
 
         Skips injection if ``argument-hint:`` already exists in the
         frontmatter to avoid duplicate keys.
@@ -88,15 +96,29 @@ class AlquimiaAIIntegration(SkillsIntegration):
         in_fm = False
         dash_count = 0
         injected = False
-        for line in lines:
+        i = 0
+        n = len(lines)
+        while i < n:
+            line = lines[i]
             stripped = line.rstrip("\n\r")
             if stripped == "---":
                 dash_count += 1
                 in_fm = dash_count == 1
                 out.append(line)
+                i += 1
                 continue
             if in_fm and not injected and stripped.startswith("description:"):
                 out.append(line)
+                i += 1
+                # Skip folded/quoted continuation lines before inserting
+                # so the new key lands after the description scalar ends.
+                # Blank lines count too: PyYAML emits unindented blank
+                # lines for embedded "\n\n" inside a quoted scalar.
+                while i < n and (
+                    lines[i][:1] in (" ", "\t") or lines[i].rstrip("\r\n") == ""
+                ):
+                    out.append(lines[i])
+                    i += 1
                 # Preserve the exact line-ending style (\r\n vs \n)
                 if line.endswith("\r\n"):
                     eol = "\r\n"
@@ -109,6 +131,7 @@ class AlquimiaAIIntegration(SkillsIntegration):
                 injected = True
                 continue
             out.append(line)
+            i += 1
         return "".join(out)
 
     @staticmethod
@@ -128,7 +151,13 @@ class AlquimiaAIIntegration(SkillsIntegration):
             if dash_count == 1 and stripped.startswith(f"{key}:"):
                 return content
 
-        # Inject before the closing --- of frontmatter
+        # Inject before the closing --- of frontmatter. Preserve the
+        # existing EOL style, but default to "\n" (rather than "") when the
+        # closing delimiter is the last line of the file with no trailing
+        # newline -- otherwise the injected text glues onto the "---"
+        # (e.g. "user-invocable: true---"), destroying the delimiter so a
+        # later call's pre-scan/injection never finds a second "---" and
+        # silently drops that key entirely.
         out: list[str] = []
         dash_count = 0
         injected = False
@@ -142,7 +171,7 @@ class AlquimiaAIIntegration(SkillsIntegration):
                     elif line.endswith("\n"):
                         eol = "\n"
                     else:
-                        eol = ""
+                        eol = "\n"
                     out.append(f"{key}: {value}{eol}")
                     injected = True
             out.append(line)

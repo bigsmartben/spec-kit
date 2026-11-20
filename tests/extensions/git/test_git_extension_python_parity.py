@@ -17,10 +17,15 @@ from pathlib import Path
 import pytest
 
 from tests.conftest import requires_bash
+from tests.parity_helpers import collation_range_locale
 from tests.extensions.git.test_git_extension import (
     _GIT_ENV,
+    HAS_PWSH,
+    _add_prompt_probe_remote,
     _init_git,
+    _probe_log,
     _run_bash,
+    _run_pwsh,
     _setup_project,
     _write_config,
 )
@@ -85,6 +90,15 @@ def _twin_projects(tmp_path: Path, *, git: bool = True) -> tuple[Path, Path]:
     return bash_proj, py_proj
 
 
+def _branch_state(project: Path) -> tuple[str, str]:
+    return tuple(
+        subprocess.run(
+            ["git", *args], cwd=project, check=True, capture_output=True, text=True,
+        ).stdout.strip()
+        for args in (("symbolic-ref", "--short", "HEAD"), ("for-each-ref",))
+    )
+
+
 def _assert_parity(
     bash_result: subprocess.CompletedProcess,
     py_result: subprocess.CompletedProcess,
@@ -117,6 +131,77 @@ def _without_persist_hint(stderr: str) -> str:
 
 @requires_bash
 class TestCreateFeatureBranchParity:
+    @pytest.mark.parametrize("dry_run", [False, True], ids=["create", "dry_run"])
+    @pytest.mark.parametrize(
+        "description,short_name,expected",
+        [
+            ("-n", None, "001-n"),
+            ("-e", None, "001-e"),
+            ("-E", None, "001-e"),
+            ("-neE", None, "001-nee"),
+            ("Add user authentication", None, "001-user-authentication"),
+            (" \tAdd user authentication\t ", None, "001-user-authentication"),
+            ("Add user authentication", "custom-name", "001-custom-name"),
+            ("-n", "custom-name", "001-custom-name"),
+        ],
+        ids=["n", "e", "E", "neE", "ordinary", "padded", "short_name", "literal_short_name"],
+    )
+    def test_literal_description(
+        self, tmp_path: Path, dry_run: bool, description: str,
+        short_name: str | None, expected: str,
+    ):
+        """Option-like descriptions survive trimming without --short-name (#5096)."""
+        projects = _twin_projects(tmp_path)
+        before = [_branch_state(project) for project in projects]
+        args = ["--json"]
+        if dry_run:
+            args.append("--dry-run")
+        if short_name is not None:
+            args.extend(["--short-name", short_name])
+        args.append(description)
+        b = _run_bash("create-new-feature-branch.sh", projects[0], *args)
+        p = _run_py("create-new-feature-branch", projects[1], *args)
+        _assert_parity(b, p)
+
+        for result, project, initial_state in zip((b, p), projects, before):
+            assert result.returncode == 0, result.stderr
+            expected_data = {"BRANCH_NAME": expected, "FEATURE_NUM": "001"}
+            if dry_run:
+                expected_data["DRY_RUN"] = True
+                assert _branch_state(project) == initial_state
+            else:
+                assert _branch_state(project)[0] == expected
+            assert json.loads(result.stdout) == expected_data
+            assert not (project / "specs").exists()
+            assert not (project / ".specify" / "feature.json").exists()
+
+    @pytest.mark.parametrize("dry_run", [False, True], ids=["create", "dry_run"])
+    @pytest.mark.parametrize("description", ["   ", " \t\t "], ids=["spaces", "tabs"])
+    @pytest.mark.parametrize("short_name", [None, "custom-name"], ids=["default", "short_name"])
+    def test_whitespace_description(
+        self, tmp_path: Path, dry_run: bool, description: str, short_name: str | None,
+    ):
+        projects = _twin_projects(tmp_path)
+        before = [_branch_state(project) for project in projects]
+        args = ["--json"]
+        if dry_run:
+            args.append("--dry-run")
+        if short_name is not None:
+            args.extend(["--short-name", short_name])
+        args.append(description)
+        b = _run_bash("create-new-feature-branch.sh", projects[0], *args)
+        p = _run_py("create-new-feature-branch", projects[1], *args)
+
+        assert b.returncode == p.returncode == 1
+        assert b.stdout == p.stdout == ""
+        assert b.stderr == p.stderr == (
+            "Error: Feature description cannot be empty or contain only whitespace\n"
+        )
+        for project, initial_state in zip(projects, before):
+            assert _branch_state(project) == initial_state
+            assert not (project / "specs").exists()
+            assert not (project / ".specify" / "feature.json").exists()
+
     def test_sequential_branch_json(self, tmp_path: Path):
         bash_proj, py_proj = _twin_projects(tmp_path)
         b = _run_bash("create-new-feature-branch.sh", bash_proj, "--json", "Add user authentication")
@@ -139,20 +224,144 @@ class TestCreateFeatureBranchParity:
         p = _run_py("create-new-feature-branch", py_proj, "--json", "--dry-run", description)
         _assert_parity(b, p)
 
-    def test_short_name_cleaning(self, tmp_path: Path):
+    @pytest.mark.parametrize(
+        "description",
+        [
+            "Fix \u00e9DB\u00e9 sync",
+            "Tune the \u00fcUI\u00fc layer",
+        ],
+        ids=["db_between_accents", "ui_between_accents"],
+    )
+    def test_acronym_adjacent_to_non_ascii_matches_python(
+        self, tmp_path: Path, description: str
+    ):
+        """A short acronym touching an accented letter is kept by both twins.
+
+        The bash twin probes for acronyms with `grep -qw` under LC_ALL=C, where
+        an accented letter is a non-word byte and therefore a word boundary.
+        Python's \\b and .NET's \\b are Unicode-aware and saw no boundary there,
+        so the twins disagreed on whether the acronym survived.
+        """
         bash_proj, py_proj = _twin_projects(tmp_path)
-        # Single separator runs only: the bash twin's collapse step
-        # (sed 's/-\+/-/g') is a GNU-ism that BSD sed treats literally.
         b = _run_bash(
             "create-new-feature-branch.sh", bash_proj,
-            "--json", "--dry-run", "--short-name", "User_Auth!", "desc",
+            "--json", "--dry-run", description,
         )
         p = _run_py(
             "create-new-feature-branch", py_proj,
-            "--json", "--dry-run", "--short-name", "User_Auth!", "desc",
+            "--json", "--dry-run", description,
         )
         _assert_parity(b, p)
-        assert json.loads(p.stdout)["BRANCH_NAME"] == "001-user-auth"
+
+        if not HAS_PWSH:
+            pytest.skip("pwsh not available")
+        ps_proj = _setup_project(tmp_path / "ps" / "proj")
+        ps = _run_pwsh(
+            "create-new-feature-branch.ps1", ps_proj,
+            "-Json", "-DryRun", description,
+        )
+        assert ps.returncode == 0, ps.stderr
+        assert json.loads(ps.stdout) == json.loads(b.stdout)
+
+    @pytest.mark.parametrize(
+        ("short_name", "expected"),
+        [
+            ("User_Auth!", "001-user-auth"),
+            ("User__Auth!!", "001-user-auth"),
+            ("auth -- v2", "001-auth-v2"),
+        ],
+        ids=["single_separators", "repeated_separators", "separator_run"],
+    )
+    def test_short_name_cleaning(
+        self, tmp_path: Path, short_name: str, expected: str
+    ):
+        # Repeated separators included: the bash twin used to collapse them with
+        # sed 's/-\+/-/g', a GNU-ism that POSIX/BSD sed reads as a literal '+',
+        # so the runs survived on macOS.
+        bash_proj, py_proj = _twin_projects(tmp_path)
+        b = _run_bash(
+            "create-new-feature-branch.sh", bash_proj,
+            "--json", "--dry-run", "--short-name", short_name, "desc",
+        )
+        p = _run_py(
+            "create-new-feature-branch", py_proj,
+            "--json", "--dry-run", "--short-name", short_name, "desc",
+        )
+        _assert_parity(b, p)
+        assert json.loads(p.stdout)["BRANCH_NAME"] == expected
+
+    @pytest.mark.parametrize(
+        "description",
+        [
+            "Añadir autenticación de usuario",
+            "Ajouter la réservation hôtelière",
+        ],
+        ids=["spanish", "french"],
+    )
+    def test_branch_name_ignores_locale_collation(
+        self, tmp_path: Path, description: str
+    ):
+        """The created git branch must not depend on the caller's locale.
+
+        The bash twin sanitizes with sed 's/[^a-z0-9]/-/g'. Under a locale whose
+        a-z range is collation-ordered that class keeps accented lowercase
+        letters, so bash checked out 001-ajouter-réservation-hôtelière where
+        the Python twin checks out 001-ajouter-servation-teli.
+        """
+        locale_name = collation_range_locale()
+        if locale_name is None:
+            pytest.skip("no locale with collation-ordered [a-z] ranges available")
+        env_extra = {"LC_ALL": locale_name, "LANG": locale_name}
+
+        bash_proj, py_proj = _twin_projects(tmp_path)
+        b = _run_bash(
+            "create-new-feature-branch.sh", bash_proj,
+            "--json", "--dry-run", description, env_extra=env_extra,
+        )
+        p = _run_py(
+            "create-new-feature-branch", py_proj,
+            "--json", "--dry-run", description, env_extra=env_extra,
+        )
+        _assert_parity(b, p)
+        branch = json.loads(b.stdout)["BRANCH_NAME"]
+        assert branch.isascii(), branch
+
+        # The run above reaches generate_branch_name. --short-name reaches
+        # clean_branch_name, a separate function carrying its own LC_ALL=C, so
+        # exercise the accented value through both: neither copy can then
+        # regress on its own without a failure here.
+        sn_bash_proj, sn_py_proj = _twin_projects(tmp_path / "short")
+        sb = _run_bash(
+            "create-new-feature-branch.sh", sn_bash_proj,
+            "--json", "--dry-run", "--short-name", description, "desc",
+            env_extra=env_extra,
+        )
+        sp = _run_py(
+            "create-new-feature-branch", sn_py_proj,
+            "--json", "--dry-run", "--short-name", description, "desc",
+            env_extra=env_extra,
+        )
+        _assert_parity(sb, sp)
+        short_branch = json.loads(sb.stdout)["BRANCH_NAME"]
+        assert short_branch.isascii(), short_branch
+
+    @pytest.mark.parametrize("short_name", ["-n", "-e", "-E"], ids=["n", "e", "E"])
+    def test_dash_prefixed_short_name(self, tmp_path: Path, short_name: str):
+        """A short name that looks like an ``echo`` option is still text.
+
+        clean_branch_name piped the raw value through `echo "$name"`, so bash
+        consumed -n/-e/-E as options and emitted nothing, yielding a suffix-less
+        001- where Python yields 001-n. This extension duplicates the
+        implementation, so it needs its own regression case: the core script's
+        test cannot catch a revert to `echo` here.
+        """
+        bash_proj, py_proj = _twin_projects(tmp_path)
+        args = ("--json", "--dry-run", "--short-name", short_name, "desc")
+        b = _run_bash("create-new-feature-branch.sh", bash_proj, *args)
+        p = _run_py("create-new-feature-branch", py_proj, *args)
+        _assert_parity(b, p)
+        expected = f"001-{short_name.lstrip('-').lower()}"
+        assert json.loads(b.stdout)["BRANCH_NAME"] == expected
 
     def test_numbering_from_specs_and_branches(self, tmp_path: Path):
         bash_proj, py_proj = _twin_projects(tmp_path)
@@ -165,12 +374,119 @@ class TestCreateFeatureBranchParity:
         _assert_parity(b, p)
         assert json.loads(p.stdout)["FEATURE_NUM"] == "013"
 
+    def test_fetch_disables_terminal_prompt(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ):
+        """Both twins fetch with GIT_TERMINAL_PROMPT=0 and survive a failing remote (#5199)."""
+        monkeypatch.delenv("GIT_TERMINAL_PROMPT", raising=False)
+        bash_proj, py_proj = _twin_projects(tmp_path)
+        bash_log = _add_prompt_probe_remote(bash_proj)
+        py_log = _add_prompt_probe_remote(py_proj)
+        b = _run_bash(
+            "create-new-feature-branch.sh", bash_proj, "--json", "--short-name", "probe", "Probe feature"
+        )
+        p = _run_py(
+            "create-new-feature-branch", py_proj, "--json", "--short-name", "probe", "Probe feature"
+        )
+        _assert_parity(b, p)
+        assert json.loads(p.stdout)["BRANCH_NAME"] == "001-probe"
+        for log in (bash_log, py_log):
+            calls = _probe_log(log)
+            assert calls, "the probe remote was never contacted"
+            assert set(calls) == {"0"}
+
     def test_explicit_number(self, tmp_path: Path):
         bash_proj, py_proj = _twin_projects(tmp_path)
         b = _run_bash("create-new-feature-branch.sh", bash_proj, "--json", "--number", "42", "some feature")
         p = _run_py("create-new-feature-branch", py_proj, "--json", "--number", "42", "some feature")
         _assert_parity(b, p)
         assert json.loads(p.stdout)["FEATURE_NUM"] == "042"
+
+    def test_explicit_number_max_int64_accepted(self, tmp_path: Path):
+        _, py_proj = _twin_projects(tmp_path)
+        p = _run_py(
+            "create-new-feature-branch",
+            py_proj,
+            "--json",
+            "--dry-run",
+            "--number",
+            str(2**63 - 1),
+            "some feature",
+        )
+        assert p.returncode == 0, p.stderr
+        assert json.loads(p.stdout)["FEATURE_NUM"] == str(2**63 - 1)
+
+    def test_explicit_number_zero_padded_input_accepted(self, tmp_path: Path):
+        _, py_proj = _twin_projects(tmp_path)
+        p = _run_py(
+            "create-new-feature-branch",
+            py_proj,
+            "--json",
+            "--dry-run",
+            "--number",
+            "0" * 5000 + "1",
+            "some feature",
+        )
+        assert p.returncode == 0, p.stderr
+        assert json.loads(p.stdout)["FEATURE_NUM"] == "001"
+
+    def test_explicit_number_above_max_int64_rejected(self, tmp_path: Path):
+        """Pin Python-side bound checking; bash currently has no equivalent guard."""
+        _, py_proj = _twin_projects(tmp_path)
+        too_large = str(2**63)
+        p = _run_py(
+            "create-new-feature-branch",
+            py_proj,
+            "--json",
+            "--dry-run",
+            "--number",
+            too_large,
+            "some feature",
+        )
+        assert p.returncode == 1
+        assert (
+            "Error: --number must be between 0 and 9223372036854775807, "
+            f"got '{too_large}'"
+        ) in p.stderr
+        assert "Traceback" not in p.stderr
+
+    def test_explicit_number_oversized_digits_rejected_without_traceback(
+        self, tmp_path: Path
+    ):
+        _, py_proj = _twin_projects(tmp_path)
+        oversized = "9" * 5000
+        p = _run_py(
+            "create-new-feature-branch",
+            py_proj,
+            "--json",
+            "--dry-run",
+            "--number",
+            oversized,
+            "some feature",
+        )
+        assert p.returncode == 1
+        assert (
+            "Error: --number must be between 0 and 9223372036854775807, "
+            f"got '{oversized}'"
+        ) in p.stderr
+        assert "Traceback" not in p.stderr
+
+    def test_auto_detected_number_above_max_int64_rejected(self, tmp_path: Path):
+        _, py_proj = _twin_projects(tmp_path)
+        (py_proj / "specs" / f"{2**63 - 1}-existing").mkdir(parents=True)
+        p = _run_py(
+            "create-new-feature-branch",
+            py_proj,
+            "--json",
+            "--dry-run",
+            "some feature",
+        )
+        assert p.returncode == 1
+        assert (
+            "Error: feature number must be between 0 and 9223372036854775807, "
+            "got '9223372036854775808'"
+        ) in p.stderr
+        assert "Traceback" not in p.stderr
 
     def test_timestamp_mode_format(self, tmp_path: Path):
         _, py_proj = _twin_projects(tmp_path)
@@ -546,10 +862,10 @@ class TestAutoCommitParity:
         for proj in (bash_proj, py_proj):
             _write_config(proj, "auto_commit:\n  default: true\n")
             self._dirty(proj)
-        b = _run_bash("auto-commit.sh", bash_proj, "after_plan")
-        p = _run_py("auto-commit", py_proj, "after_plan")
+        b = _run_bash("auto-commit.sh", bash_proj, "after_custom")
+        p = _run_py("auto-commit", py_proj, "after_custom")
         _assert_parity(b, p)
-        expected = "[Spec Kit] Auto-commit after plan"
+        expected = "[Spec Kit] Auto-commit after custom"
         assert self._last_message(bash_proj) == self._last_message(py_proj) == expected
 
     def test_explicit_false_beats_default_true(self, tmp_path: Path):
@@ -566,12 +882,12 @@ class TestAutoCommitParity:
     def test_before_event_message(self, tmp_path: Path):
         bash_proj, py_proj = _twin_projects(tmp_path)
         for proj in (bash_proj, py_proj):
-            _write_config(proj, "auto_commit:\n  before_plan:\n    enabled: true\n")
+            _write_config(proj, "auto_commit:\n  before_custom:\n    enabled: true\n")
             self._dirty(proj)
-        b = _run_bash("auto-commit.sh", bash_proj, "before_plan")
-        p = _run_py("auto-commit", py_proj, "before_plan")
+        b = _run_bash("auto-commit.sh", bash_proj, "before_custom")
+        p = _run_py("auto-commit", py_proj, "before_custom")
         _assert_parity(b, p)
-        expected = "[Spec Kit] Auto-commit before plan"
+        expected = "[Spec Kit] Auto-commit before custom"
         assert self._last_message(bash_proj) == self._last_message(py_proj) == expected
 
     def test_no_changes_skips(self, tmp_path: Path):
@@ -671,3 +987,147 @@ class TestGitCommonPython:
     def test_check_feature_branch_no_git_warns_but_passes(self, git_common, capsys):
         assert git_common.check_feature_branch("main", False) is True
         assert "skipped branch validation" in capsys.readouterr().err
+
+
+class TestCreateFeatureBranchPythonLegacyPipe:
+    @staticmethod
+    def _clean_git_env(tmp_path: Path, **extra: str) -> dict[str, str]:
+        empty_cfg = tmp_path / "empty.gitconfig"
+        if not empty_cfg.exists():
+            empty_cfg.write_text("", encoding="utf-8")
+        env = dict(os.environ)
+        env.pop("PYTHONUTF8", None)
+        env.update(
+            {
+                **_GIT_ENV,
+                "GIT_CONFIG_GLOBAL": str(empty_cfg),
+                "GIT_CONFIG_NOSYSTEM": "1",
+                "PYTHONIOENCODING": "cp1252",
+                **extra,
+            }
+        )
+        return env
+
+    @staticmethod
+    def _run_raw(
+        project: Path, env: dict[str, str], *args: str
+    ) -> subprocess.CompletedProcess[bytes]:
+        script = (
+            project
+            / ".specify"
+            / "extensions"
+            / "git"
+            / "scripts"
+            / "python"
+            / "create_new_feature_branch.py"
+        )
+        return subprocess.run(
+            [sys.executable, str(script), *args],
+            cwd=project,
+            capture_output=True,
+            env=env,
+        )
+
+    @pytest.mark.parametrize("dry_run", [True, False], ids=["dry_run", "create"])
+    @pytest.mark.parametrize(
+        ("branch_override", "expected_num"),
+        [
+            ("équipe/042-后台-🚀", "042"),
+            ("équipe-后台", "équipe-后台"),
+        ],
+    )
+    def test_json_mode_survives_cp1252_pipe_with_non_ascii_branch(
+        self,
+        tmp_path: Path,
+        dry_run: bool,
+        branch_override: str,
+        expected_num: str,
+    ):
+        project = _setup_py_project(tmp_path / "proj")
+        env = self._clean_git_env(tmp_path, GIT_BRANCH_NAME=branch_override)
+        args = ["--json", *(["--dry-run"] if dry_run else []), "Add feature"]
+
+        result = self._run_raw(project, env, *args)
+        stderr_text = result.stderr.decode("cp1252")
+
+        assert result.returncode == 0, stderr_text
+        assert "Traceback" not in stderr_text
+        assert result.stdout.isascii(), result.stdout
+        payload = json.loads(result.stdout.decode("cp1252"))
+        expected: dict[str, object] = {
+            "BRANCH_NAME": branch_override,
+            "FEATURE_NUM": expected_num,
+        }
+        if dry_run:
+            expected["DRY_RUN"] = True
+        assert payload == expected
+
+        if not dry_run:
+            head = subprocess.run(
+                ["git", "rev-parse", "--abbrev-ref", "HEAD"],
+                cwd=project,
+                capture_output=True,
+                env=env,
+                check=True,
+            )
+            assert head.stdout.decode("utf-8").strip() == branch_override
+
+            rerun = self._run_raw(
+                project, env, "--json", "--allow-existing-branch", "Add feature"
+            )
+            assert rerun.returncode == 0, rerun.stderr.decode("cp1252")
+            assert rerun.stdout.isascii(), rerun.stdout
+            assert json.loads(rerun.stdout.decode("cp1252")) == expected
+
+    def test_numbering_and_text_mode_survive_existing_utf8_branches(
+        self, tmp_path: Path
+    ):
+        project = _setup_py_project(tmp_path / "proj")
+        env = self._clean_git_env(
+            tmp_path, LC_ALL="C", PYTHONCOERCECLOCALE="0"
+        )
+        subprocess.run(
+            ["git", "branch", "003-后台信息架构"],
+            cwd=project,
+            env=env,
+            check=True,
+        )
+
+        numbered = self._run_raw(project, env, "--json", "--dry-run", "Next feature")
+        assert numbered.returncode == 0, numbered.stderr.decode("cp1252", errors="replace")
+        assert numbered.stdout.isascii(), numbered.stdout
+        assert json.loads(numbered.stdout.decode("cp1252"))["FEATURE_NUM"] == "004"
+
+        text_env = {**env, "GIT_BRANCH_NAME": "004-后台信息架构"}
+        text_res = self._run_raw(project, text_env, "Next feature")
+        assert text_res.returncode == 0, text_res.stderr.decode("cp1252")
+        assert "BRANCH_NAME: 004-" in text_res.stdout.decode("cp1252")
+        assert "# To persist:" in text_res.stderr.decode("cp1252")
+
+    def test_existing_non_ascii_branch_and_overlong_override_error_cleanly(
+        self, tmp_path: Path
+    ):
+        project = _setup_py_project(tmp_path / "proj")
+        env = self._clean_git_env(tmp_path, GIT_BRANCH_NAME="003-后台信息架构")
+        subprocess.run(
+            ["git", "branch", "003-后台信息架构"],
+            cwd=project,
+            env=env,
+            check=True,
+        )
+
+        exists_err = self._run_raw(project, env, "--json", "Add feature")
+        stderr_text = exists_err.stderr.decode("cp1252")
+        assert exists_err.returncode == 1
+        assert "Traceback" not in stderr_text
+        assert "already exists" in stderr_text
+        assert exists_err.stdout.strip() == b""
+
+        overlong_env = self._clean_git_env(
+            tmp_path, GIT_BRANCH_NAME="001-" + ("功" * 81)
+        )
+        overlong_err = self._run_raw(
+            project, overlong_env, "--json", "--dry-run", "Add feature"
+        )
+        assert overlong_err.returncode == 1
+        assert overlong_err.stdout.strip() == b""

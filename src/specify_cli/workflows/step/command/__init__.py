@@ -1,0 +1,516 @@
+"""Command step — dispatches a Spec Kit command to an integration CLI."""
+
+from __future__ import annotations
+
+import inspect
+import shutil
+from pathlib import Path
+from typing import Any
+
+from specify_cli.integrations.base import (
+    DispatchSettingsError,
+    check_dispatch_settings,
+    requested_dispatch_settings,
+)
+from specify_cli.integrations.installer import project_dispatch
+from specify_cli.workflows.base import StepBase, StepContext, StepResult, StepStatus
+from specify_cli.workflows.expressions import evaluate_expression
+from specify_cli.workflows.step._capture import (
+    capture_errors,
+    capture_failure,
+    capture_limit,
+    record_capture,
+    timeout_error,
+)
+from specify_cli.workflows.step._dispatch_settings import (
+    dispatch_setting_errors,
+    dispatch_settings_failure,
+    resolve_dispatch_settings,
+)
+
+_DEFAULT_CAPTURE_TIMEOUT = 600
+
+
+class CommandStep(StepBase):
+    """Default step type — invokes a Spec Kit command via the integration CLI.
+
+    The command files (skills, markdown, TOML) are already installed in
+    the integration's directory on disk.  This step tells the CLI to
+    execute the command by name (e.g. ``/speckit.specify`` or
+    ``/speckit-specify``) rather than reading the file contents.
+
+    .. note::
+
+        CLI output is streamed to the terminal for live progress.
+        ``output.exit_code`` is always captured and can be referenced
+        by later steps (e.g. ``{{ steps.specify.output.exit_code }}``).
+        ``capture: true`` retains the CLI's textual stdout and stderr in
+        ``output.stdout``/``output.stderr`` instead of streaming them,
+        capped per stream by ``capture_max_bytes`` and bounded by
+        ``timeout`` (default 600 seconds). ``timeout`` applies only to a
+        captured step; a streaming step has none.
+    """
+
+    type_key = "command"
+
+    def execute(self, config: dict[str, Any], context: StepContext) -> StepResult:
+        command = config.get("command", "")
+        # validate() rejects a non-string 'command', but the engine does not
+        # auto-validate before execute(); an unvalidated run would pass the value
+        # to build_command_invocation() (via _try_dispatch) and crash there with a
+        # raw AttributeError (command_name.startswith(...) on a list/int/None).
+        # Fail the step with the same contract error instead, mirroring the
+        # 'input'/'options' guards below.
+        if not isinstance(command, str):
+            return StepResult(
+                status=StepStatus.FAILED,
+                error=(
+                    f"Command step {config.get('id', '?')!r}: 'command' must be a "
+                    f"string, got {type(command).__name__}."
+                ),
+            )
+
+        input_data = config.get("input", {})
+        # validate() rejects a non-mapping input, but the engine does not
+        # auto-validate before execute(); a workflow that skipped validation can
+        # still reach here. Fail the step with the same contract error rather
+        # than silently coercing to {} and dispatching with empty args — that
+        # would change the command's meaning, hide the config error, and report
+        # COMPLETED, defeating the per-step FAILED / continue_on_error behavior.
+        if not isinstance(input_data, dict):
+            return StepResult(
+                status=StepStatus.FAILED,
+                error=(
+                    f"Command step {config.get('id', '?')!r}: 'input' must be a "
+                    f"mapping, got {type(input_data).__name__}."
+                ),
+            )
+
+        # Resolve expressions in input
+        resolved_input: dict[str, Any] = {}
+        for key, value in input_data.items():
+            resolved_input[key] = evaluate_expression(value, context)
+
+        # Resolve integration (step → workflow default → project default).
+        # Fall back to the workflow default ONLY for a genuinely-unset value
+        # (missing / YAML-null / empty string). A ``config.get(...) or ...``
+        # would also swallow a falsey *non-string* ([], {}, 0, False), coercing
+        # it to the default before the guard below runs — so on an unvalidated
+        # execute() such a step would silently dispatch with the configured
+        # default instead of failing. Fall through instead, so every non-string
+        # reaches the type guard.
+        integration = config.get("integration")
+        if integration is None or integration == "":
+            integration = context.default_integration
+        if integration and isinstance(integration, str) and "{{" in integration:
+            integration = evaluate_expression(integration, context)
+
+        # Resolve model (same fallback rationale as 'integration' above).
+        model = config.get("model")
+        if model is None or model == "":
+            model = context.default_model
+        if model and isinstance(model, str) and "{{" in model:
+            model = evaluate_expression(model, context)
+
+        # A non-string integration/model — a literal list/dict/number that
+        # skipped validation, an unvalidated workflow-level default, or an
+        # expression that resolved to one — crashes downstream: get_integration()
+        # uses the value as a dict key (raw TypeError on an unhashable list/dict,
+        # even on a *validated* run) and build_exec_args() feeds model into the
+        # CLI argv. Fail the step with the contract error rather than taking down
+        # the whole run, mirroring the 'input'/'options' guards above. ``None``
+        # stays valid — it means "unset" and falls back to dispatch-not-possible.
+        if integration is not None and not isinstance(integration, str):
+            return StepResult(
+                status=StepStatus.FAILED,
+                error=(
+                    f"Command step {config.get('id', '?')!r}: 'integration' must "
+                    f"be a string, got {type(integration).__name__}."
+                ),
+            )
+        if model is not None and not isinstance(model, str):
+            return StepResult(
+                status=StepStatus.FAILED,
+                error=(
+                    f"Command step {config.get('id', '?')!r}: 'model' must be a "
+                    f"string, got {type(model).__name__}."
+                ),
+            )
+
+        dispatch = resolve_dispatch_settings(config, context, "Command")
+        if isinstance(dispatch, str):
+            return StepResult(status=StepStatus.FAILED, error=dispatch)
+
+        # Merge options (workflow defaults ← step overrides)
+        options = dict(context.default_options)
+        step_options = config.get("options", {})
+        # Same rationale as 'input': a malformed options fails the step rather
+        # than being silently ignored (which would let an invalid step run and
+        # apparently complete).
+        if not isinstance(step_options, dict):
+            return StepResult(
+                status=StepStatus.FAILED,
+                error=(
+                    f"Command step {config.get('id', '?')!r}: 'options' must be a "
+                    f"mapping, got {type(step_options).__name__}."
+                ),
+            )
+        options.update(step_options)
+
+        runtime_config = self._resolve_runtime_config(config, context)
+        if isinstance(runtime_config, str):
+            return StepResult(status=StepStatus.FAILED, error=runtime_config)
+        integration_args, integration_options = runtime_config
+
+        # Same rationale as the guards above: an unvalidated run must fail the
+        # step on a malformed capture/timeout rather than dispatch with a
+        # coerced default or crash inside the subprocess wait. 'timeout' only
+        # applies to a captured step, so it is only checked for one.
+        capture_config_errors = capture_errors(config, "Command")
+        if capture_config_errors:
+            return StepResult(
+                status=StepStatus.FAILED, error=capture_config_errors[0]
+            )
+        capture_max_bytes = capture_limit(config)
+        timeout = _DEFAULT_CAPTURE_TIMEOUT
+        if capture_max_bytes is not None:
+            invalid_timeout = timeout_error(config, "Command")
+            if invalid_timeout is not None:
+                return StepResult(status=StepStatus.FAILED, error=invalid_timeout)
+            timeout = config.get("timeout", _DEFAULT_CAPTURE_TIMEOUT)
+
+        # A lone ``{{ }}`` block keeps its typed value, so an ``args`` reference
+        # with nothing behind it (an optional input that was not supplied, an
+        # output key the earlier step does not produce) is None. ``str()`` sent
+        # that to the agent as the text "None"; send no arguments instead, as
+        # for a missing 'args' key and as interpolation renders None in text.
+        raw_args = resolved_input.get("args", "")
+        args_str = "" if raw_args is None else str(raw_args)
+        output: dict[str, Any] = {
+            "command": command,
+            "integration": integration,
+            "model": model,
+            **dispatch.outputs,
+            "options": options,
+            "input": resolved_input,
+            "integration_args": integration_args,
+            "integration_options": integration_options,
+        }
+
+        # Attempt CLI dispatch. Integration-specific runtime validation occurs
+        # before executable detection so malformed options remain actionable
+        # even when the selected CLI is not installed.
+        try:
+            dispatch_result = self._try_dispatch(
+                command,
+                integration,
+                model,
+                args_str,
+                context,
+                integration_args,
+                integration_options,
+                capture_max_bytes=capture_max_bytes,
+                timeout=timeout,
+                **dispatch.settings,
+            )
+        except DispatchSettingsError as exc:
+            output["exit_code"] = 1
+            output["dispatched"] = False
+            return StepResult(
+                status=StepStatus.FAILED,
+                output=output,
+                error=dispatch_settings_failure(
+                    "Command", config, exc, dispatch.sources
+                ),
+            )
+        except ValueError as exc:
+            output["exit_code"] = 1
+            output["dispatched"] = False
+            return StepResult(
+                status=StepStatus.FAILED,
+                output=output,
+                error=f"Command step {config.get('id', '?')!r}: {exc}",
+            )
+
+        if dispatch_result is not None:
+            output["exit_code"] = dispatch_result["exit_code"]
+            output["stdout"] = dispatch_result["stdout"]
+            output["stderr"] = dispatch_result["stderr"]
+            output["dispatched"] = True
+            if capture_max_bytes is not None:
+                record_capture(output, dispatch_result)
+            if dispatch_result["exit_code"] != 0:
+                if capture_max_bytes is not None:
+                    error = capture_failure(
+                        dispatch_result, subject="Command", timeout=timeout
+                    )
+                else:
+                    error = (
+                        dispatch_result["stderr"]
+                        or f"Command exited with code {dispatch_result['exit_code']}"
+                    )
+                return StepResult(
+                    status=StepStatus.FAILED,
+                    output=output,
+                    error=error,
+                )
+            return StepResult(
+                status=StepStatus.COMPLETED,
+                output=output,
+            )
+        else:
+            output["exit_code"] = 1
+            output["dispatched"] = False
+            return StepResult(
+                status=StepStatus.FAILED,
+                output=output,
+                error=(
+                    f"Cannot dispatch command {command!r}: "
+                    f"integration {integration!r} CLI not found or not installed, "
+                    f"or the integration does not support CLI dispatch. "
+                    f"If the CLI is missing, install it or check "
+                    f"'specify integration list'; if the integration does not "
+                    f"support CLI dispatch, set the step's 'integration' to one "
+                    f"that does."
+                ),
+            )
+
+    @staticmethod
+    @project_dispatch
+    def _try_dispatch(
+        command: str,
+        integration_key: str | None,
+        model: str | None,
+        args: str,
+        context: StepContext,
+        integration_args: list[str],
+        integration_options: dict[str, Any],
+        *,
+        capture_max_bytes: int | None = None,
+        timeout: float = _DEFAULT_CAPTURE_TIMEOUT,
+        reasoning_effort: str | None = None,
+        context_size: str | None = None,
+    ) -> dict[str, Any] | None:
+        """Invoke *command* by name through the integration CLI.
+
+        The integration's ``dispatch_command`` builds the native
+        slash-command invocation (e.g. ``/speckit.specify`` for
+        markdown agents, ``/speckit-specify`` for skills agents),
+        then executes the CLI non-interactively.
+
+        With *capture_max_bytes* set, the CLI's textual output is captured
+        (bounded by that limit and by *timeout*) instead of streamed.
+
+        *reasoning_effort* and *context_size* are checked by
+        ``check_dispatch_settings`` before executable detection and forwarded
+        to ``dispatch_command`` only when set.
+
+        Returns the dispatch result dict, or ``None`` if dispatch is
+        not possible (integration not found, CLI not installed, or
+        dispatch not supported). Raises ``ValueError`` if capture is
+        requested from an integration whose ``dispatch_command`` predates
+        the capture keywords, and ``DispatchSettingsError`` if the
+        integration rejects a dispatch setting.
+        """
+        if not integration_key or not isinstance(integration_key, str):
+            # A non-string integration (a list/dict/expression that resolved to
+            # one) would raise TypeError: unhashable type from get_integration's
+            # dict lookup below and abort the whole run. Treat it as "not
+            # dispatchable" so execute() falls through to its FAILED StepResult.
+            return None
+
+        try:
+            from specify_cli.integrations import get_integration
+        except ImportError:
+            return None
+
+        impl = get_integration(integration_key)
+        if impl is None:
+            return None
+
+        impl.validate_runtime_config(integration_args, integration_options)
+        dispatch_settings = requested_dispatch_settings(
+            reasoning_effort=reasoning_effort, context_size=context_size
+        )
+        if dispatch_settings:
+            check_dispatch_settings(impl, dispatch_settings, via="dispatch_command")
+
+        project_root = Path(context.project_root) if context.project_root else None
+
+        # Build sample args for fallback executable detection when impl.key is not executable.
+        exec_args = impl.build_exec_args(
+            "test",
+            integration_args=integration_args,
+            integration_options=integration_options,
+            project_root=project_root,
+        )
+
+        # Check if the CLI tool is actually installed.
+        # Try the integration key first (covers most agents), then fall back
+        # to exec_args[0] for agents whose executable differs.
+        cli_path = shutil.which(impl.key)
+        fallback_cli_path = shutil.which(exec_args[0]) if exec_args else None
+        if cli_path is None and fallback_cli_path is None:
+            return None
+
+        capture_kwargs: dict[str, Any] = {}
+        if capture_max_bytes is not None:
+            capture_kwargs = {
+                "stream": False,
+                "output_json": False,
+                "timeout": timeout,
+                "capture_max_bytes": capture_max_bytes,
+            }
+            # An installed integration may override dispatch_command() with
+            # the signature from before these keywords existed; calling it
+            # would raise a raw TypeError and take down the run.
+            parameters = inspect.signature(impl.dispatch_command).parameters
+            if not any(
+                parameter.kind is inspect.Parameter.VAR_KEYWORD
+                for parameter in parameters.values()
+            ) and not all(name in parameters for name in capture_kwargs):
+                raise ValueError(
+                    f"integration {integration_key!r} does not support "
+                    f"'capture: true'."
+                )
+
+        try:
+            return impl.dispatch_command(
+                command,
+                args=args,
+                project_root=project_root,
+                model=model,
+                integration_args=integration_args,
+                integration_options=integration_options,
+                **capture_kwargs,
+                **dispatch_settings,
+            )
+        except (NotImplementedError, OSError):
+            return None
+
+    @staticmethod
+    def _resolve_runtime_config(
+        config: dict[str, Any], context: StepContext
+    ) -> tuple[list[str], dict[str, Any]] | str:
+        """Resolve and validate this step's per-integration runtime config."""
+        step_id = config.get("id", "?")
+
+        raw_args = config.get("integration_args", [])
+        if not isinstance(raw_args, list):
+            return (
+                f"Command step {step_id!r}: 'integration_args' must be a list."
+            )
+
+        resolved_args: list[str] = []
+        for index, value in enumerate(raw_args):
+            resolved = evaluate_expression(value, context)
+            if not isinstance(resolved, str):
+                return (
+                    f"Command step {step_id!r}: 'integration_args[{index}]' "
+                    f"must resolve to a string, got {type(resolved).__name__}."
+                )
+            resolved_args.append(resolved)
+
+        raw_options = config.get("integration_options", {})
+        if not isinstance(raw_options, dict):
+            return (
+                f"Command step {step_id!r}: 'integration_options' must be a "
+                "mapping."
+            )
+        if not all(isinstance(key, str) for key in raw_options):
+            return (
+                f"Command step {step_id!r}: 'integration_options' keys must be "
+                "strings."
+            )
+
+        resolved_options = {
+            key: evaluate_expression(value, context)
+            for key, value in raw_options.items()
+        }
+        return resolved_args, resolved_options
+
+    def validate(self, config: dict[str, Any]) -> list[str]:
+        errors = super().validate(config)
+        if "command" not in config:
+            errors.append(
+                f"Command step {config.get('id', '?')!r} is missing 'command' field."
+            )
+        elif not isinstance(config["command"], str):
+            # execute() passes 'command' straight to the integration's
+            # build_command_invocation(), which does command_name.startswith(...);
+            # a non-string (null, list, int) crashes there with a raw
+            # AttributeError once dispatch is attempted. Reject it at validation,
+            # mirroring the prompt-step 'prompt' and shell-step 'run' type checks.
+            # An expression like "{{ ... }}" is still a str, so it stays valid.
+            errors.append(
+                f"Command step {config.get('id', '?')!r}: 'command' must be a "
+                f"string, got {type(config['command']).__name__}."
+            )
+        # execute() iterates input.items() and options.update(step_options); a
+        # non-mapping here would raise at run time. Validate the shape like the
+        # sibling steps (switch 'cases', fan-out 'step') so it is reported, not
+        # crashed on.
+        if "input" in config and not isinstance(config["input"], dict):
+            errors.append(
+                f"Command step {config.get('id', '?')!r}: 'input' must be a mapping."
+            )
+        if "options" in config and not isinstance(config["options"], dict):
+            errors.append(
+                f"Command step {config.get('id', '?')!r}: 'options' must be a mapping."
+            )
+        if "integration_args" in config and not isinstance(
+            config["integration_args"], list
+        ):
+            errors.append(
+                f"Command step {config.get('id', '?')!r}: 'integration_args' "
+                "must be a list."
+            )
+        elif isinstance(config.get("integration_args"), list):
+            for index, value in enumerate(config["integration_args"]):
+                if not isinstance(value, str):
+                    errors.append(
+                        f"Command step {config.get('id', '?')!r}: "
+                        f"'integration_args[{index}]' must be a string."
+                    )
+        if "integration_options" in config and not isinstance(
+            config["integration_options"], dict
+        ):
+            errors.append(
+                f"Command step {config.get('id', '?')!r}: "
+                "'integration_options' must be a mapping."
+            )
+        elif isinstance(config.get("integration_options"), dict) and not all(
+            isinstance(key, str) for key in config["integration_options"]
+        ):
+            errors.append(
+                f"Command step {config.get('id', '?')!r}: "
+                "'integration_options' keys must be strings."
+            )
+        # execute() passes 'integration' to get_integration(), which uses it as a
+        # dict key — a non-string (list/dict) raises a raw TypeError (unhashable),
+        # even on a validated run — and feeds 'model' into the CLI argv. Reject a
+        # literal non-string here, mirroring the sibling type checks. ``None``
+        # (an explicit ``integration:``/``model:`` YAML null) means "inherit the
+        # workflow default" and stays valid; an expression like "{{ ... }}" is
+        # still a str, so it stays valid too.
+        integration = config.get("integration")
+        if integration is not None and not isinstance(integration, str):
+            errors.append(
+                f"Command step {config.get('id', '?')!r}: 'integration' must be a "
+                f"string, got {type(integration).__name__}."
+            )
+        model = config.get("model")
+        if model is not None and not isinstance(model, str):
+            errors.append(
+                f"Command step {config.get('id', '?')!r}: 'model' must be a "
+                f"string, got {type(model).__name__}."
+            )
+        errors.extend(dispatch_setting_errors(config, "Command"))
+        errors.extend(capture_errors(config, "Command"))
+        # 'timeout' is only applied to a captured step, so a streaming step's
+        # value is left unchecked as it always was.
+        if config.get("capture") is True:
+            invalid_timeout = timeout_error(config, "Command")
+            if invalid_timeout is not None:
+                errors.append(invalid_timeout)
+        return errors

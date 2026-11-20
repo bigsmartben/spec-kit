@@ -1,8 +1,9 @@
-"""Version checking and self-update commands for specify_cli.
+"""Version checking and self-update domain for specify_cli.
 
 Pure helpers for comparing PEP 440 versions and fetching the latest GitHub
-release tag.  The ``self_app`` Typer sub-command group is co-located here so
-all version-related logic lives in one place.
+release tag. This module preserves the established ``specify_cli._version``
+import and monkeypatch surface while ``specify_cli.selfs`` owns the
+``specify self`` command adapters.
 
 Dependencies: stdlib + packaging + ._console + ._download_security only
 (keeping this layer thin and circular-import-safe).
@@ -24,11 +25,10 @@ import urllib.request
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
+from typing import Literal, overload
 
 import typer
 from packaging.version import InvalidVersion, Version
-from rich.markup import escape as _escape_markup
-
 from ._download_security import MAX_JSON_METADATA_BYTES, read_response_limited
 from ._console import console
 
@@ -38,6 +38,7 @@ _RESOLUTION_FAILURE_RATE_LIMITED = (
     "rate limited (configure ~/.specify/auth.json with a GitHub token)"
 )
 _RESOLUTION_FAILURE_HTTP_PREFIX = "HTTP "
+_RESOLUTION_FAILURE_AUTH_PREFIX = "authentication error: "
 _FAILURE_INSTALLER_MISSING = "installer-missing"
 _FAILURE_INSTALLER_INVALID = "installer-invalid"
 _FAILURE_TARGET_TAG_UNPARSEABLE = "target-tag-unparseable"
@@ -109,11 +110,12 @@ def _fetch_latest_release_tag() -> tuple[str | None, str | None]:
     """Return (tag, failure_category). Exactly one outbound call, 5 s timeout.
 
     On success: (tag_name, None).
-    On a documented network/HTTP failure (added in T029/T030): (None, category).
+    On a documented authentication/network/HTTP failure: (None, category).
     On anything else — including a malformed response body — the exception
     propagates; there is no catch-all (research D-006).
     """
     from .authentication.http import open_url
+    from .authentication.github import GitHubCliAuthError
 
     try:
         with open_url(
@@ -132,6 +134,8 @@ def _fetch_latest_release_tag() -> tuple[str | None, str | None]:
             if not isinstance(tag, str) or not tag:
                 raise ValueError("GitHub API response missing valid tag_name")
             return tag, None
+    except GitHubCliAuthError as exc:
+        return None, f"{_RESOLUTION_FAILURE_AUTH_PREFIX}{exc.reason}"
     except urllib.error.HTTPError as e:
         # Order matters: HTTPError is a subclass of URLError.
         # 403 (primary rate limit / abuse detection) and 429 (Too Many Requests /
@@ -164,7 +168,14 @@ def _stable_release_tag_for_version(version_text: str) -> str | None:
     parsed = _parse_version_text(version_text)
     if parsed is None:
         return None
-    if parsed.pre or parsed.post or parsed.dev or parsed.local:
+    # `post` and `dev` are ints, so `.post0`/`.dev0` are 0 and falsy: compare
+    # against None instead of relying on truthiness.
+    if (
+        parsed.pre is not None
+        or parsed.post is not None
+        or parsed.dev is not None
+        or parsed.local is not None
+    ):
         return None
     release = parsed.release
     if len(release) != 3:
@@ -179,11 +190,22 @@ def _render_argv(argv: list[str]) -> str:
 
 _INSTALLER_PATH_PREFIXES: dict[str, list[str]] = {
     "uv-tool": [
+        "${UV_TOOL_DIR}/specify-cli/",
+        "${XDG_DATA_HOME}/uv/tools/specify-cli/",
         "~/.local/share/uv/tools/specify-cli/",
+        "${APPDATA}/uv/tools/specify-cli/",
+        "${APPDATA}/uv/data/tools/specify-cli/",
+        "~/Library/Application Support/uv/tools/specify-cli/",
         "%LOCALAPPDATA%\\uv\\tools\\specify-cli\\",
     ],
     "pipx": [
+        "${PIPX_HOME}/venvs/specify-cli/",
+        "${XDG_DATA_HOME}/pipx/venvs/specify-cli/",
+        "~/.local/share/pipx/venvs/specify-cli/",
+        "~/Library/Application Support/pipx/venvs/specify-cli/",
+        "${LOCALAPPDATA}/pipx/pipx/venvs/specify-cli/",
         "~/.local/pipx/venvs/specify-cli/",
+        "~/pipx/venvs/specify-cli/",
         "%LOCALAPPDATA%\\pipx\\venvs\\specify-cli\\",
     ],
     "uvx-ephemeral": [
@@ -227,6 +249,10 @@ class _InstallerResult:
     returncode: int | None = None
 
 
+class _InstallerRejected(ValueError):
+    """Installer lookup succeeded but its path could not be trusted."""
+
+
 @dataclass(frozen=True)
 class _UpgradePlan:
     """Resolved upgrade decision shared by preview and apply paths."""
@@ -237,6 +263,8 @@ class _UpgradePlan:
     installer_argv: list[str] | None
     preview_summary: str
     pre_upgrade_snapshot: str
+    installer_rejections: tuple[str, ...] = ()
+    installer_rejected: bool = False
 
 
 @dataclass(frozen=True)
@@ -249,6 +277,7 @@ class _DetectionSignals:
     editable_marker_seen: bool
     installer_registries_consulted: tuple[str, ...]
     resolved_method: _InstallMethod
+    installer_rejections: tuple[str, ...] = ()
 
 
 _GITHUB_CREDENTIAL_SUFFIXES = (
@@ -340,18 +369,28 @@ def _validate_tag(tag: str) -> str:
 def _expand_prefix(prefix: str) -> Path | None:
     """Expand `~` or `%LOCALAPPDATA%`-style tokens in a path prefix."""
 
-    expanded = os.path.expanduser(prefix)
+    # An unset or empty directory override must not become a root-level prefix.
+    for token in _UNRESOLVED_ENV_VAR_RE.findall(prefix):
+        if not os.environ.get(token.strip("${}%")):
+            return None
+    expanded = prefix
     if "%LOCALAPPDATA%" in expanded:
         local_app_data = os.environ.get("LOCALAPPDATA")
         if not local_app_data:
             return None
         expanded = expanded.replace("%LOCALAPPDATA%", local_app_data)
-    expanded = os.path.expandvars(expanded)
+    expanded = os.path.expandvars(os.path.expanduser(expanded))
+    # pipx expands a tilde in its override; uv treats it literally and XDG requires absolute paths.
+    if prefix.startswith("${PIPX_HOME}/"):
+        expanded = os.path.expanduser(expanded)
     if _UNRESOLVED_ENV_VAR_RE.search(expanded):
         return None
     try:
         expanded_path = Path(expanded)
-        return expanded_path.resolve() if expanded_path.is_absolute() else expanded_path
+        # uv and pipx resolve their relative tool directories against the working directory.
+        if expanded_path.is_absolute() or prefix.startswith(("${UV_TOOL_DIR}/", "${PIPX_HOME}/")):
+            return expanded_path.resolve()
+        return expanded_path
     except OSError:
         return None
 
@@ -478,6 +517,62 @@ def _editable_marker_seen() -> bool:
     return editable_root is not None and _git_ancestor(editable_root) is not None
 
 
+def _find_installer(name: str) -> str | None:
+    """Resolve an installer without trusting working-directory executables."""
+    try:
+        resolved = shutil.which(name)
+        if resolved is None:
+            return None
+        installer = Path(resolved)
+        # Windows lookup may prepend cwd even when PATH is absolute. Check
+        # both the lookup entry and symlink target using filesystem identity.
+        if not installer.is_absolute():
+            raise _InstallerRejected(
+                f"Installer {name} rejected: lookup returned a relative path {resolved!r}. "
+                "Use an absolute PATH entry for the installed tool. "
+                "Run from a directory without a matching installer executable "
+                "to avoid implicit current-directory matches on Windows, and retry."
+            )
+        cwd = Path.cwd()
+        if (
+            installer.parent.samefile(cwd)
+            or installer.resolve(strict=True).parent.samefile(cwd)
+        ):
+            raise _InstallerRejected(
+                f"Installer {name} rejected: lookup or target is in the current "
+                f"working directory ({resolved!r}). Run from another directory "
+                "and ensure PATH points to the installed tool."
+            )
+    except (OSError, RuntimeError) as exc:
+        raise _InstallerRejected(
+            f"Installer {name} rejected: could not validate its path ({exc}). "
+            "Run from an existing, accessible working directory and check PATH."
+        ) from exc
+    return resolved
+
+
+@overload
+def _detect_install_method(
+    argv0: str | None = None,
+    include_signals: Literal[False] = False,
+) -> _InstallMethod: ...
+
+
+@overload
+def _detect_install_method(
+    argv0: str | None = None,
+    *,
+    include_signals: Literal[True],
+) -> tuple[_InstallMethod, _DetectionSignals]: ...
+
+
+@overload
+def _detect_install_method(
+    argv0: str | None = None,
+    include_signals: bool = False,
+) -> _InstallMethod | tuple[_InstallMethod, _DetectionSignals]: ...
+
+
 def _detect_install_method(
     argv0: str | None = None,
     include_signals: bool = False,
@@ -529,9 +624,14 @@ def _detect_install_method(
 
     # --- Tier 3: PATH + registry reconciliation ---
     consulted: list[str] = []
+    rejections: list[str] = []
     if _tier3_registry_lookup_allowed(argv0_path):
         uv_tool_match = False
-        uv_bin = shutil.which("uv")
+        try:
+            uv_bin = _find_installer("uv")
+        except _InstallerRejected as exc:
+            rejections.append(str(exc))
+            uv_bin = None
         if uv_bin is not None:
             consulted.append("uv tool list")
             try:
@@ -551,7 +651,11 @@ def _detect_install_method(
                 pass
 
         pipx_match = False
-        pipx_bin = shutil.which("pipx")
+        try:
+            pipx_bin = _find_installer("pipx")
+        except _InstallerRejected as exc:
+            rejections.append(str(exc))
+            pipx_bin = None
         if pipx_bin is not None:
             consulted.append("pipx list --json")
             try:
@@ -571,10 +675,10 @@ def _detect_install_method(
             except (subprocess.TimeoutExpired, OSError, ValueError):
                 pass
 
-        # If both registries claim ownership, the active entrypoint is ambiguous.
-        # Treat it as unsupported rather than guessing and upgrading the wrong install.
+        # Both matches or a rejected probe leave ownership ambiguous.
+        # Never guess and risk upgrading the wrong installation.
         exactly_one_match = uv_tool_match != pipx_match
-        if exactly_one_match:
+        if exactly_one_match and not rejections:
             method = _InstallMethod.UV_TOOL if uv_tool_match else _InstallMethod.PIPX
             if include_signals:
                 return method, _DetectionSignals(
@@ -584,6 +688,7 @@ def _detect_install_method(
                     editable_marker_seen=False,
                     installer_registries_consulted=tuple(consulted),
                     resolved_method=method,
+                    installer_rejections=tuple(rejections),
                 )
             return method
 
@@ -597,6 +702,7 @@ def _detect_install_method(
             editable_marker_seen=False,
             installer_registries_consulted=tuple(consulted),
             resolved_method=method,
+            installer_rejections=tuple(rejections),
         )
     return method
 
@@ -632,7 +738,7 @@ def _assemble_installer_argv(
     source_spec = _source_spec(target_tag)
 
     if method == _InstallMethod.UV_TOOL:
-        uv_bin = shutil.which("uv")
+        uv_bin = _find_installer("uv")
         if uv_bin is None:
             return None
         return [
@@ -648,7 +754,7 @@ def _assemble_installer_argv(
     if method == _InstallMethod.PIPX:
         # pipx 1.5+ removed `--spec`; PACKAGE_SPEC is now positional and the
         # package name is auto-detected from the source's pyproject.toml.
-        pipx_bin = shutil.which("pipx")
+        pipx_bin = _find_installer("pipx")
         if pipx_bin is None:
             return None
         return [
@@ -668,6 +774,26 @@ def _installer_binary_name(method: _InstallMethod) -> str | None:
     if method == _InstallMethod.PIPX:
         return "pipx"
     return None
+
+
+def _runs_from_uv_tool_env_on_windows() -> bool:
+    """Return whether this process runs from a uv tool environment on Windows."""
+    return os.name == "nt" and os.path.isfile(
+        os.path.join(sys.prefix, "uv-receipt.toml")
+    )
+
+
+# Another process from the same tool environment, such as an editor's
+# `specify mcp` server, keeps python.exe locked after this command exits.
+_UV_TOOL_MANUAL_INTRO = (
+    "Stop any other specify process (such as `specify mcp`), then run this "
+    "once this command exits:"
+)
+
+
+def _uv_tool_manual_command(target_tag: str | None) -> str:
+    """Return the uv command a Windows uv-tool user runs after specify exits."""
+    return f"uv tool install specify-cli --force --from {_source_spec(target_tag)}"
 
 
 def _is_path_like_command(value: str) -> bool:
@@ -694,7 +820,8 @@ def _build_upgrade_plan(
     A valid `target_tag_override` skips network resolution entirely.
     A fetched target tag is validated before installer argv construction.
     """
-    method = _detect_install_method()
+    method, signals = _detect_install_method(include_signals=True)
+    rejections = list(signals.installer_rejections)
 
     if target_tag_override is not None:
         target_tag = target_tag_override
@@ -721,10 +848,24 @@ def _build_upgrade_plan(
         target_tag = None
 
     current = _get_installed_version()
-    argv = _assemble_installer_argv(method, target_tag)
+    installer_rejected = False
+    try:
+        argv = _assemble_installer_argv(method, target_tag)
+    except _InstallerRejected as exc:
+        rejections.append(str(exc))
+        installer_rejected = True
+        argv = None
     if argv is None and method in (_InstallMethod.UV_TOOL, _InstallMethod.PIPX):
         command_preview = (
-            f"(installer {_installer_binary_name(method)} not found on PATH)"
+            "(installer rejected)"
+            if installer_rejected
+            else f"(installer {_installer_binary_name(method)} not found on PATH)"
+        )
+    elif method == _InstallMethod.UV_TOOL and _runs_from_uv_tool_env_on_windows():
+        # self_upgrade prints the uv command instead of running it.
+        command_preview = (
+            "(none — on Windows, uv cannot replace the tool environment specify "
+            "is running from)"
         )
     else:
         command_preview = (
@@ -745,6 +886,8 @@ def _build_upgrade_plan(
         installer_argv=argv,
         preview_summary=preview,
         pre_upgrade_snapshot=current,
+        installer_rejections=tuple(rejections),
+        installer_rejected=installer_rejected,
     )
     return plan, None
 
@@ -1022,7 +1165,10 @@ def _emit_failure(
     """Render user-facing output for resolver, installer, or verification failures."""
     if (
         category in _RESOLUTION_FAILURE_CATEGORIES
-        or category.startswith(_RESOLUTION_FAILURE_HTTP_PREFIX)
+        or category.startswith((
+            _RESOLUTION_FAILURE_HTTP_PREFIX,
+            _RESOLUTION_FAILURE_AUTH_PREFIX,
+        ))
     ):
         console.print(f"Upgrade aborted: {category}", soft_wrap=True)
         return
@@ -1136,312 +1282,12 @@ def _emit_failure(
     raise RuntimeError(f"Unknown failure category: {category!r}")
 
 
-# ===== Self Commands =====
-self_app = typer.Typer(
-    name="self",
-    help=(
-        "Manage the specify CLI itself: check for newer releases, "
-        "preview upgrades with --dry-run, and upgrade in place."
-    ),
-    add_completion=False,
-)
+def _command_exports():
+    """Load the nested self command group after the domain API is defined."""
+    from .selfs import self_app, self_check, self_upgrade
+
+    return self_app, self_check, self_upgrade
 
 
-@self_app.command("check")
-def self_check() -> None:
-    """Check whether a newer specify-cli release is available. Read-only.
-
-    This command only checks for updates; it does not modify your installation.
-    Use `specify self upgrade` to actually perform the upgrade once you've seen
-    the result here, or `specify self upgrade --dry-run` to preview the
-    installer command without running it.
-    """
-
-    installed = _get_installed_version()
-    tag, failure_reason = _fetch_latest_release_tag()
-
-    if tag is None:
-        # Graceful-failure path (FR-008). `failure_reason` is one of the
-        # enumerated strings produced by _fetch_latest_release_tag() — it
-        # never contains a URL, headers, response body, or traceback.
-        assert failure_reason is not None
-        console.print(f"Installed: {installed}")
-        console.print(f"[yellow]Could not check latest release:[/yellow] {failure_reason}")
-        return
-
-    manual_tag = _manual_tag_or_placeholder(tag)
-    latest_display = manual_tag or _MANUAL_TAG_PLACEHOLDER
-
-    if manual_tag is None:
-        if installed == "unknown":
-            console.print("Current version could not be determined.")
-            console.print(f"Latest release: {latest_display}")
-        else:
-            console.print(f"Installed: {installed}")
-            console.print(f"Latest release: {latest_display}")
-        console.print("[yellow]Could not validate latest release tag from GitHub.[/yellow]")
-        console.print("\nManual fallback:")
-        console.print(
-            f"  uv tool install specify-cli --force --from {_manual_source_spec(manual_tag)}"
-        )
-        console.print(f"  pipx install --force {_manual_source_spec(manual_tag)}")
-        return
-
-    if installed == "unknown":
-        # FR-020: surface the latest release and the recovery action even
-        # when the local distribution metadata is unavailable.
-        console.print("Current version could not be determined.")
-        console.print(f"Latest release: {latest_display}")
-        console.print("\nManual fallback:")
-        console.print(
-            f"  uv tool install specify-cli --force --from {_manual_source_spec(manual_tag)}"
-        )
-        console.print(f"  pipx install --force {_manual_source_spec(manual_tag)}")
-        console.print("\nIf this install can still be detected:")
-        console.print("  specify self upgrade")
-        return
-
-    latest_normalized = _normalize_tag(manual_tag)
-    if _is_newer(latest_normalized, installed):
-        console.print(f"[green]Update available:[/green] {installed} → {latest_display}")
-        console.print("\nTo upgrade:")
-        console.print("  specify self upgrade")
-        console.print("\nManual fallback:")
-        console.print(
-            f"  uv tool install specify-cli --force --from {_manual_source_spec(manual_tag)}"
-        )
-        console.print(f"  pipx install --force {_manual_source_spec(manual_tag)}")
-        return
-
-    # Reached only when manual_tag parsed cleanly — the unparseable-latest case
-    # already returned at the `manual_tag is None` branch above — and installed
-    # is parseable AND >= latest → "up to date" (FR-006). Do not reintroduce an
-    # InvalidVersion-fallback assumption here.
-    console.print(f"[green]Up to date:[/green] {installed}")
-
-
-@self_app.command("upgrade")
-def self_upgrade(
-    dry_run: bool = typer.Option(
-        False,
-        "--dry-run",
-        help="Print the preview (method, current, target, installer argv) and "
-        "exit 0 without launching the installer subprocess.",
-    ),
-    tag: str | None = typer.Option(
-        None,
-        "--tag",
-        # Typer renders help through Rich, so escape the literal bracket (\[)
-        # or `[suffix]` is parsed as a style tag and dropped -- `--help` then
-        # advertises only `(vX.Y.Z)`, contradicting docs/upgrade.md and README.
-        help="Pin the target version (vX.Y.Z\\[suffix]). Without --tag, the "
-        "latest stable release is resolved via GitHub Releases.",
-    ),
-) -> None:
-    """Upgrade specify-cli to the latest release (or a pinned --tag).
-
-    Bare invocation executes immediately with no confirmation prompt, matching
-    pip install -U / uv tool upgrade / npm update conventions. Use --dry-run
-    to preview without mutating anything. See `specify self check` for the
-    non-destructive read-only counterpart.
-
-    Detection classifies the runtime into uv-tool / pipx / uvx (ephemeral) /
-    source-checkout / unsupported. Only uv-tool and pipx are upgraded
-    automatically; the other three paths print path-specific guidance and
-    exit 0.
-
-    Exit codes:
-      0      success or no-op-success (already on latest, --dry-run, or
-             non-upgradable path with guidance shown)
-      1      target-tag resolution failure or --tag regex validation failure
-      2      verification mismatch when the installer exited 0 but
-             `specify --version` does not resolve to the target tag; if the
-             installer itself exits 2, that installer failure code is
-             propagated verbatim
-      3      installer binary not found on PATH, or resolved installer path is
-             missing / non-executable
-      124    internal installer timeout when SPECIFY_UPGRADE_TIMEOUT_SECS is set,
-             or a real installer exit code 124 propagated verbatim; scripts
-             should treat 124 as ambiguous and inspect the failure message
-      other  installer exit code propagated verbatim
-
-    Environment variables:
-      SPECIFY_UPGRADE_TIMEOUT_SECS  Optional integer/float seconds. Caps how
-        long the installer subprocess may run. Unset (default) means no
-        timeout — interrupt with Ctrl+C if the installer hangs.
-    """
-    if tag is not None:
-        try:
-            tag = _validate_tag(tag)
-        except typer.BadParameter as exc:
-            # Escape at the print site rather than baking `\[` into
-            # _INVALID_TAG_MESSAGE: the message is also raised through
-            # typer.BadParameter, which Click renders without Rich, so the
-            # constant must stay plain text. Unescaped, Rich parses the literal
-            # `[suffix]` as a style tag and drops it, leaving the user with
-            # "expected vMAJOR.MINOR.PATCH" -- implying a bare vX.Y.Z is the only
-            # accepted form when -rc1 / .dev0 / +build.42 are all valid.
-            console.print(_escape_markup(str(exc)), soft_wrap=True)
-            raise typer.Exit(1) from exc
-
-    plan, failure_reason = _build_upgrade_plan(target_tag_override=tag)
-
-    # Resolver could not produce a tag → surface the categorized failure
-    # and exit non-zero so scripts notice (action-oriented unlike `self check`).
-    if plan is None:
-        if failure_reason is None:
-            # _build_upgrade_plan's contract: if plan is None, failure_reason
-            # is set. Defend explicitly so the guard survives `python -O`.
-            raise RuntimeError(
-                "internal contract violation: _build_upgrade_plan returned (None, None)"
-            )
-        _emit_failure(failure_reason)
-        raise typer.Exit(1)
-
-    if failure_reason is not None:
-        _emit_failure(failure_reason, plan=plan)
-        raise typer.Exit(1)
-
-    # --dry-run preview path. Non-upgradable methods still emit guidance
-    # rather than a fake preview block — there is nothing to preview when
-    # there is nothing the CLI would launch.
-    if dry_run:
-        if plan.method in (
-            _InstallMethod.UVX_EPHEMERAL,
-            _InstallMethod.SOURCE_CHECKOUT,
-            _InstallMethod.UNSUPPORTED,
-        ):
-            _emit_guidance(plan.method, plan.target_tag)
-            raise typer.Exit(0)
-        console.print("Dry run — no changes will be made.")
-        for line in plan.preview_summary.splitlines():
-            console.print(line)
-        raise typer.Exit(0)
-
-    # Non-upgradable runtime: never launch an installer regardless of flags.
-    if plan.method in (
-        _InstallMethod.UVX_EPHEMERAL,
-        _InstallMethod.SOURCE_CHECKOUT,
-        _InstallMethod.UNSUPPORTED,
-    ):
-        _emit_guidance(plan.method, plan.target_tag)
-        raise typer.Exit(0)
-
-    if plan.installer_argv is None:
-        _emit_failure(
-            _FAILURE_INSTALLER_MISSING,
-            plan=plan,
-            installer_name=_installer_binary_name(plan.method),
-        )
-        raise typer.Exit(3)
-
-    if plan.target_tag is None:
-        raise RuntimeError("Upgrade target tag is required for upgradable install methods")
-    target_tag = plan.target_tag
-    target_version = _parse_version_text(target_tag)
-    if target_version is None:
-        # _build_upgrade_plan() and _validate_tag() should reject bad targets
-        # before this point; keep this guard as a defensive invariant check.
-        _emit_failure(_FAILURE_TARGET_TAG_UNPARSEABLE, plan=plan)
-        raise typer.Exit(1)
-    if plan.current_version != "unknown":
-        current_version = _parse_version_text(plan.current_version)
-        # target_version and current_version are Version instances here, so use
-        # packaging's ordering/equality directly rather than comparing canonical
-        # strings: Version("1.0") == Version("1.0.0") yet their str() forms
-        # differ, so canonical-string equality would misreport equal versions as
-        # "or newer". The unparseable-current case stays explicit via the
-        # `current_version is not None` guard.
-        if tag is None and current_version is not None and not (
-            target_version > current_version
-        ):
-            if target_version == current_version:
-                console.print(f"Already on latest release: {target_tag}")
-            else:
-                console.print(f"Already on latest release or newer: {plan.current_version}")
-            raise typer.Exit(0)
-        # Pinned upgrades are no-ops only on an exact parseable match — the same
-        # Version equality used by the unpinned branch above; an unparseable
-        # current version deliberately proceeds to installation.
-        if (
-            tag is not None
-            and current_version is not None
-            and target_version == current_version
-        ):
-            console.print(f"Already on requested release: {target_tag}")
-            raise typer.Exit(0)
-
-    # One-line pre-execution notice so the user sees exactly what will run
-    # before the installer's own output starts streaming. A pinned target older
-    # than the installed version is a downgrade — say so explicitly so
-    # `--tag <older>` does not masquerade as a forward upgrade.
-    installed_version = _parse_version_text(plan.current_version)
-    verb = (
-        "Downgrading"
-        if tag is not None
-        and installed_version is not None
-        and target_version < installed_version
-        else "Upgrading"
-    )
-    argv_str = _render_argv(plan.installer_argv) if plan.installer_argv else ""
-    console.print(
-        f"{verb} specify-cli {plan.current_version} → {plan.target_tag} "
-        f"via {_method_label(plan.method)}: {argv_str}",
-        soft_wrap=True,
-    )
-
-    # Launch the installer. Stdout/stderr stream through (no capture) so the
-    # user sees real-time progress. We never pass shell=True.
-    installer_result = _run_installer(plan)
-    installer_name = plan.installer_argv[0] if plan.installer_argv else None
-
-    if installer_result.kind == _InstallerResultKind.MISSING:
-        _emit_failure(_FAILURE_INSTALLER_MISSING, plan=plan, installer_name=installer_name)
-        raise typer.Exit(3)
-
-    if installer_result.kind == _InstallerResultKind.INVALID:
-        _emit_failure(_FAILURE_INSTALLER_INVALID, plan=plan, installer_name=installer_name)
-        raise typer.Exit(3)
-
-    if installer_result.kind == _InstallerResultKind.TIMEOUT:
-        _emit_failure(_FAILURE_INSTALLER_TIMEOUT, plan=plan)
-        raise typer.Exit(124)
-
-    if (
-        installer_result.kind != _InstallerResultKind.EXITED
-        or installer_result.returncode is None
-    ):
-        raise RuntimeError(f"Unknown installer result: {installer_result!r}")
-
-    if installer_result.returncode != 0:
-        _emit_failure(
-            _FAILURE_INSTALLER_FAILED,
-            plan=plan,
-            installer_exit=installer_result.returncode,
-        )
-        raise typer.Exit(installer_result.returncode)
-
-    # Verify in a child process: this Python process is still running the
-    # pre-upgrade module, so importlib.metadata would lie. A fresh `specify
-    # --version` is the only signal that the new binary is actually live.
-    verified = _verify_upgrade(plan)
-    # Compare as Version instances, not canonical strings: _canonicalize_version_text
-    # falls back to _normalize_tag() on unparseable input, so two raw strings could
-    # coincidentally match. Requiring a parseable verified version that equals the
-    # (already-parsed) target makes a non-version verifier result a mismatch (exit 2)
-    # rather than a silently-masked "success".
-    verified_version = _parse_version_text(verified) if verified is not None else None
-    if verified_version is None or verified_version != target_version:
-        _emit_failure(
-            _FAILURE_VERIFICATION_MISMATCH,
-            plan=plan,
-            verified_version=verified,
-        )
-        raise typer.Exit(2)
-
-    pre_upgrade_display = _canonicalize_version_text(plan.pre_upgrade_snapshot)
-    verified_display = _canonicalize_version_text(verified)
-    console.print(
-        f"Upgraded specify-cli: {pre_upgrade_display} → {verified_display}",
-        soft_wrap=True,
-    )
+self_app, self_check, self_upgrade = _command_exports()
+del _command_exports

@@ -1,13 +1,13 @@
 ---
 description: Identify underspecified areas in the current feature spec by asking up to 5 highly targeted clarification questions and encoding answers back into the spec.
 handoffs:
-  - label: Build Technical Plan
-    agent: speckit.plan
-    prompt: Create a plan for the spec. I am building with...
+  - label: Build Task Work Packages
+    agent: speckit.tasks
+    prompt: Translate the clarified frozen contract into work packages
 scripts:
-   sh: scripts/bash/check-prerequisites.sh --json --paths-only
-   ps: scripts/powershell/check-prerequisites.ps1 -Json -PathsOnly
-   py: scripts/python/check_prerequisites.py --json --paths-only
+   sh: scripts/bash/check-prerequisites.sh --json --require-contract
+   ps: scripts/powershell/check-prerequisites.ps1 -Json -RequireContract
+   py: scripts/python/check_prerequisites.py --json --require-contract
 ---
 
 ## User Input
@@ -23,7 +23,7 @@ You **MUST** consider the user input before proceeding (if not empty).
 **Check for extension hooks (before clarification)**:
 - Check if `.specify/extensions.yml` exists in the project root.
 - If it exists, read it and look for entries under the `hooks.before_clarify` key
-- If the YAML cannot be parsed or is invalid, skip hook checking silently and continue normally
+- If the YAML cannot be parsed or is invalid, do not skip silently: tell the user that `.specify/extensions.yml` could not be read (include the parser error) and that no hooks were checked, including any mandatory (`optional: false`) hooks registered there, then continue normally
 - Filter out hooks where `enabled` is explicitly `false`. Treat hooks without an `enabled` field as enabled by default.
 - For each remaining hook, do **not** attempt to interpret or evaluate hook `condition` expressions:
   - If the hook has no `condition` field, or it is null/empty, treat the hook as executable
@@ -57,34 +57,27 @@ You **MUST** consider the user input before proceeding (if not empty).
 
 Goal: Detect and reduce ambiguity or missing decision points in the active feature specification and record the clarifications directly in the spec file.
 
-This command is also the repair tool for requirement-stage gates. Planning
-Readiness is aggregated from metadata-bearing checklists; it is never written
-to `planning-readiness.md`.
-
-Note: This clarification workflow is expected to run after
-`__SPECKIT_COMMAND_CHECKLIST__` and before `__SPECKIT_COMMAND_PLAN__`.
+Note: This clarification workflow is expected to run (and be completed) BEFORE invoking `__SPECKIT_COMMAND_TASKS__`. If the user explicitly states they are skipping clarification (for example, an exploratory spike), you may proceed, but must warn that downstream rework risk increases.
 
 Execution steps:
 
-1. Run `{SCRIPT}` from repo root **once** (combined `--json --paths-only` mode / `-Json -PathsOnly`). Parse minimal JSON payload fields:
+1. Run `{SCRIPT}` from repo root **once** with the frozen-contract requirement
+   enabled. Parse:
    - `FEATURE_DIR`
-   - `FEATURE_SPEC`
-   - (Optionally capture `IMPL_PLAN`, `TASKS` for future chained flows.)
+   - `AVAILABLE_DOCS`
+   - Derive `FEATURE_SPEC`, `PROTOTYPE`, and `QUICKSTART` under `FEATURE_DIR`.
    - If JSON parsing fails, abort and instruct user to re-run `__SPECKIT_COMMAND_SPECIFY__` or verify feature branch environment.
    - For single quotes in args like "I'm Groot", use escape syntax: e.g 'I'\''m Groot' (or double-quote if possible: "I'm Groot").
 
 2. **IF EXISTS**: Load `/memory/constitution.md` for project principles and governance constraints.
 
-3. Load all `FEATURE_DIR/checklists/*.md` files carrying:
-   `Stage: requirements`, `Gate: planning-readiness`, and `Status: BLOCKED`.
-   - Prioritize unchecked `[blocker:product-decision]` items as clarification
-     candidates.
-   - Never turn `[blocker:provider-evidence]` items into product questions.
-     Keep them BLOCKED and report their `[return:source-evidence]` route.
-   - Treat the legacy `checklists/behavior-testability.md` as
-     non-authoritative even if it contains similar wording.
-
-4. Load the current spec file. Perform a structured ambiguity & coverage scan using this taxonomy. For each category, mark status: Clear / Partial / Missing. Produce an internal coverage map used for prioritization (do not output raw map unless no questions will be asked).
+3. Load and scan `spec.md`, `prototype.html`, and `quickstart.md` as one
+   frozen contract. A clarification may change only user-observable requirements
+   and their exact mappings; it must not invent technical design. Compare
+   requirement IDs, prototype `data-spec-ref` values, and `UAT-*` references
+   across all three. For each category, mark status: Clear / Partial / Missing.
+   Produce an internal coverage map used for prioritization (do not output raw
+   map unless no questions will be asked).
 
    Functional Scope & Behavior:
    - Core user goals & success criteria
@@ -138,7 +131,7 @@ Execution steps:
 
    For each category with Partial or Missing status, add a candidate question opportunity unless:
    - Clarification would not materially change implementation or validation strategy
-   - Information is better deferred to planning phase (note internally)
+   - The item is specifically about implementation method, tech-stack comparison, or task breakdown (note internally)
 
 5. Generate (internally) a prioritized queue of candidate clarification questions (maximum 5). Do NOT output them all at once. Apply these constraints:
     - Maximum of 5 total questions across the whole session.
@@ -193,8 +186,9 @@ Execution steps:
     - Never reveal future queued questions in advance.
     - If no valid questions exist at start, immediately report no critical ambiguities.
 
-7. Integration after EACH accepted answer (incremental update approach):
-    - Maintain in-memory representation of the spec (loaded once at start) plus the raw file contents.
+6. Integration after EACH accepted answer (incremental update approach):
+    - Maintain in-memory representations of all three frozen artifacts plus
+      their raw file contents, loaded together at the start.
     - For the first integrated answer in this session:
        - Ensure a `## Clarifications` section exists (create it just after the highest-level contextual/overview section per the spec template if missing).
        - Under it, create (if not present) a `### Session YYYY-MM-DD` subheading for today.
@@ -205,21 +199,47 @@ Execution steps:
        - Data shape / entities → Update Data Model (add fields, types, relationships) preserving ordering; note added constraints succinctly.
        - Non-functional constraint → Add/modify measurable criteria in Success Criteria > Measurable Outcomes (convert vague adjective to metric or explicit target).
        - Edge case / negative flow → Add a new bullet under Edge Cases / Error Handling (or create such subsection if template provides placeholder for it).
-       - Terminology conflict → Normalize term across spec; retain original only if necessary by adding `(formerly referred to as "X")` once.
-    - If the clarification invalidates an earlier ambiguous statement, replace that statement instead of duplicating; leave no obsolete contradictory text.
-    - Save the spec file AFTER each integration to minimize risk of context loss (atomic overwrite).
-    - Preserve formatting: do not reorder unrelated sections; keep heading hierarchy intact.
+       - Terminology conflict → Normalize the canonical term across all affected
+         artifacts; retain an original only if necessary with a single note.
+    - Apply the same requirement decision everywhere it is observable:
+      - Update `spec.md` for requirement/story semantics.
+      - Update `prototype.html` only for the exact visible/interaction/state
+        behavior fixed by that clarification, preserving or deliberately
+        adding stable `data-spec-ref` anchors and updating affected mappings.
+      - Update `quickstart.md` for user-observable actions, expected results,
+        requirement references, and exact prototype references. Reset no UAT
+        execution fields except when this invocation is changing the frozen
+        expectation before implementation.
+    - If the clarification invalidates an earlier ambiguous statement, replace
+      that statement in every affected artifact instead of duplicating it.
+      Leave no obsolete contradictory text.
+    - Write the three-artifact update as one validation transaction: stage all
+      changed contents, validate their internal references, then save the
+      affected files. Never save only `spec.md` while leaving a dependent
+      prototype or UAT stale.
+    - Preserve formatting: do not reorder unrelated sections; keep heading and
+      stable-ID structure intact.
     - Keep each inserted clarification minimal and testable (avoid narrative drift).
 
-8. Validation (performed after EACH write plus final pass):
-   - Clarifications session contains exactly one bullet per accepted answer (no duplicates).
+7. Validation (performed after EACH write plus final pass):
+   - Clarifications session contains exactly one bullet per accepted answer
+     in `spec.md` (no duplicates).
    - Total asked (accepted) questions ≤ 5.
    - Updated sections contain no lingering vague placeholders the new answer was meant to resolve.
-   - No contradictory earlier statement remains (scan for now-invalid alternative choices removed).
+   - No contradictory earlier statement remains across the three artifacts.
+   - Every changed or newly referenced `data-spec-ref` resolves exactly once in
+     `prototype.html`.
+   - Every changed UAT resolves to an existing requirement and exact prototype
+     reference; UAT IDs remain unique.
+   - All UAT execution fields retain a valid baseline state; no PASS/FAIL claim
+     is fabricated by Clarify.
    - Markdown structure valid; only allowed new headings: `## Clarifications`, `### Session YYYY-MM-DD`.
    - Terminology consistency: same canonical term used across all updated sections.
 
-9. Write the updated spec back to `FEATURE_SPEC`.
+8. Write all affected contract artifacts (`spec.md`, `prototype.html`, and
+   `quickstart.md`) as the single aligned update. If one cannot be validated or
+   written, stop, preserve/report what remains unmodified, and do not claim
+   clarification is complete.
 
 10. **Re-validate the baseline Spec Quality Checklist** (if it exists):
    - Check if `FEATURE_DIR/checklists/requirements.md` exists.
@@ -228,7 +248,8 @@ Execution steps:
      1. Read the checklist file.
      2. Identify all GitHub task-list checkbox lines — lines matching `- [ ]`, `- [x]`, or `- [X]` (case-insensitive, tolerant of leading whitespace for nested items) outside of code fences. Ignore all other content (headings, notes, non-checkbox bullets, metadata).
      3. For each checkbox line, record its current marker state (checked or unchecked) and item text into a before-snapshot list.
-     4. Re-evaluate each checkbox item against the **updated** spec (the version just saved in step 7).
+     4. Re-evaluate each checkbox item against the **updated three-artifact
+        contract**.
      5. For each checkbox item, update only if the checked/unchecked state actually changes:
         - If the item now passes and was unchecked: change `[ ]` to `[x]`.
         - If the item now fails and was checked: change `[x]`/`[X]` to `[ ]`.
@@ -263,7 +284,9 @@ Execution steps:
 Behavior rules:
 
 - If no meaningful ambiguities found (or all potential questions would be low-impact), respond: "No critical ambiguities detected worth formal clarification." and suggest proceeding.
-- If spec file missing, instruct user to run `__SPECKIT_COMMAND_SPECIFY__` first (do not create a new spec here).
+- If any frozen contract file is missing, instruct the user to run
+  `__SPECKIT_COMMAND_SPECIFY__` first (do not create a replacement artifact
+  here).
 - Never exceed 5 total asked questions (clarification retries for a single question do not count as new questions).
 - Avoid speculative tech stack questions unless the absence blocks functional clarity.
 - Respect user early termination signals ("stop", "done", "proceed").
@@ -279,7 +302,7 @@ Context for prioritization: {ARGS}
 Check if `.specify/extensions.yml` exists in the project root.
 - If it does not exist, or no hooks are registered under `hooks.after_clarify`, skip to the Completion Report.
 - If it exists, read it and look for entries under the `hooks.after_clarify` key.
-- If the YAML cannot be parsed or is invalid, skip hook checking silently and continue to the Completion Report.
+- If the YAML cannot be parsed or is invalid, do not skip silently: tell the user that `.specify/extensions.yml` could not be read (include the parser error) and that no hooks were checked, including any mandatory (`optional: false`) hooks registered there, then continue to the Completion Report.
 - Filter out hooks where `enabled` is explicitly `false`. Treat hooks without an `enabled` field as enabled by default.
 - For each remaining hook, do **not** attempt to interpret or evaluate hook `condition` expressions:
   - If the hook has no `condition` field, or it is null/empty, treat the hook as executable
@@ -310,18 +333,22 @@ Check if `.specify/extensions.yml` exists in the project root.
 
 Report completion (after questioning loop ends or early termination):
 - Number of questions asked & answered.
-- Path to updated spec.
+- Paths to all updated contract artifacts.
 - Sections touched (list names).
 - Spec quality checklist status (if `FEATURE_DIR/checklists/requirements.md` was re-validated): show before/after pass counts (e.g., "Spec Quality Checklist: 12/16 → 15/16 items passing") and list any items that changed state — both newly checked (unchecked → checked) and any regressions (checked → unchecked). If any items remain unchecked, list them as areas needing attention.
-- Coverage summary table listing each taxonomy category with Status: Resolved (was Partial/Missing and addressed), Deferred (exceeds question quota or better suited for planning), Clear (already sufficient), Outstanding (still Partial/Missing but low impact).
-- If any Outstanding or Deferred remain, recommend whether to proceed to `__SPECKIT_COMMAND_PLAN__` or run `__SPECKIT_COMMAND_CLARIFY__` again later post-plan.
+- Coverage summary table listing each taxonomy category with Status: Resolved (was Partial/Missing and addressed), Deferred (exceeds question quota, or remaining item is specifically implementation method, tech-stack comparison, or task breakdown), Clear (already sufficient), Outstanding (still Partial/Missing but low impact).
+- If any Outstanding or Deferred remain, recommend whether to proceed to
+  `__SPECKIT_COMMAND_TASKS__` or run `__SPECKIT_COMMAND_CLARIFY__` again before
+  implementation.
 - Suggested next command.
 - Planning Readiness aggregate, with product-decision and provider-evidence
   blockers reported separately.
 
 ## Done When
 
-- [ ] Spec ambiguities identified and clarifications integrated into spec file
+- [ ] Contract ambiguities integrated consistently into all affected
+      `spec.md`, `prototype.html`, and `quickstart.md` artifacts
+- [ ] Requirement, prototype-anchor, and UAT mappings re-validate without gaps
 - [ ] Spec quality checklist re-validated against updated spec (if `FEATURE_DIR/checklists/requirements.md` exists)
 - [ ] Affected requirement gates recomputed with stable IDs and current spec revision
 - [ ] Provider-evidence blockers preserved and routed to source evidence

@@ -32,51 +32,69 @@ if (-not $paths) {
     exit 1
 }
 
-if (-not (Test-Path $paths.IMPL_PLAN -PathType Leaf)) {
-    [Console]::Error.WriteLine("ERROR: plan.md not found in $($paths.FEATURE_DIR)")
-    $planCommand = Format-SpecKitCommand -CommandName 'plan' -RepoRoot $paths.REPO_ROOT
-    [Console]::Error.WriteLine("Run $planCommand first to create the implementation plan.")
+function Assert-NonEmptyFile {
+    param(
+        [string]$Path,
+        [string]$Name
+    )
+    if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) {
+        [Console]::Error.WriteLine("ERROR: $Name not found in $($paths.FEATURE_DIR)")
+        $specifyCommand = Format-SpecKitCommand -CommandName 'specify' -RepoRoot $paths.REPO_ROOT
+        [Console]::Error.WriteLine("Run $specifyCommand first to create the frozen requirement contract.")
+        return $false
+    }
+    if ((Get-Item -LiteralPath $Path).Length -eq 0) {
+        [Console]::Error.WriteLine("ERROR: $Name is empty in $($paths.FEATURE_DIR)")
+        $specifyCommand = Format-SpecKitCommand -CommandName 'specify' -RepoRoot $paths.REPO_ROOT
+        [Console]::Error.WriteLine("Rerun $specifyCommand to regenerate $Name.")
+        return $false
+    }
+    return $true
+}
+
+if (-not (Assert-NonEmptyFile -Path $paths.FEATURE_SPEC -Name 'spec.md') -or
+    -not (Assert-NonEmptyFile -Path $paths.PROTOTYPE -Name 'prototype.html') -or
+    -not (Assert-NonEmptyFile -Path $paths.QUICKSTART -Name 'quickstart.md')) {
     exit 1
 }
 
-if (-not (Test-Path $paths.FEATURE_SPEC -PathType Leaf)) {
-    [Console]::Error.WriteLine("ERROR: spec.md not found in $($paths.FEATURE_DIR)")
-    $specifyCommand = Format-SpecKitCommand -CommandName 'specify' -RepoRoot $paths.REPO_ROOT
-    [Console]::Error.WriteLine("Run $specifyCommand first to create the feature structure.")
-    exit 1
-}
-
-# Build available docs list
-$docs = @()
-if (Test-Path $paths.RESEARCH) { $docs += 'research.md' }
-if (Test-Path $paths.DATA_MODEL) { $docs += 'data-model.md' }
-if ((Test-Path $paths.CONTRACTS_DIR) -and (Get-ChildItem -Path $paths.CONTRACTS_DIR -ErrorAction SilentlyContinue | Select-Object -First 1)) {
-    $docs += 'contracts/'
-}
-if (Test-Path $paths.QUICKSTART) { $docs += 'quickstart.md' }
+$docs = @('spec.md', 'prototype.html', 'quickstart.md')
 
 # Resolve tasks template through override stack
 $tasksTemplate = Resolve-Template -TemplateName 'tasks-template' -RepoRoot $paths.REPO_ROOT
-if (-not $tasksTemplate -or -not (Test-Path -LiteralPath $tasksTemplate -PathType Leaf)) {
+$tasksTemplateContent = Resolve-TemplateContent -TemplateName 'tasks-template' -RepoRoot $paths.REPO_ROOT
+if ($null -eq $tasksTemplateContent) {
     [Console]::Error.WriteLine("ERROR: Could not resolve required tasks-template from the template override stack for $($paths.REPO_ROOT)")
     [Console]::Error.WriteLine("Template 'tasks-template' was not found in any supported location (overrides, presets, extensions, or shared core). Add an override at .specify/templates/overrides/tasks-template.md, or run 'specify init' / reinstall shared infra to restore the core .specify/templates/tasks-template.md template.")
     exit 1
 }
-$tasksTemplate = (Resolve-Path -LiteralPath $tasksTemplate).Path
+if ($tasksTemplate -and (Test-Path -LiteralPath $tasksTemplate -PathType Leaf)) {
+    $tasksTemplate = (Resolve-Path -LiteralPath $tasksTemplate).Path
+} else {
+    $tasksTemplate = ''
+}
 
 # Output results
 if ($Json) {
     [PSCustomObject]@{
-        FEATURE_DIR    = $paths.FEATURE_DIR
-        AVAILABLE_DOCS = $docs
-        TASKS_TEMPLATE = $tasksTemplate
-    } | ConvertTo-Json -Compress
+        FEATURE_DIR            = $paths.FEATURE_DIR
+        FEATURE_SPEC           = $paths.FEATURE_SPEC
+        PROTOTYPE              = $paths.PROTOTYPE
+        QUICKSTART             = $paths.QUICKSTART
+        AVAILABLE_DOCS         = $docs
+        TASKS_TEMPLATE         = $tasksTemplate
+        TASKS_TEMPLATE_CONTENT = $tasksTemplateContent
+    } | ConvertTo-AsciiJson
 } else {
     Write-Output "FEATURE_DIR: $($paths.FEATURE_DIR)"
     Write-Output "TASKS_TEMPLATE: $(if ($tasksTemplate) { $tasksTemplate } else { 'not found' })"
     Write-Output "AVAILABLE_DOCS:"
-    Test-FileExists -Path $paths.RESEARCH -Description 'research.md' | Out-Null
-    Test-FileExists -Path $paths.DATA_MODEL -Description 'data-model.md' | Out-Null
-    Test-DirHasFiles -Path $paths.CONTRACTS_DIR -Description 'contracts/' | Out-Null
-    Test-FileExists -Path $paths.QUICKSTART -Description 'quickstart.md' | Out-Null
+    # These helpers report their line with Write-Output and ALSO return a
+    # bool, both on the Success stream, so 'Out-Null' discarded the report
+    # line along with the return value and left AVAILABLE_DOCS empty. Drop
+    # only the boolean so the per-document lines reach stdout like the
+    # bash and Python twins.
+    Test-FileExists -Path $paths.FEATURE_SPEC -Description 'spec.md' | Where-Object { $_ -isnot [bool] }
+    Test-FileExists -Path $paths.PROTOTYPE -Description 'prototype.html' | Where-Object { $_ -isnot [bool] }
+    Test-FileExists -Path $paths.QUICKSTART -Description 'quickstart.md' | Where-Object { $_ -isnot [bool] }
 }

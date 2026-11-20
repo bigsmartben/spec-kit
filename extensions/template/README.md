@@ -24,12 +24,10 @@ Contract-first starter for a Spec Kit Extension.
    .venv/bin/python -m pytest extensions/my-extension/tests
    ```
 
-6. Test installation from a Spec Kit project:
-
-   ```bash
-   specify extension add /path/to/my-extension --dev
-   specify extension remove my-extension --force
-   ```
+7. **Publish** (optional):
+   - Create GitHub repository
+   - Create release
+   - Submit to catalog (see the [Extension Publishing Guide](https://github.github.com/spec-kit/extensions/publishing.html))
 
 ## Files in This Template
 
@@ -55,5 +53,13 @@ Contract-first starter for a Spec Kit Extension.
 
 ## Normative Reference
 
-See
-[`docs/preset-extension-coding-standard.md`](../../docs/preset-extension-coding-standard.md).
+- **Development Guide**: See [Extension Development Guide](https://github.github.io/spec-kit/extensions/developing.html)
+- **API Reference**: See the [Extension API Reference](https://github.github.io/spec-kit/extensions/api.html)
+- **Publishing Guide**: See the [Extension Publishing Guide](https://github.github.com/spec-kit/extensions/publishing.html)
+- **User Guide**: See the [Extension User Guide](https://github.github.io/spec-kit/extensions/overview.html)
+
+## Template Version
+
+- Version: 1.0.0
+- Last Updated: 2026-01-28
+- Compatible with Spec Kit: >=0.1.0

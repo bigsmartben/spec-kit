@@ -1,53 +1,112 @@
 # Agentic SDD
 
-The `/speckit.*` slash commands drive the core Spec-Driven Development (SDD) process — an **agentic process** your coding agent runs step by step. For a guided, end-to-end run see the [Quick Start Guide](../quickstart.md); this page is the detailed reference for each command — including arguments, output, and how they interact. For the philosophy behind the process, see [What is SDD?](../concepts/sdd.md). For bug triage, see [Agentic Bug Fix](agentic-bugfix.md).
+The `/speckit.*` slash commands drive the core Spec-Driven Development (SDD) process — an **agentic process** your coding agent runs step by step. For a guided, end-to-end run see the [Quick Start Guide](../quickstart.md); this page is the detailed reference for each command — including arguments, output, and how they interact. For the philosophy behind the process, see [Understand Spec-Driven Development](../how-to/sdd.md). For bug triage, see [Agentic Bug Fix](agentic-bugfix.md).
 
-The commands are designed to run in order, but only `/speckit.specify` is strictly required before `/speckit.plan`. The clarify, checklist, and analyze commands are quality gates you add for anything with meaningful ambiguity.
+The core process has three delivery stages. `/speckit.specify` freezes the
+product contract, `/speckit.tasks` packages that contract without making
+technical decisions, and `/speckit.implement` owns and delivers the
+implementation. `/speckit.converge` then closes the loop by checking the
+implementation against that contract, the existing tasks, and the Constitution
+architecture SSOT. The clarify, checklist, and analyze commands are optional
+quality gates around those stages.
+
+For evaluating an idea before committing to a specification, see
+[Agentic Idea Assessment](agentic-assessment.md). Assessment is optional and
+independent of the SDD process.
 
 > [!NOTE]
-> Commands are written in `/speckit.*` form throughout this page. The exact invocation depends on your agent — some skills-based agents use `$speckit-*` (e.g. Codex, ZCode) or `/skill:speckit-*` (e.g. Kimi). Substitute the form your agent exposes.
+> Commands are written in `/speckit.*` form throughout this page. GitHub Copilot's default skills mode uses `/speckit-*`; some other agents use `$speckit-*` (e.g. Codex, ZCode) or `/skill:speckit-*` (e.g. Kimi). See [Command invocation](../integrations/cli.md#command-invocation).
 
 ```text
-/speckit.constitution -> /speckit.specify -> /speckit.clarify -> /speckit.plan -> /speckit.checklist -> /speckit.tasks -> /speckit.analyze -> /speckit.implement -> /speckit.converge
+/speckit.specify -> /speckit.tasks -> /speckit.implement -> /speckit.converge
+                                                ^                |
+                                                +-- corrective --+
+                                                     [BUILD] tasks
 ```
+
+Use `/speckit.constitution` before this flow when the project has no agreed
+principles. Add `/speckit.clarify` and `/speckit.checklist` before Task, and
+`/speckit.analyze` after Task and before Implement, when the added review is
+useful. Run `/speckit.converge` after an implementation pass and return its
+newly appended `[BUILD]` tasks to `/speckit.implement`.
+
+## Command overview
+
+After `specify init`, these commands are available in the selected integration.
+Integrations that support optional skills mode can select it with
+`--integration-options="--skills"`; some integrations, including Copilot, use
+skills by default.
+
+| Command | Agent skill | Purpose |
+| --- | --- | --- |
+| `/speckit.constitution` | `speckit-constitution` | Establish or update project principles and the embedded architecture SSOT |
+| `/speckit.specify` | `speckit-specify` | Define requirements, construction prototype, and pending UAT baseline |
+| `/speckit.tasks` | `speckit-tasks` | Turn the frozen contract into independently deliverable, requirement-level work packages |
+| `/speckit.implement` | `speckit-implement` | Make technical decisions, execute the work, and persist UAT results |
+| `/speckit.converge` | `speckit-converge` | Check implemented behavior and architecture, then append only uncovered `[BUILD]` work |
+| `/speckit.clarify` | `speckit-clarify` | Resolve ambiguity before task generation (optional quality gate; formerly `/quizme`) |
+| `/speckit.analyze` | `speckit-analyze` | Check artifact consistency after tasks and before implementation (optional quality gate) |
+| `/speckit.checklist` | `speckit-checklist` | Generate requirements-quality checklists (optional quality gate) |
 
 ## `/speckit.constitution`
 
-Creates or updates the project **constitution** — the guiding principles that every later phase is evaluated against — and keeps dependent templates in sync. Run it once up front and update it whenever your principles change. Pass the principles as arguments.
+Creates or updates the project **constitution** — the guiding principles and
+single repository architecture SSOT that every later phase is evaluated
+against. Its architecture section defines stable
+`CAP/ACCEPT/SYS/SUB/CMP/SEQ/CON/INV` authority for capabilities, component
+boundaries, sequences, public contracts, and invariants. Run it once up front
+and amend it through Constitution when repository authority changes.
 
 ```text
 /speckit.constitution This project follows a "Library-First" approach. All features must be implemented as standalone libraries first. We use TDD strictly. We prefer functional programming patterns.
 ```
 
-## `/speckit.specify`
-
-Creates or updates the feature **specification** from a natural-language description. Focus on the **what** and **why** — the user-facing behavior and goals — not the tech stack, which belongs in `/speckit.plan`.
+For a more general starting point:
 
 ```text
-/speckit.specify Build an application that helps me organize photos into albums grouped by date, re-orderable by drag-and-drop on the main page, with a tile preview inside each album.
+/speckit.constitution Create principles focused on code quality, testing standards, user experience consistency, and performance requirements.
+```
+
+## `/speckit.specify`
+
+Creates or updates the feature specification contract from a natural-language
+description. The command writes `spec.md`, `prototype.html`, and
+`quickstart.md`, then validates them as one unit. Focus the written spec on the
+**what** and **why**. Treat the self-contained HTML prototype as the binding
+source for visible layout and interaction behavior, and use `quickstart.md` as
+the implementation-independent `UAT-*` baseline. Every UAT starts as `PENDING`;
+Specify does not execute acceptance or record evidence. Together, these three
+files are the frozen contract consumed by Task.
+
+This workflow may also maintain `checklists/requirements.md`, the built-in spec-quality checklist that `/speckit.specify` creates and `/speckit.clarify` re-evaluates. That lifecycle is separate from custom checklists generated by `/speckit.checklist`.
+
+```text
+/speckit.specify Build an application that can help me organize my photos in separate photo albums. Albums are grouped by date and can be re-organized by dragging and dropping on the main page. Albums are never in other nested albums. Within each album, photos are previewed in a tile-like interface.
 ```
 
 ## `/speckit.clarify`
 
-Asks up to five targeted questions about underspecified areas of the current spec and encodes your answers back into `spec.md`. Run it as many times as needed before planning, each time tackling a different area. Optionally pass a focus area as an argument.
+Asks up to five targeted questions about underspecified areas of the current
+contract and encodes the answers into `spec.md`, `prototype.html`, and
+`quickstart.md` as needed to keep them aligned. Run it as many times as needed
+before task generation, each time tackling a different area. Optionally pass a
+focus area as an argument.
 
 ```text
 /speckit.clarify Focus on the task card behavior: status changes, comment limits, and who can be assigned.
 ```
 
-Clarifying before planning keeps you from designing on top of ambiguity. If `/speckit.analyze` later surfaces requirement gaps, come back and run `/speckit.clarify` (or `/speckit.specify`) again.
+Clarifying before Task keeps implementation choices from masking requirement
+gaps. If `/speckit.analyze` later surfaces contract gaps, come back and run
+`/speckit.clarify` or `/speckit.specify` again.
 
-## `/speckit.plan`
-
-Runs the planning process to generate design artifacts from the spec. This is where implementation detail belongs — provide your tech stack, architecture, and technical constraints as arguments.
-
-```text
-/speckit.plan Use .NET Aspire with Postgres. The frontend is Blazor Server with drag-and-drop boards and real-time updates. Expose REST APIs for projects, tasks, and notifications.
-```
+When `checklists/requirements.md` exists, `/speckit.clarify` may update its evaluated state as part of tightening the spec. This exception applies only to the built-in requirements checklist, not to custom review checklists.
 
 ## `/speckit.checklist`
 
 Generates a quality checklist for the feature — think of it as **"unit tests for your requirements."** Rather than testing code, it checks whether the spec itself is complete, clear, unambiguous, and consistent (for example: "Are the drag-and-drop rules defined for every column?", "Is behavior specified for a deleted assigned user?").
+
+Custom checklists generated by this command are reviewer-owned requirements-quality review artifacts. An agent may help evaluate them when explicitly asked, but implementation must not silently self-approve them. In a custom checklist, `[x]` means the reviewer determined the requirements-quality criterion is satisfied; it does not mean implementation work is complete.
 
 Run it with no arguments for a broad pass, or pass a focus area to target one aspect:
 
@@ -59,11 +118,36 @@ Run it with no arguments for a broad pass, or pass a focus area to target one as
 /speckit.checklist Focus on the Kanban board interactions and comment permissions.
 ```
 
-Review the generated checklist. If it surfaces gaps, loop back to `/speckit.clarify` or `/speckit.specify` to tighten the spec before breaking the work down.
+Review the generated checklist. If it surfaces gaps, loop back to `/speckit.clarify` or `/speckit.specify` to tighten the spec before breaking the work down, then mark each custom checklist item `[x]` only after the requirements-quality criterion has been reviewed and satisfied.
 
 ## `/speckit.tasks`
 
-Generates an actionable, dependency-ordered `tasks.md` from the design artifacts. Tasks are organized into phases: **Setup**, **Foundational** (blocking prerequisites), then **one phase per user story** in priority order, and a final **Polish** phase for cross-cutting concerns. Tests are generated within a user story's phase when requested rather than as a separate phase, and tasks are marked for parallel execution where possible.
+Reads only `spec.md`, `prototype.html`, `quickstart.md`, and the project
+constitution. It does not inspect the source tree, an existing `plan.md`, or
+other technical design artifacts.
+
+The command writes `tasks.md` as dependency-ordered work packages that are
+independently deliverable and expressed at the requirement level. A package
+states the intended outcome and the source contract references it fulfills; it
+does not select a stack, architecture, framework, file, module, directory, or
+implementation path.
+
+Task guarantees that at least one package maps to every:
+
+- `FR-*` functional requirement
+- `SC-*` success criterion
+- prototype `data-spec-ref`
+- `UAT-*` acceptance scenario
+
+Delivery obligations are `[BUILD]` work packages. Every `UAT-*` also has
+exactly one `[UAT]` execution package that depends on the build packages needed
+to make the scenario observable.
+
+When the frozen contract contains a conflict or cannot supply one of those
+mappings, Task blocks. It reports the problem and returns it to
+`/speckit.specify` or `/speckit.clarify`; it does not invent a requirement,
+prototype reference, UAT case, or technical design. After the contract is
+corrected, rerun Task.
 
 ```text
 /speckit.tasks
@@ -71,19 +155,31 @@ Generates an actionable, dependency-ordered `tasks.md` from the design artifacts
 
 ## `/speckit.analyze`
 
-Performs a **read-only** cross-artifact consistency and quality analysis across `spec.md`, `plan.md`, and `tasks.md`, reporting conflicts, gaps, and ambiguities (for example a task with no matching requirement, or a plan choice that contradicts the spec). It never edits files — it produces a report and can optionally suggest remediations for you to approve.
+Performs a **read-only** consistency and quality analysis across `spec.md`,
+`prototype.html`, `quickstart.md`, and `tasks.md`. It reports contract
+conflicts, missing FR/SC/prototype/UAT mappings, packages that cannot be
+delivered independently, and task packages that prematurely lock technical
+choices. It never edits files.
 
 ```text
 /speckit.analyze
 ```
 
-Run it before implementing, while the artifacts can still be adjusted cheaply. If it surfaces issues, **return to the earlier step that owns them** and fix them at the source — `/speckit.specify` or `/speckit.clarify` for requirement problems, `/speckit.plan` for design problems, `/speckit.tasks` to regenerate the task list — then re-run `/speckit.analyze` until it comes back clean. You can also run `/speckit.analyze` again after implementation as an extra review.
+Run it before implementing. Return requirement, prototype, expected-result, and
+UAT-reference problems to `/speckit.specify` or `/speckit.clarify`; return
+coverage, dependency, independence, or technology-neutrality problems to
+`/speckit.tasks`. Rerun analysis after correcting the owning stage.
 
 ## `/speckit.implement`
 
-Executes the tasks in `tasks.md`, running each phase in dependency order and respecting parallel markers.
+Makes the technical decisions Task intentionally leaves open, including the
+stack, architecture, libraries, file structure, interfaces, and implementation
+paths. It executes `tasks.md` in dependency order and runs the UAT scenarios
+mapped to those work packages.
 
-For a small feature, run it once to build everything:
+Before executing tasks, it reads checklist checkbox state as a gate. Checklist markers are read-only for this command: `/speckit.implement` counts checked and unchecked items and asks before proceeding when any are unchecked, but it must not change checklist markers. For custom checklists, checked items mean reviewer approval of requirements quality, not completed implementation work.
+
+For a small feature, run it once to build and verify everything:
 
 ```text
 /speckit.implement
@@ -92,24 +188,60 @@ For a small feature, run it once to build everything:
 For a large feature, work in stages to avoid overwhelming the agent's context — scope each run with an argument, validate the result, then continue:
 
 ```text
-/speckit.implement Implement only the Setup and Foundational phases: project scaffolding and the project/task data model with basic CRUD. Stop before the user-story features.
+/speckit.implement Implement work packages T001-T005, including their mapped UAT scenarios, and stop.
 ```
 
-```text
-/speckit.implement Now implement the Kanban board user story: drag-and-drop between columns.
-```
+For every UAT scenario it executes, Implement updates only these fields in the
+corresponding `quickstart.md` entry:
 
-Verify each stage works before moving to the next.
+- `Status`
+- `Actual Result`
+- `Evidence`
+- `Deviation`
+
+It must preserve the baseline `User / Role`, `Preconditions`, `User Actions`,
+`Expected Result`, requirement and prototype references, and UAT identifier.
+Set `Status` to `PASS`, `FAIL`, or `BLOCKED` only after executing the scenario.
+Mark its `[UAT]` task complete only for a conclusive `PASS`.
+Do not use implementation discoveries to silently rewrite the frozen contract.
+If the implementation shows that the intended behavior must change, return to
+Specify or Clarify and then regenerate the dependent tasks.
 
 ## `/speckit.converge`
 
-Assesses the codebase against the feature's spec, plan, and tasks to confirm nothing was missed. It is **append-only**: it never edits or deletes code, and its only possible write is adding tasks to `tasks.md`. Run it only after `/speckit.implement` has run on the current `tasks.md`.
+Runs after Implement to compare the present codebase with the frozen product
+contract, the existing work packages, and the Constitution's governance and
+architecture SSOT. It can assess feature behavior, UAT evidence, responsibility
+ownership, dependency direction, component sequences, cross-component public
+contracts, and architectural invariants.
+
+Converge is append-only. It never changes application code, the frozen Specify
+artifacts, or the Constitution. It creates only corrective `[BUILD]` tasks that
+are not already represented by an existing task. Architecture drift can
+therefore become a traceable refactoring work package without requiring a
+separate blueprint argument.
+
+Before appending a task, Converge checks the existing task IDs, source
+references, checkbox state, dependencies, and observable completion conditions.
+An unchecked task whose completion condition already covers the gap is reused;
+the command leaves `tasks.md` unchanged and reports that task ID. A checked task
+that is contradicted by current evidence does require a new corrective task.
+
+UAT remains a separate execution concern. Every `UAT-*` keeps exactly one
+`[UAT]` task. For a `PENDING`, `FAIL`, or `BLOCKED` result, Converge may append
+the `[BUILD]` remediation needed by the underlying implementation defect, but it
+must reuse and rerun the original `[UAT]` task rather than create another one.
 
 ```text
 /speckit.converge
 ```
 
-It first prints a severity-graded findings summary, then resolves to one of two outcomes:
+The possible outcomes are:
 
-- **Converged** — no gaps found. `tasks.md` is left byte-for-byte unchanged and you'll see a clean result like `✅ Converged — the implementation satisfies the spec, plan, and tasks.` You're done; proceed to review or open a PR.
-- **Tasks appended** — gaps found. Converge appends them as new tasks under a Convergence section in `tasks.md` and tells you how many. Run `/speckit.implement` again to complete them, then `/speckit.converge` once more. Each pass finds fewer items; repeat until it reports converged.
+- `tasks_appended`: new corrective `[BUILD]` tasks were appended; return them to
+  Implement and rerun the mapped UAT tasks afterward.
+- `existing_tasks_pending`: current tasks already cover the gaps; no file was
+  changed, and Implement should execute or rerun the reported task IDs.
+- `converged`: implementation satisfies the frozen contract, Constitution
+  authority, and task outcomes; proceed to review without another implementation
+  pass.

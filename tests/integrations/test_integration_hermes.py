@@ -51,6 +51,10 @@ class TestHermesIntegration(SkillsIntegrationTests):
                 f"{f} is not under ~/.hermes/skills/"
             )
 
+    def test_declares_home_scoped_output(self):
+        """The engine learns about home-scoped skills from this flag, not from the path."""
+        assert get_integration(self.KEY).registrar_config["home_scoped"] is True
+
     def test_local_marker_dir_created(self, tmp_path, monkeypatch):
         """Project-local .hermes/skills/ should exist but be empty."""
         home = _fake_home(tmp_path)
@@ -71,8 +75,8 @@ class TestHermesIntegration(SkillsIntegrationTests):
         """Override: Hermes writes to global, not project-local."""
         self.test_setup_writes_to_global_skills_dir(tmp_path, monkeypatch)
 
-    def test_plan_skill_has_no_context_placeholder(self, tmp_path, monkeypatch):
-        """The core plan skill must not carry a context-file placeholder —
+    def test_tasks_skill_has_no_context_placeholder(self, tmp_path, monkeypatch):
+        """The core tasks skill must not carry a context-file placeholder —
         agent context files are owned by the opt-in agent-context extension."""
         home = _fake_home(tmp_path)
         monkeypatch.setattr(Path, "home", lambda: home)
@@ -80,12 +84,12 @@ class TestHermesIntegration(SkillsIntegrationTests):
         i = get_integration(self.KEY)
         m = IntegrationManifest(self.KEY, tmp_path)
         i.setup(tmp_path, m)
-        # Find the plan skill in global ~/.hermes/skills/
-        plan_file = home / ".hermes" / "skills" / "speckit-plan" / "SKILL.md"
-        assert plan_file.exists(), f"Plan skill {plan_file} not created globally"
-        content = plan_file.read_text(encoding="utf-8")
+        # Find the tasks skill in global ~/.hermes/skills/
+        tasks_file = home / ".hermes" / "skills" / "speckit-tasks" / "SKILL.md"
+        assert tasks_file.exists(), f"Tasks skill {tasks_file} not created globally"
+        content = tasks_file.read_text(encoding="utf-8")
         assert "__CONTEXT_FILE__" not in content, (
-            "Plan skill has unprocessed __CONTEXT_FILE__ placeholder"
+            "Tasks skill has unprocessed __CONTEXT_FILE__ placeholder"
         )
 
     def test_all_files_tracked_in_manifest(self, tmp_path, monkeypatch):
@@ -343,7 +347,8 @@ class TestHermesInitFlow:
 
         assert result.exit_code == 0, f"init --integration hermes failed: {result.output}"
         # Skills should be in global ~/.hermes/skills/
-        assert (home / ".hermes" / "skills" / "speckit-plan" / "SKILL.md").exists()
+        assert (home / ".hermes" / "skills" / "speckit-tasks" / "SKILL.md").exists()
+        assert not (home / ".hermes" / "skills" / "speckit-plan").exists()
         # Local marker should exist
         assert (target / ".hermes" / "skills").is_dir()
         # No core SKILL.md files in project-local dir

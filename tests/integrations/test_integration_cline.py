@@ -4,9 +4,11 @@ import os
 import pytest
 
 from specify_cli.integrations import get_integration
-from specify_cli.integrations.cline import format_cline_command_name
-
-from .community_defaults import bundled_community_default_files
+from specify_cli.integrations.cline import (
+    _hyphenate_frontmatter_refs,
+    format_cline_command_name,
+    hyphenate_command_refs,
+)
 from .test_integration_base_markdown import MarkdownIntegrationTests
 
 
@@ -84,6 +86,189 @@ class TestClineIntegration(MarkdownIntegrationTests):
         rewritten = cline._rewrite_handoff_references(content)
         assert rewritten == "---\nagent: speckit-plan\n---\n"
 
+    def test_cline_body_refs_keep_md_file_names(self):
+        """Command references are hyphenated but ``speckit.*.md`` file names keep ``.md``."""
+        body = (
+            "Edit `.specify/extensions/git/commands/speckit.git.commit.md`, "
+            "then run /speckit.git.commit."
+        )
+        assert hyphenate_command_refs(body) == (
+            "Edit `.specify/extensions/git/commands/speckit.git.commit.md`, "
+            "then run /speckit-git-commit."
+        )
+
+    def test_cline_body_refs_hyphenate_a_command_named_md(self):
+        """An extension command whose name is ``md`` is still a command reference."""
+        body = (
+            "Run /speckit.foo.md, or open commands/speckit.plan.md "
+            "and agents/speckit.foo.md."
+        )
+        assert hyphenate_command_refs(body) == (
+            "Run /speckit-foo-md, or open commands/speckit.plan.md "
+            "and agents/speckit.foo.md."
+        )
+        refs = _hyphenate_frontmatter_refs(
+            {"agent": "speckit.foo.md", "next": "/speckit.foo.md"}
+        )
+        assert refs == {"agent": "speckit-foo-md", "next": "/speckit-foo-md"}
+
+    def test_cline_refs_hyphenate_dotted_preset_command_ending_in_md(self):
+        """A dotted preset command name ending in ``md`` is a command, not a file."""
+        body = (
+            "Run speckit.foo.bar.md or /speckit.foo.bar.md, "
+            "then edit presets/foo/commands/speckit.foo.bar.md."
+        )
+        assert hyphenate_command_refs(body) == (
+            "Run speckit-foo-bar-md or /speckit-foo-bar-md, "
+            "then edit presets/foo/commands/speckit.foo.bar.md."
+        )
+        refs = _hyphenate_frontmatter_refs(
+            {"agent": "speckit.foo.bar.md", "file": "commands/speckit.foo.bar.md"}
+        )
+        assert refs == {"agent": "speckit-foo-bar-md", "file": "commands/speckit.foo.bar.md"}
+
+    def test_cline_refs_hyphenate_bracketed_slash_command_named_md(self):
+        """A slash command after Markdown punctuation is still a command reference."""
+        body = (
+            "See [/speckit.foo.md] and {/speckit.foo.md}, "
+            "then edit ~/commands/speckit.foo.md or ${DIR}/speckit.foo.md."
+        )
+        assert hyphenate_command_refs(body) == (
+            "See [/speckit-foo-md] and {/speckit-foo-md}, "
+            "then edit ~/commands/speckit.foo.md or ${DIR}/speckit.foo.md."
+        )
+        refs = _hyphenate_frontmatter_refs(
+            {"next": "[/speckit.foo.md]", "file": "[commands/speckit.foo.md]"}
+        )
+        assert refs == {"next": "[/speckit-foo-md]", "file": "[commands/speckit.foo.md]"}
+
+    def test_cline_refs_keep_md_file_names_at_a_windows_drive_root(self):
+        """``C:\\speckit.foo.md`` and ``C:/speckit.foo.md`` are file names, not commands."""
+        body = (
+            "Open C:\\speckit.foo.md or d:/speckit.foo.md, "
+            "then run /speckit.foo.md or ab:/speckit.foo.md."
+        )
+        assert hyphenate_command_refs(body) == (
+            "Open C:\\speckit.foo.md or d:/speckit.foo.md, "
+            "then run /speckit-foo-md or ab:/speckit-foo-md."
+        )
+        refs = _hyphenate_frontmatter_refs(
+            {"file": "C:\\speckit.foo.md", "other": "C:/speckit.foo.md"}
+        )
+        assert refs == {"file": "C:\\speckit.foo.md", "other": "C:/speckit.foo.md"}
+
+    @pytest.mark.parametrize(
+        "path",
+        [
+            "C:\\Program Files (x86)\\speckit.git.commit.md",
+            "C:/Program Files (x86)/speckit.git.commit.md",
+            "%TEMP%\\speckit.git.commit.md",
+            "%ProgramFiles(x86)%\\speckit.git.commit.md",
+            "./commands[old]/speckit.git.commit.md",
+            "commands(1)/speckit.git.commit.md",
+        ],
+    )
+    def test_cline_refs_keep_md_file_names_after_bracket_or_env_var(self, path):
+        """A directory may end in ``)``, ``]`` or a ``%VAR%`` reference."""
+        body = f"Edit {path}, then run /speckit.git.status."
+        assert hyphenate_command_refs(body) == (
+            f"Edit {path}, then run /speckit-git-status."
+        )
+        assert _hyphenate_frontmatter_refs({"file": path}) == {"file": path}
+
+    def test_cline_refs_hyphenate_commands_after_closing_punctuation(self):
+        """A closing bracket or ``%`` only counts as a directory ending when it
+        closes a bracketed or ``%VAR%`` name; other prose stays a command."""
+        body = (
+            "Run (see docs)/speckit.foo.md, 100%/speckit.foo.md, "
+            "[/speckit.foo.md], ([/speckit.foo.md]) or [Run](/speckit.foo.md)."
+        )
+        assert hyphenate_command_refs(body) == (
+            "Run (see docs)/speckit-foo-md, 100%/speckit-foo-md, "
+            "[/speckit-foo-md], ([/speckit-foo-md]) or [Run](/speckit-foo-md)."
+        )
+
+    def test_cline_frontmatter_refs_keep_md_file_names(self):
+        """Frontmatter string values get the same ``.md`` file name protection."""
+        refs = _hyphenate_frontmatter_refs(
+            {"agent": "speckit.plan", "file": "commands/speckit.git.commit.md"}
+        )
+        assert refs == {"agent": "speckit-plan", "file": "commands/speckit.git.commit.md"}
+
+    def _register_cline_command(self, tmp_path, source_id, body, frontmatter=""):
+        from specify_cli.agents import CommandRegistrar
+
+        source = tmp_path / "src"
+        (source / "commands").mkdir(parents=True)
+        (source / "commands" / "commit.md").write_text(
+            f"---\ndescription: Commit\n{frontmatter}---\n\n{body}",
+            encoding="utf-8",
+        )
+        project = tmp_path / "project"
+        project.mkdir()
+        CommandRegistrar().register_commands(
+            "cline",
+            [{"name": "speckit.git.commit", "file": "commands/commit.md"}],
+            source_id,
+            source,
+            project,
+        )
+        out = project / ".clinerules" / "workflows" / "speckit-git-commit.md"
+        return out.read_text(encoding="utf-8")
+
+    def test_registered_extension_command_keeps_md_file_names(self, tmp_path):
+        """Registering an extension command for Cline hyphenates command
+        references in the body and frontmatter but keeps ``.md`` file names."""
+        text = self._register_cline_command(
+            tmp_path,
+            "git",
+            "Edit `.specify/extensions/git/commands/speckit.git.commit.md`, "
+            "then run /speckit.git.status.\n",
+            frontmatter="handoff: speckit.git.status\nsource_file: commands/speckit.git.commit.md\n",
+        )
+        assert "`.specify/extensions/git/commands/speckit.git.commit.md`" in text
+        assert "then run /speckit-git-status." in text
+        assert "handoff: speckit-git-status" in text
+        assert "source_file: commands/speckit.git.commit.md" in text
+        assert "speckit-git-commit-md" not in text
+
+    def test_registered_extension_command_keeps_bracketed_and_env_paths(self, tmp_path):
+        """Registration keeps ``.md`` file names under ``(x86)``, ``[old]`` and
+        ``%TEMP%`` directories in the body and frontmatter."""
+        text = self._register_cline_command(
+            tmp_path,
+            "git",
+            "Copy C:\\Program Files (x86)\\speckit.git.commit.md and "
+            "./commands[old]/speckit.git.commit.md, then run /speckit.git.status.\n",
+            frontmatter="source_file: '%TEMP%\\speckit.git.commit.md'\n",
+        )
+        assert "C:\\Program Files (x86)\\speckit.git.commit.md" in text
+        assert "./commands[old]/speckit.git.commit.md" in text
+        assert "%TEMP%\\speckit.git.commit.md" in text
+        assert "then run /speckit-git-status." in text
+        assert "speckit-git-commit-md" not in text
+
+    def test_registered_core_command_is_not_rewritten(self, tmp_path):
+        """The rewrite stays limited to extension and preset commands."""
+        text = self._register_cline_command(
+            tmp_path, "core", "Then run /speckit.git.status.\n"
+        )
+        assert "Then run /speckit.git.status." in text
+
+    def test_process_registered_command_hook(self):
+        cline = get_integration("cline")
+        frontmatter = {"handoff": "speckit.plan", "file": "commands/speckit.plan.md"}
+        body = "Run /speckit.plan; see commands/speckit.plan.md."
+        assert cline.process_registered_command(
+            frontmatter, body, source_id="core"
+        ) == (frontmatter, body)
+        assert cline.process_registered_command(
+            frontmatter, body, source_id="my-preset"
+        ) == (
+            {"handoff": "speckit-plan", "file": "commands/speckit.plan.md"},
+            "Run /speckit-plan; see commands/speckit.plan.md.",
+        )
+
     def test_cline_hook_instruction_injection(self):
         """Verify Cline injects the dot-to-hyphen note for hooks."""
         cline = get_integration("cline")
@@ -91,6 +276,75 @@ class TestClineIntegration(MarkdownIntegrationTests):
         injected = cline._inject_hook_command_note(content)
         assert "replace dots (`.`) with hyphens (`-`)" in injected
         assert "- For each executable hook, output the following:" in injected
+
+    def test_cline_hook_instruction_injection_no_trailing_newline(self):
+        """Note must not collapse onto the instruction line when the
+        instruction is the final line with no trailing newline.
+
+        The injection regex matches the end-of-line via ``(\\r\\n|\\n|$)``, so
+        the captured ``eol`` is empty on a file's last line that lacks a
+        trailing newline. Without an ``or "\\n"`` fallback the note text and
+        the instruction are emitted on the same line.
+        """
+        cline = get_integration("cline")
+        content = "- For each executable hook, output the following:"  # no trailing \n
+        injected = cline._inject_hook_command_note(content)
+        assert "replace dots (`.`) with hyphens (`-`)" in injected
+        # Instruction stays on its own line rather than being mashed onto the note.
+        assert "\n- For each executable hook, output the following:" in injected
+
+    def test_cline_hook_note_not_suppressed_by_unrelated_prose(self):
+        """Unrelated prose must not suppress the note for a real instruction.
+
+        The idempotency guard used to be a whole-document substring scan
+        (``if "replace dots" in content``), so any command or extension
+        markdown whose prose merely contained that phrase lost the note
+        entirely -- leaving the agent told to emit ``/speckit.git.commit``,
+        a dotted command Cline never registers.
+        """
+        cline = get_integration("cline")
+        content = (
+            "# DB extension command\n\n"
+            "When normalizing table names, replace dots with underscores.\n\n"
+            "## Pre-Execution Hooks\n"
+            "- For each executable hook, output the following:\n"
+        )
+        injected = cline._inject_hook_command_note(content)
+        assert "`/speckit-git-commit`" in injected, injected
+        # The user's own prose is untouched.
+        assert "replace dots with underscores" in injected
+
+    def test_cline_hook_note_added_to_every_un_noted_instruction(self):
+        """A second, un-noted hook section must still get its own note."""
+        cline = get_integration("cline")
+        instruction = "- For each executable hook, output the following:\n"
+        # Section 1 already carries the note; section 2 does not.
+        first = cline._inject_hook_command_note("## Hooks A\n" + instruction)
+        content = first + "\n## Hooks B\n" + instruction
+
+        injected = cline._inject_hook_command_note(content)
+        assert injected.count("replace dots (`.`) with hyphens (`-`)") == 2, injected
+        # Still idempotent: re-running adds nothing.
+        assert cline._inject_hook_command_note(injected) == injected
+
+    def test_cline_hook_note_sits_directly_above_indented_instruction(self):
+        """No blank line may be inserted between the note and the instruction.
+
+        The regex captured indentation with ``\\s*``, which matches newlines,
+        so a preceding blank line was swallowed into the "indent" and re-emitted
+        between the note and the instruction.
+        """
+        cline = get_integration("cline")
+        content = "## Hooks\n\n  - For each executable hook, output the following:\n"
+        injected = cline._inject_hook_command_note(content)
+        lines = injected.splitlines()
+        instruction_idx = next(
+            i for i, line in enumerate(lines) if "For each executable hook" in line
+        )
+        assert "replace dots" in lines[instruction_idx - 1], injected
+        # Indentation is preserved on both lines.
+        assert lines[instruction_idx].startswith("  - For each")
+        assert lines[instruction_idx - 1].startswith("  - When constructing")
 
     # -- Overrides for MarkdownIntegrationTests ---------------------------
 
@@ -117,7 +371,7 @@ class TestClineIntegration(MarkdownIntegrationTests):
         )
         assert specify_file is not None
         specify_contents = specify_file.read_text(encoding="utf-8")
-        assert "/speckit-plan" in specify_contents
+        assert "/speckit-tasks" in specify_contents
         assert "/speckit.plan" not in specify_contents
 
     def test_integration_flag_creates_files(self, tmp_path):
@@ -171,13 +425,15 @@ class TestClineIntegration(MarkdownIntegrationTests):
         files.append(".specify/init-options.json")
         files.append(f".specify/integrations/{self.KEY}.manifest.json")
         files.append(".specify/integrations/speckit.manifest.json")
+        files.append(".specify/.gitignore")
 
         if script_variant == "sh":
             for name in [
                 "check-prerequisites.sh",
                 "common.sh",
                 "create-new-feature.sh",
-                "setup-plan.sh",
+                "markdown_sections.py",
+                "resolve-template.sh",
                 "setup-tasks.sh",
             ]:
                 files.append(f".specify/scripts/bash/{name}")
@@ -186,7 +442,8 @@ class TestClineIntegration(MarkdownIntegrationTests):
                 "check-prerequisites.ps1",
                 "common.ps1",
                 "create-new-feature.ps1",
-                "setup-plan.ps1",
+                "markdown_sections.py",
+                "resolve-template.ps1",
                 "setup-tasks.ps1",
             ]:
                 files.append(f".specify/scripts/powershell/{name}")
@@ -194,7 +451,8 @@ class TestClineIntegration(MarkdownIntegrationTests):
         for name in [
             "checklist-template.md",
             "constitution-template.md",
-            "plan-template.md",
+            "prototype-template.md",
+            "quickstart-template.md",
             "spec-template.md",
             "tasks-template.md",
         ]:

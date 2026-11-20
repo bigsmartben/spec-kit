@@ -1,9 +1,9 @@
 ---
-description: Perform a non-destructive cross-artifact consistency and quality analysis across spec.md, plan.md, and tasks.md after task generation.
+description: Analyze consistency and complete traceability across the frozen Specify contract and tasks.md.
 scripts:
-  sh: scripts/bash/check-prerequisites.sh --json --require-tasks --include-tasks
-  ps: scripts/powershell/check-prerequisites.ps1 -Json -RequireTasks -IncludeTasks
-  py: scripts/python/check_prerequisites.py --json --require-tasks --include-tasks
+  sh: scripts/bash/check-prerequisites.sh --json --require-contract --require-tasks --include-tasks
+  ps: scripts/powershell/check-prerequisites.ps1 -Json -RequireContract -RequireTasks -IncludeTasks
+  py: scripts/python/check_prerequisites.py --json --require-contract --require-tasks --include-tasks
 ---
 
 ## User Input
@@ -19,7 +19,7 @@ You **MUST** consider the user input before proceeding (if not empty).
 **Check for extension hooks (before analysis)**:
 - Check if `.specify/extensions.yml` exists in the project root.
 - If it exists, read it and look for entries under the `hooks.before_analyze` key
-- If the YAML cannot be parsed or is invalid, skip hook checking silently and continue normally
+- If the YAML cannot be parsed or is invalid, do not skip silently: tell the user that `.specify/extensions.yml` could not be read (include the parser error) and that no hooks were checked, including any mandatory (`optional: false`) hooks registered there, then continue normally
 - Filter out hooks where `enabled` is explicitly `false`. Treat hooks without an `enabled` field as enabled by default.
 - For each remaining hook, do **not** attempt to interpret or evaluate hook `condition` expressions:
   - If the hook has no `condition` field, or it is null/empty, treat the hook as executable
@@ -51,13 +51,20 @@ You **MUST** consider the user input before proceeding (if not empty).
 
 ## Goal
 
-Identify inconsistencies, duplications, ambiguities, and underspecified items across the three core artifacts (`spec.md`, `plan.md`, `tasks.md`) before implementation. This command MUST run only after `__SPECKIT_COMMAND_TASKS__` has successfully produced a complete `tasks.md`.
+Identify inconsistencies, duplications, ambiguities, and traceability gaps across
+`spec.md`, `prototype.html`, `quickstart.md`, and `tasks.md` before
+implementation. This command MUST run only after `__SPECKIT_COMMAND_TASKS__`
+has successfully produced a complete `tasks.md`.
 
 ## Operating Constraints
 
 **STRICTLY READ-ONLY**: Do **not** modify any files. Output a structured analysis report. Offer an optional remediation plan (user must explicitly approve before any follow-up editing commands would be invoked manually).
 
-**Constitution Authority**: The project constitution (`/memory/constitution.md`) is **non-negotiable** within this analysis scope. Constitution conflicts are automatically CRITICAL and require adjustment of the spec, plan, or tasks—not dilution, reinterpretation, or silent ignoring of the principle. If a principle itself needs to change, that must occur in a separate, explicit constitution update outside `__SPECKIT_COMMAND_ANALYZE__`.
+**Constitution Authority**: The project constitution (`/memory/constitution.md`)
+is **non-negotiable** within this analysis scope. Constitution conflicts are
+automatically CRITICAL and require adjustment at the owner phase: Specify for
+contract conflicts or Task for work-package gaps. Never dilute, reinterpret, or
+silently ignore a principle.
 
 ## Execution Steps
 
@@ -66,7 +73,8 @@ Identify inconsistencies, duplications, ambiguities, and underspecified items ac
 Run `{SCRIPT}` once from repo root and parse JSON for FEATURE_DIR and AVAILABLE_DOCS. Derive absolute paths:
 
 - SPEC = FEATURE_DIR/spec.md
-- PLAN = FEATURE_DIR/plan.md
+- PROTOTYPE = FEATURE_DIR/prototype.html
+- QUICKSTART = FEATURE_DIR/quickstart.md
 - TASKS = FEATURE_DIR/tasks.md
 
 Abort with an error message if any required file is missing (instruct the user to run missing prerequisite command).
@@ -84,20 +92,27 @@ Load only the minimal necessary context from each artifact:
 - User Stories
 - Edge Cases (if present)
 
-**From plan.md:**
+**From prototype.html:**
 
-- Architecture/stack choices
-- Data Model references
-- Phases
-- Technical constraints
+- Every `data-spec-ref`
+- Visible layout, component/state behavior, interaction order, and responsive
+  contract
+
+**From quickstart.md:**
+
+- Every `UAT-*`
+- Preconditions, ordered actions, expected result, requirement references,
+  prototype references, and execution state
 
 **From tasks.md:**
 
 - Task IDs
+- Task type (`[BUILD]` or `[UAT]`)
 - Descriptions
 - Phase grouping
 - Parallel markers [P]
-- Referenced file paths
+- Exact source references, dependencies, completion conditions, and coverage
+  matrix
 
 **From constitution:**
 
@@ -107,9 +122,19 @@ Load only the minimal necessary context from each artifact:
 
 Create internal representations (do not include raw artifacts in output):
 
-- **Requirements inventory**: For each Functional Requirement (FR-###) and Success Criterion (SC-###), record a stable key. Use the explicit FR-/SC- identifier as the primary key when present, and optionally also derive an imperative-phrase slug for readability (e.g., "User can upload file" → `user-can-upload-file`). Include only Success Criteria items that require buildable work (e.g., load-testing infrastructure, security audit tooling), and exclude post-launch outcome metrics and business KPIs (e.g., "Reduce support tickets by 50%").
+- **Requirements inventory**: Record every `FR-*` and `SC-*` by its stable ID.
+  Do not discard post-launch or business-facing success criteria; Task must map
+  each to observable work or measurement-readiness without weakening it.
 - **User story/action inventory**: Discrete user actions with acceptance criteria
-- **Task coverage mapping**: Map each task to one or more requirements or stories (inference by keyword / explicit reference patterns like IDs or key phrases)
+- **Prototype-anchor inventory**: Every unique `data-spec-ref` and source
+  location
+- **UAT inventory**: Every `UAT-*`, its expected result, source references, and
+  exact prototype references
+- **Task coverage mapping**: Use explicit IDs and anchors, never keyword
+  inference, to map tasks to source obligations
+- **Task-shape mapping**: One type per task; `[UAT]` tasks reference exactly one
+  UAT and `[BUILD]` tasks define requirement-level outcomes, dependencies, and
+  completion evidence
 - **Constitution rule set**: Extract principle names and MUST/SHOULD normative statements
 
 ### 4. Detection Passes (Token-Efficient Analysis)
@@ -130,32 +155,46 @@ Focus on high-signal findings. Limit to 50 findings total; aggregate remainder i
 
 - Requirements with verbs but missing object or measurable outcome
 - User stories missing acceptance criteria alignment
-- Tasks referencing files or components not defined in spec/plan
+- Tasks that add technical choices, file paths, frameworks, components, or
+  APIs not owned by the frozen contract
+- Task completion conditions that are not observable or contradict the source
 
 #### D. Constitution Alignment
 
-- Any requirement or plan element conflicting with a MUST principle
+- Any requirement, prototype/UAT contract, or task conflicting with a MUST principle
 - Missing mandated sections or quality gates from constitution
 
 #### E. Coverage Gaps
 
-- Requirements with zero associated tasks
-- Tasks with no mapped requirement/story
-- Success Criteria requiring buildable work (performance, security, availability) not reflected in tasks
+- Every FR or SC with zero associated tasks
+- Every prototype anchor with zero associated `[BUILD]` task
+- Every UAT with no `[BUILD]` coverage or without exactly one `[UAT]` task
+- Tasks with no explicit source mapping
+- UAT task references that do not resolve to one exact UAT ID
+- Missing or incomplete source coverage matrix rows
 
 #### F. Inconsistency
 
 - Terminology drift (same concept named differently across files)
-- Data entities referenced in plan but absent in spec (or vice versa)
-- Task ordering contradictions (e.g., integration tasks before foundational setup tasks without dependency note)
-- Conflicting requirements (e.g., one requires Next.js while other specifies Vue)
+- Prototype or UAT references that contradict `spec.md`
+- UAT actions/expected results that reference nonexistent or duplicate
+  prototype anchors
+- Task dependencies or ordering that contradict priority/acceptance dependencies
+- `[UAT]` tasks that rewrite UAT expectations, source references, or execution
+  fields
+- `[BUILD]` tasks that preselect architecture, stack, libraries, APIs, or
+  file/component paths
 
 ### 5. Severity Assignment
 
 Use this heuristic to prioritize findings:
 
-- **CRITICAL**: Violates constitution MUST, missing core spec artifact, or requirement with zero coverage that blocks baseline functionality
-- **HIGH**: Duplicate or conflicting requirement, ambiguous security/performance attribute, untestable acceptance criterion
+- **CRITICAL**: Violates a constitution MUST, missing frozen contract artifact,
+  unresolved/contradictory UAT-to-source mapping, or requirement with zero
+  coverage that blocks P1 behavior
+- **HIGH**: Duplicate/conflicting requirement, ambiguous security/performance
+  attribute, uncovered FR/SC/anchor/UAT, invalid `[UAT]` cardinality, or a task
+  that changes the frozen acceptance contract; retain CRITICAL escalation above
 - **MEDIUM**: Terminology drift, missing non-functional task coverage, underspecified edge case
 - **LOW**: Style/wording improvements, minor redundancy not affecting execution order
 
@@ -176,15 +215,25 @@ Output a Markdown report (no file writes) with the following structure:
 | Requirement Key | Has Task? | Task IDs | Notes |
 |-----------------|-----------|----------|-------|
 
+**Prototype and UAT Coverage:**
+
+| Source ID / Anchor | Kind | Task IDs | Coverage / Consistency Notes |
+|--------------------|------|----------|------------------------------|
+
+Use exact source locations and task IDs. Keyword inference never counts as
+coverage.
+
 **Constitution Alignment Issues:** (if any)
 
 **Unmapped Tasks:** (if any)
 
 **Metrics:**
 
-- Total Requirements
-- Total Tasks
-- Coverage % (requirements with >=1 task)
+- Total FR/SC Requirements
+- Total Prototype Anchors
+- Total UATs
+- Total Tasks by type
+- Coverage % for each source class
 - Ambiguity Count
 - Duplication Count
 - Critical Issues Count
@@ -195,7 +244,9 @@ At end of report, output a concise Next Actions block:
 
 - If CRITICAL issues exist: Recommend resolving before `__SPECKIT_COMMAND_IMPLEMENT__`
 - If only LOW/MEDIUM: User may proceed, but provide improvement suggestions
-- Provide explicit command suggestions: e.g., "Run __SPECKIT_COMMAND_SPECIFY__ with refinement", "Run __SPECKIT_COMMAND_PLAN__ to adjust architecture", "Manually edit tasks.md to add coverage for 'performance-metrics'"
+- Provide explicit command suggestions: e.g., "Run
+  __SPECKIT_COMMAND_SPECIFY__ to repair the source contract" or "Run
+  __SPECKIT_COMMAND_TASKS__ to regenerate work packages after source repair."
 
 ### 8. Offer Remediation
 
@@ -205,7 +256,7 @@ Ask the user: "Would you like me to suggest concrete remediation edits for the t
 
 After reporting, check if `.specify/extensions.yml` exists in the project root.
 - If it exists, read it and look for entries under the `hooks.after_analyze` key
-- If the YAML cannot be parsed or is invalid, skip hook checking silently and continue normally
+- If the YAML cannot be parsed or is invalid, do not skip silently: tell the user that `.specify/extensions.yml` could not be read (include the parser error) and that no hooks were checked, including any mandatory (`optional: false`) hooks registered there, then continue normally
 - Filter out hooks where `enabled` is explicitly `false`. Treat hooks without an `enabled` field as enabled by default.
 - For each remaining hook, do **not** attempt to interpret or evaluate hook `condition` expressions:
   - If the hook has no `condition` field, or it is null/empty, treat the hook as executable

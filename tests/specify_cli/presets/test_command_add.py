@@ -213,7 +213,7 @@ class TestPresetAdd:
         runner = CliRunner()
         with (
             patch.object(Path, "cwd", return_value=project_dir),
-            patch("specify_cli.get_speckit_version", return_value="1.4.4"),
+            patch("specify_cli.get_speckit_version", return_value="1.4.4.dev0"),
         ):
             result = runner.invoke(app, ["preset", "add", "lean"])
 
@@ -235,7 +235,7 @@ class TestPresetAdd:
         }
         with (
             patch.object(Path, "cwd", return_value=project_dir),
-            patch("specify_cli.get_speckit_version", return_value="1.4.4"),
+            patch("specify_cli.get_speckit_version", return_value="1.4.4.dev0"),
             patch.object(PresetCatalog, "get_pack_info", return_value=entry),
             patch.object(PresetCatalog, "download_pack_info") as download,
             patch.object(PresetManager, "install_from_zip") as install_zip,
@@ -278,7 +278,7 @@ class TestPresetAdd:
         with (
             patch.object(Path, "cwd", return_value=project_dir),
             patch("specify_cli._locate_bundled_preset", return_value=packaged_path),
-            patch("specify_cli.get_speckit_version", return_value="1.4.4"),
+            patch("specify_cli.get_speckit_version", return_value="1.4.4.dev0"),
             patch.object(PresetCatalog, "get_pack_info", return_value=entry),
             patch.object(PresetCatalog, "download_pack_info") as download,
             patch.object(PresetManager, "install_from_directory") as install_dir,

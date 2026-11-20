@@ -35,6 +35,20 @@ def test_bundled_speckit_workflow_has_no_unused_scope_input() -> None:
         assert "inputs.scope" not in str(args)
 
 
+def test_bundled_workflow_accepts_current_development_version() -> None:
+    from packaging.specifiers import SpecifierSet
+    from packaging.version import Version
+
+    from specify_cli import get_speckit_version
+
+    raw = yaml.safe_load(BUNDLED.read_text(encoding="utf-8"))
+    requirement = raw["requires"]["speckit_version"]
+
+    assert SpecifierSet(requirement).contains(
+        Version(get_speckit_version()), prereleases=True
+    )
+
+
 def test_bundled_sequence_has_only_the_spec_review_gate() -> None:
     raw = yaml.safe_load(BUNDLED.read_text(encoding="utf-8"))
 

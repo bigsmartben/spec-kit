@@ -31,7 +31,7 @@ workflow:
   description: "Runs specify → tasks → implement with a specification review gate"
 
 requires:
-  speckit_version: ">=1.4.4"
+  speckit_version: ">=1.4.4.dev0"
   integrations:
     any:
       - "alquimia"

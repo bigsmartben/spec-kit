@@ -10,6 +10,7 @@ TASKS_TEMPLATE = REPO_ROOT / "templates" / "tasks-template.md"
 IMPLEMENT_COMMAND = REPO_ROOT / "templates" / "commands" / "implement.md"
 ANALYZE_COMMAND = REPO_ROOT / "templates" / "commands" / "analyze.md"
 CONVERGE_COMMAND = REPO_ROOT / "templates" / "commands" / "converge.md"
+CLARIFY_COMMAND = REPO_ROOT / "templates" / "commands" / "clarify.md"
 
 
 def _section(path: Path, start: str, end: str | None = None) -> str:
@@ -150,3 +151,16 @@ def test_converge_uses_contract_and_uat_state_without_plan():
     ):
         assert clause in text, f"Missing Converge contract rule: {clause}"
     assert "spec, plan, and tasks" not in text
+
+
+def test_clarify_updates_and_validates_the_three_artifact_contract():
+    text = " ".join(CLARIFY_COMMAND.read_text(encoding="utf-8").split())
+    for clause in (
+        "Load and scan `spec.md`, `prototype.html`, and `quickstart.md`",
+        "Write the three-artifact update as one validation transaction",
+        "Every changed or newly referenced `data-spec-ref` resolves exactly once",
+        "Every changed UAT resolves to an existing requirement and exact prototype reference",
+        "Paths to all updated contract artifacts",
+    ):
+        assert clause in text, f"Missing Clarify contract rule: {clause}"
+    assert "--require-contract" in text

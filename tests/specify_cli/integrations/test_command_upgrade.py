@@ -2072,6 +2072,135 @@ def test_upgrade_preserves_modified_stale_core_plan_skill_without_force(tmp_path
     assert stale_file.read_text(encoding="utf-8") == "# user-owned Plan skill\n"
 
 
+@pytest.mark.parametrize("owner", ["preset", "extension"])
+def test_upgrade_preserves_stale_plan_skill_owned_by_installed_addon(
+    tmp_path, owner
+):
+    """Stale cleanup must not delete a Plan override owned by an add-on."""
+    from specify_cli.integrations.manifest import IntegrationManifest
+
+    project = _init_project(tmp_path, "claude")
+    result = _run_in_project(
+        project, ["integration", "install", "codex", "--script", "sh"]
+    )
+    assert result.exit_code == 0, result.output
+    manifest = IntegrationManifest.load("codex", project)
+    stale_rel = ".agents/skills/speckit-plan/SKILL.md"
+    stale_file = manifest.record_file(stale_rel, "# add-on Plan override\n")
+    manifest.save()
+
+    if owner == "preset":
+        registry_path = project / ".specify" / "presets" / ".registry"
+        registry_path.parent.mkdir(parents=True, exist_ok=True)
+        registry_path.write_text(
+            json.dumps(
+                {
+                    "schema_version": "1.0",
+                    "presets": {
+                        "legacy-plan": {
+                            "version": "1.0.0",
+                            "enabled": False,
+                            "registered_commands": {},
+                            "registered_skills": {
+                                "codex": ["speckit-plan"]
+                            },
+                        }
+                    },
+                }
+            ),
+            encoding="utf-8",
+        )
+    else:
+        registry_path = project / ".specify" / "extensions" / ".registry"
+        registry_path.parent.mkdir(parents=True, exist_ok=True)
+        registry_path.write_text(
+            json.dumps(
+                {
+                    "schema_version": "1.0",
+                    "extensions": {
+                        "legacy-plan": {
+                            "version": "1.0.0",
+                            "enabled": False,
+                            "registered_commands": {
+                                "codex": ["speckit.plan"]
+                            },
+                            "registered_skills": ["speckit-plan"],
+                        }
+                    },
+                }
+            ),
+            encoding="utf-8",
+        )
+
+    result = _run_in_project(
+        project, ["integration", "upgrade", "codex", "--script", "sh"]
+    )
+
+    assert result.exit_code == 0, result.output
+    assert stale_file.exists()
+    assert stale_file.read_text(encoding="utf-8") == "# add-on Plan override\n"
+
+
+@pytest.mark.parametrize("owner", ["preset", "extension"])
+def test_upgrade_preserves_stale_plan_when_addon_registry_is_unreadable(
+    tmp_path, owner
+):
+    """Unknown add-on ownership fails closed for the removed Plan artifact."""
+    from specify_cli.integrations.manifest import IntegrationManifest
+
+    project = _init_project(tmp_path, "claude")
+    result = _run_in_project(
+        project, ["integration", "install", "codex", "--script", "sh"]
+    )
+    assert result.exit_code == 0, result.output
+    manifest = IntegrationManifest.load("codex", project)
+    stale_rel = ".agents/skills/speckit-plan/SKILL.md"
+    stale_file = manifest.record_file(stale_rel, "# possibly owned Plan\n")
+    manifest.save()
+
+    registry_dir = project / ".specify" / (
+        "presets" if owner == "preset" else "extensions"
+    )
+    registry_dir.mkdir(parents=True, exist_ok=True)
+    (registry_dir / ".registry").write_text("{invalid", encoding="utf-8")
+
+    result = _run_in_project(
+        project, ["integration", "upgrade", "codex", "--script", "sh"]
+    )
+
+    assert result.exit_code == 0, result.output
+    assert "ownership registry is unreadable" in result.output
+    assert stale_file.exists()
+
+
+def test_upgrade_preserves_all_stale_paths_when_addon_registry_is_unreadable(
+    tmp_path,
+):
+    """Unknown add-on ownership protects more than the removed Plan command."""
+    from specify_cli.integrations.manifest import IntegrationManifest
+
+    project = _init_project(tmp_path, "claude")
+    result = _run_in_project(
+        project, ["integration", "install", "codex", "--script", "sh"]
+    )
+    assert result.exit_code == 0, result.output
+    manifest = IntegrationManifest.load("codex", project)
+    stale_rel = ".agents/skills/speckit-legacy-review/SKILL.md"
+    stale_file = manifest.record_file(stale_rel, "# possibly owned override\n")
+    manifest.save()
+    registry_dir = project / ".specify" / "presets"
+    registry_dir.mkdir(parents=True, exist_ok=True)
+    (registry_dir / ".registry").write_text("{invalid", encoding="utf-8")
+
+    result = _run_in_project(
+        project, ["integration", "upgrade", "codex", "--script", "sh"]
+    )
+
+    assert result.exit_code == 0, result.output
+    assert "ownership registry is unreadable" in result.output
+    assert stale_file.exists()
+
+
 def test_builtin_upgrade_journal_needs_no_trust_store_or_other_manifests(tmp_path, monkeypatch):
     """The journal adds no precondition a built-in upgrade did not already have."""
     from specify_cli.integrations import installer

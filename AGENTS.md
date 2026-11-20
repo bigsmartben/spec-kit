@@ -10,6 +10,13 @@ The toolkit supports multiple AI coding assistants, allowing teams to use their 
 
 ---
 
+## Personal Fork Workflow
+
+For personal downstream repository operations, read and follow
+[Personal Fork Agent Guide](docs/agent-guides/personal-fork.md).
+
+---
+
 ## Quickstart — Add a New Integration in 5 Steps
 
 If you are new to the codebase and want to add support for a new AI agent, here is the shortest path from zero to a working integration:

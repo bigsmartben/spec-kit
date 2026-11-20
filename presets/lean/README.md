@@ -10,7 +10,7 @@ Use Lean when you want the structured specify → plan → tasks → implement p
 
 | Command | Output | Description |
 |---------|--------|-------------|
-| `speckit.specify` | `spec.md` | Create a specification from a feature description |
+| `speckit.specify` | `spec.md`, `prototype.html`, `quickstart.md` | Create a specification, construction-contract prototype, and pending UAT baseline |
 | `speckit.plan` | `plan.md` | Create an implementation plan from the spec |
 | `speckit.tasks` | `tasks.md` | Create dependency-ordered tasks from spec and plan |
 | `speckit.implement` | *(code)* | Execute all tasks in order, marking progress |

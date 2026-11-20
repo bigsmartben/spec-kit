@@ -250,8 +250,10 @@ class MarkdownIntegrationTests:
                 files.append(f".specify/scripts/powershell/{name}")
 
         for name in ["checklist-template.md",
-                     "constitution-template.md", "plan-template.md",
-                     "spec-template.md", "tasks-template.md"]:
+                     "constitution-template.md",
+                     "plan-template.md", "prototype-template.md",
+                     "quickstart-template.md", "spec-template.md",
+                     "tasks-template.md"]:
             files.append(f".specify/templates/{name}")
 
         files.append(".specify/memory/.constitution-template.json")

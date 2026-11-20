@@ -247,8 +247,10 @@ class TestCopilotCommandsMode:
 
         assert "resolve-template" in content
         assert "{SCRIPT}" not in content
-        assert "parse `TEMPLATE_CONTENT` as the active `spec-template`" in content
-        assert "Write `TEMPLATE_CONTENT` to `SPECIFY_FEATURE_DIRECTORY/spec.md`" in content
+        assert "parse `TEMPLATE_CONTENT` as `SPEC_TEMPLATE_CONTENT`" in content
+        assert "`prototype-template`" in content
+        assert "`quickstart-template`" in content
+        assert "Write the specification to `SPEC_FILE` using `SPEC_TEMPLATE_CONTENT`" in content
         assert "Copy the resolved `spec-template` file" not in content
         assert "Copy `.specify/templates/spec-template.md`" not in content
         assert "Load `.specify/templates/spec-template.md`" not in content
@@ -263,7 +265,7 @@ class TestCopilotCommandsMode:
 
         specify_file = tmp_path / ".github" / "agents" / "speckit.specify.agent.md"
         content = specify_file.read_text(encoding="utf-8")
-        assert "Create or update the feature specification" in content
+        assert "Create the feature specification, executable prototype, and pending UAT baseline" in content
         assert "preset override content" not in content
 
     def test_setup_uses_preset_command_override_when_present(self, tmp_path):
@@ -354,6 +356,8 @@ class TestCopilotCommandsMode:
             ".specify/templates/checklist-template.md",
             ".specify/templates/constitution-template.md",
             ".specify/templates/plan-template.md",
+            ".specify/templates/prototype-template.md",
+            ".specify/templates/quickstart-template.md",
             ".specify/templates/spec-template.md",
             ".specify/templates/tasks-template.md",
             ".specify/memory/.constitution-template.json",
@@ -418,6 +422,8 @@ class TestCopilotCommandsMode:
             ".specify/templates/checklist-template.md",
             ".specify/templates/constitution-template.md",
             ".specify/templates/plan-template.md",
+            ".specify/templates/prototype-template.md",
+            ".specify/templates/quickstart-template.md",
             ".specify/templates/spec-template.md",
             ".specify/templates/tasks-template.md",
             ".specify/memory/.constitution-template.json",
@@ -933,6 +939,8 @@ class TestCopilotSkillsMode:
             ".specify/templates/checklist-template.md",
             ".specify/templates/constitution-template.md",
             ".specify/templates/plan-template.md",
+            ".specify/templates/prototype-template.md",
+            ".specify/templates/quickstart-template.md",
             ".specify/templates/spec-template.md",
             ".specify/templates/tasks-template.md",
             ".specify/memory/.constitution-template.json",

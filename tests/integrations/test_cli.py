@@ -1338,6 +1338,8 @@ class TestForceExistingDirectory:
         # Spec Kit files should be installed
         assert (target / ".specify" / "init-options.json").exists()
         assert (target / ".specify" / "templates" / "spec-template.md").exists()
+        assert (target / ".specify" / "templates" / "prototype-template.md").exists()
+        assert (target / ".specify" / "templates" / "quickstart-template.md").exists()
 
     def test_without_force_errors_on_existing_dir(self, tmp_path):
         """specify init <dir> without --force errors when directory exists."""

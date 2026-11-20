@@ -126,7 +126,7 @@ class TestSelfTestPreset:
         assert manifest.id == "self-test"
         assert manifest.name == "Self-Test Preset"
         assert manifest.version == "1.0.0"
-        assert len(manifest.templates) == 7  # 5 templates + 2 commands
+        assert len(manifest.templates) == 9  # 7 templates + 2 commands
 
     def test_self_test_provides_all_core_templates(self):
         """Verify the self-test preset provides an override for every core template."""
@@ -442,6 +442,7 @@ class TestResolveActiveAgentForRegistration:
 
 
 LEAN_PRESET_DIR = Path(__file__).parent.parent / "presets" / "lean"
+SCAFFOLD_PRESET_DIR = Path(__file__).parent.parent / "presets" / "scaffold"
 
 
 CORE_CONSTITUTION_COMMAND = (
@@ -491,6 +492,9 @@ def test_core_constitution_command_resolves_template_at_runtime():
     assert "resolve-template.ps1 constitution-template -Json" in content
     assert "resolve_template.py constitution-template --json" in content
     assert "parse `TEMPLATE_CONTENT` as the active template" in content
+    assert "`blueprint-template`" not in content
+    assert "`contract-template`" not in content
+    assert "single repository authority" in content
     assert "do not continue with only one contributing" in content
     assert "Do not write back to any versioned template layer" in content
 
@@ -506,8 +510,8 @@ def test_core_checklist_command_resolves_template_at_runtime():
     assert "Use TEMPLATE_CONTENT as the structural template" in content
 
 
-def test_core_specify_command_writes_composed_spec_template():
-    """The specify command must start spec.md from the composed spec-template."""
+def test_core_specify_command_resolves_all_artifact_templates():
+    """Specify must consume all three composed templates at runtime."""
     content = (CORE_CONSTITUTION_COMMAND.parent / "specify.md").read_text(
         encoding="utf-8"
     )
@@ -515,10 +519,55 @@ def test_core_specify_command_writes_composed_spec_template():
     assert "resolve-template.sh spec-template --json" in content
     assert "resolve-template.ps1 spec-template -Json" in content
     assert "resolve_template.py spec-template --json" in content
-    assert "parse `TEMPLATE_CONTENT` as the active `spec-template`" in content
-    assert "Write `TEMPLATE_CONTENT` to `SPECIFY_FEATURE_DIRECTORY/spec.md`" in content
-    assert "do not continue with only one contributing template layer" in content
+    assert "parse `TEMPLATE_CONTENT` as `SPEC_TEMPLATE_CONTENT`" in content
+    assert "`prototype-template`" in content
+    assert "`quickstart-template`" in content
+    assert "Write the specification to `SPEC_FILE` using `SPEC_TEMPLATE_CONTENT`" in content
+    assert "raw standalone HTML" in content
+    assert "Never fall back to a single layer" in content
     assert "Copy the resolved `spec-template` file" not in content
+
+
+def test_specify_artifact_templates_define_the_stage_contract():
+    """The core companion templates must preserve construction and UAT semantics."""
+    templates_dir = CORE_CONSTITUTION_COMMAND.parent.parent
+    prototype = (templates_dir / "prototype-template.md").read_text(encoding="utf-8")
+    quickstart = (templates_dir / "quickstart-template.md").read_text(encoding="utf-8")
+    spec = (templates_dir / "spec-template.md").read_text(encoding="utf-8")
+
+    assert prototype.lstrip().startswith("<!--")
+    assert "<!doctype html>" in prototype
+    assert "data-spec-ref" in prototype
+    assert "http://" not in prototype
+    assert "https://" not in prototype
+    assert "UAT-001" in quickstart
+    assert "Requirement Refs" in quickstart
+    assert "Prototype Refs" in quickstart
+    assert "**Status**: PENDING" in quickstart
+    assert "Actual Result" in quickstart and "Not executed" in quickstart
+    assert "[prototype.html](./prototype.html)" in spec
+    assert "[quickstart.md](./quickstart.md)" in spec
+
+
+@pytest.mark.parametrize(
+    "command_path",
+    [
+        CORE_CONSTITUTION_COMMAND.parent / "specify.md",
+        LEAN_PRESET_DIR / "commands" / "speckit.specify.md",
+        SCAFFOLD_PRESET_DIR / "commands" / "speckit.specify.md",
+        SELF_TEST_PRESET_DIR / "commands" / "speckit.specify.md",
+    ],
+    ids=["core", "lean", "scaffold", "self-test"],
+)
+def test_bundled_specify_commands_preserve_three_artifact_contract(command_path):
+    """Repository-owned command overrides cannot drop prototype or UAT generation."""
+    content = command_path.read_text(encoding="utf-8")
+
+    assert "prototype.html" in content
+    assert "quickstart.md" in content
+    assert "data-spec-ref" in content
+    assert "UAT-" in content
+    assert "PENDING" in content
 
 
 class TestLeanPreset:

@@ -430,6 +430,8 @@ class YamlIntegrationTests:
             "checklist-template.md",
             "constitution-template.md",
             "plan-template.md",
+            "prototype-template.md",
+            "quickstart-template.md",
             "spec-template.md",
             "tasks-template.md",
         ]:

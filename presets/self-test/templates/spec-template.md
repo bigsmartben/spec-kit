@@ -4,6 +4,20 @@
 
 > This template is provided by the self-test preset.
 
+## Prototype Contract
+
+**Prototype**: [prototype.html](./prototype.html)
+
+| Requirement | Prototype Reference |
+|-------------|---------------------|
+| Requirement 1 | US-001:self-test |
+
+## User Acceptance Contract
+
+**Acceptance baseline**: [quickstart.md](./quickstart.md)
+
+The UAT baseline is pending and maps to requirements and prototype anchors.
+
 ## Overview
 
 Brief description of the feature.

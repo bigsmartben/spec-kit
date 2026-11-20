@@ -56,6 +56,8 @@ def test_none_lifecycle(tmp_path, monkeypatch, integration_args):
     assert not (project / ".specify/integration.json").exists()
     assert not (project / ".specify/integrations/none.manifest.json").exists()
     assert (project / ".specify/templates/spec-template.md").is_file()
+    assert (project / ".specify/templates/prototype-template.md").is_file()
+    assert (project / ".specify/templates/quickstart-template.md").is_file()
     run("integration", "install", "none")
     run("integration", "switch", "copilot")
     assert state()["installed_integrations"] == ["copilot"]

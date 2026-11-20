@@ -84,7 +84,13 @@ Establishes the project's guiding principles, which every later step is evaluate
 
 ### Step 2: `/speckit-specify` — describe what to build
 
-Creates the feature specification from a natural-language description. Focus on the **what** and **why**, not the tech stack.
+Creates the feature specification from a natural-language description and
+freezes the observable user experience before implementation. The command
+produces `spec.md`, a self-contained `prototype.html`, and a pending UAT
+baseline in `quickstart.md`. The prototype is the construction contract for
+layout and interaction, while each `UAT-*` case maps a user-observable scenario
+to requirements and exact prototype anchors. Specify defines acceptance only;
+it does not execute or mark UAT as passed.
 
 ```text
 /speckit-specify Develop Taskify, a team productivity platform where predefined users create projects, assign tasks, comment, and move tasks across Kanban columns (To Do, In Progress, In Review, Done). Five users (one product manager, four engineers), three sample projects, no login for this first phase.

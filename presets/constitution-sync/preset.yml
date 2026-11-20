@@ -3,7 +3,7 @@ schema_version: "1.0"
 preset:
   id: "constitution-sync"
   name: "Constitution Template Sync"
-  version: "1.0.0"
+  version: "1.0.1"
   description: "Opt-in: restores guarded install-time constitution seeding and /constitution propagation for teams that treat materialized templates as reviewed artifacts."
   author: "github"
   repository: "https://github.com/github/spec-kit"

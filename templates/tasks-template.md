@@ -73,8 +73,8 @@ Remove this phase when no cross-story obligation exists.
 **Purpose**: Execute every frozen user-acceptance scenario and record evidence in
 the matching `quickstart.md` entry.
 
-- [ ] TXXX [US1] [UAT] Execute UAT-001: [scenario name] | Refs: UAT-001, [FR-###], proto:[anchor] | Depends: [all required BUILD task IDs] | Done when: quickstart.md records a conclusive status, actual result, evidence, and deviation
-- [ ] TXXX [US2] [UAT] Execute UAT-002: [scenario name] | Refs: UAT-002, [FR-###], proto:[anchor] | Depends: [all required BUILD task IDs] | Done when: quickstart.md records a conclusive status, actual result, evidence, and deviation
+- [ ] TXXX [US1] [UAT] Execute UAT-001: [scenario name] | Refs: UAT-001, [FR-###], proto:[anchor] | Depends: [all required BUILD task IDs] | Done when: quickstart.md records Status: PASS, actual result, evidence, and deviation
+- [ ] TXXX [US2] [UAT] Execute UAT-002: [scenario name] | Refs: UAT-002, [FR-###], proto:[anchor] | Depends: [all required BUILD task IDs] | Done when: quickstart.md records Status: PASS, actual result, evidence, and deviation
 
 Implement MUST leave a failed or blocked UAT task unchecked.
 

@@ -33,7 +33,7 @@ Dependent templates, feature artifacts, and downstream commands are not modified
 - If the input includes feature implementation, code generation, refactoring, building, or
   deployment requests, you **MUST NOT** execute them. Extract them as deferred intents instead.
 - You **MUST NOT** create, modify, or delete application source files, feature routes,
-  components, tests, `spec.md`, `plan.md`, `tasks.md`, deployment files, or other downstream
+  components, tests, `spec.md`, `tasks.md`, deployment files, or other downstream
   artifacts.
 - Repository architecture is not a feature artifact. Do not create a feature-local blueprint
   under `specs/`, and do not let an individual feature redefine repository authority.
@@ -167,11 +167,11 @@ Follow this execution flow:
    - Let the resolved template own all repeated-entry and public-contract formatting. Do not
      reproduce the architecture layout or contract schema inside this command.
    - Express architecture rules as stable IDs plus declarative `MUST`/`SHOULD` statements so the
-     existing plan, tasks, analyze, and implement commands inherit the constraints through the
-     constitution they already load.
+     Specify, Task, Analyze, and Implement inherit the constraints through the
+     constitution they load.
    - Keep capability, acceptance, component, sequence, contract, and invariant IDs unique and use
      those IDs for references instead of copied prose.
-   - State that feature plans, tasks, and contracts may reference and refine repository authority
+   - State that frozen feature contracts and tasks may reference and refine repository authority
      but must not redefine a responsibility boundary, public contract, or architectural invariant.
    - A contradiction between governance and architecture is blocking. Surface it and either amend
      both sections consistently from explicit user authority or stop for a decision.

@@ -129,6 +129,7 @@ class TestCatalogEntry:
         assert entry["bundled"] is True
         assert entry["id"] == "github"
         assert entry["author"] == "spec-kit-core"
+        assert entry["version"] == _manifest_dict()["extension"]["version"]
 
     def test_locate_bundled_extension_finds_github(self):
         located = _locate_bundled_extension("github")

@@ -49,6 +49,7 @@ _COPILOT_CORE_COMMANDS = {
     "specify",
     "tasks",
 }
+_COPILOT_LAYOUT_COMMANDS = _COPILOT_CORE_COMMANDS | {"plan"}
 
 # ``--reasoning-effort`` levels and ``--context`` tiers accepted by GitHub
 # Copilot CLI 1.0.106. The CLI rejects any other value with an error that
@@ -264,7 +265,7 @@ class CopilotIntegration(IntegrationBase):
                     / f"speckit-{command}"
                     / "SKILL.md"
                 ).is_file()
-                for command in _COPILOT_CORE_COMMANDS
+                for command in _COPILOT_LAYOUT_COMMANDS
             )
             has_managed_commands = any(
                 (
@@ -277,7 +278,7 @@ class CopilotIntegration(IntegrationBase):
                     / "prompts"
                     / f"speckit.{command}.prompt.md"
                 ).is_file()
-                for command in _COPILOT_CORE_COMMANDS
+                for command in _COPILOT_LAYOUT_COMMANDS
             )
             if has_managed_commands and not has_managed_skills:
                 return False

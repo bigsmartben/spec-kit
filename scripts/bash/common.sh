@@ -371,6 +371,22 @@ format_speckit_command() {
     printf '/speckit%s%s\n' "$separator" "$command_name"
 }
 
+# Bash on Windows uses POSIX spellings for file access. Agent-facing JSON and
+# diagnostics should use the native path shape expected by Python and
+# PowerShell on the same host.
+to_native_path() {
+    local path="$1"
+    case "$(uname -s 2>/dev/null)" in
+        MINGW*|MSYS*|CYGWIN*)
+            if command -v cygpath >/dev/null 2>&1; then
+                cygpath -w "$path"
+                return
+            fi
+            ;;
+    esac
+    printf '%s\n' "$path"
+}
+
 # Escape a string for safe embedding in a JSON value (fallback when jq is unavailable).
 # Handles backslash, double-quote, and JSON-required control character escapes (RFC 8259).
 json_escape() {
@@ -434,7 +450,7 @@ _sorted_extension_ids() {
     if [ "${#python_cmd[@]}" -gt 0 ]; then
         local py_stderr sorted_ids
         py_stderr=$(mktemp)
-        if sorted_ids=$(SPECKIT_EXTENSIONS="$ext_dir" "${python_cmd[@]}" -c "
+        if sorted_ids=$(SPECKIT_EXTENSIONS="$(to_native_path "$ext_dir")" "${python_cmd[@]}" -c "
 import json, os, re, sys
 from pathlib import Path
 
@@ -479,7 +495,7 @@ for _, ext_id in sorted(ranked):
     print(ext_id)
 " 2>"$py_stderr"); then
             rm -f "$py_stderr"
-            printf '%s\n' "$sorted_ids"
+            printf '%s\n' "${sorted_ids//$'\r'/}"
             return 0
         else
             echo "Error: invalid extension registry $ext_dir/.registry" >&2
@@ -536,7 +552,7 @@ resolve_template() {
             # The python3 call is wrapped in an if-condition so that set -e does not
             # abort the function when python3 exits non-zero (e.g. invalid JSON).
             local sorted_presets=""
-            if sorted_presets=$(SPECKIT_REGISTRY="$registry_file" "${python_cmd[@]}" -c "
+            if sorted_presets=$(SPECKIT_REGISTRY="$(to_native_path "$registry_file")" "${python_cmd[@]}" -c "
 import json, re, sys, os
 try:
     with open(os.environ['SPECKIT_REGISTRY'], encoding='utf-8') as f:
@@ -557,6 +573,7 @@ except Exception:
     sys.exit(1)
 " 2>/dev/null); then
                 if [ -n "$sorted_presets" ]; then
+                    sorted_presets="${sorted_presets//$'\r'/}"
                     # python3 succeeded and returned preset IDs — search in priority order
                     while IFS= read -r preset_id; do
                         local candidate="$presets_dir/$preset_id/templates/${template_name}.md"
@@ -660,7 +677,7 @@ resolve_template_content() {
             python_cmd+=("$_python_cmd_line")
         done < <(_python3_command)
         if [ -f "$registry_file" ] && [ "${#python_cmd[@]}" -gt 0 ]; then
-            if sorted_presets=$(SPECKIT_REGISTRY="$registry_file" "${python_cmd[@]}" -c "
+            if sorted_presets=$(SPECKIT_REGISTRY="$(to_native_path "$registry_file")" "${python_cmd[@]}" -c "
 import json, re, sys, os
 try:
     with open(os.environ['SPECKIT_REGISTRY'], encoding='utf-8') as f:
@@ -680,6 +697,7 @@ try:
 except Exception:
     sys.exit(1)
 " 2>/dev/null); then
+                sorted_presets="${sorted_presets//$'\r'/}"
                 registry_parsed=true
             fi
         fi
@@ -709,7 +727,7 @@ except Exception:
                     local py_stderr
                     local parse_status
                     py_stderr=$(mktemp)
-                    if result=$(SPECKIT_MANIFEST="$manifest" SPECKIT_TMPL="$template_name" SPECKIT_SECTION_ENGINE="$section_engine" "${python_cmd[@]}" -c "
+                    if result=$(SPECKIT_MANIFEST="$(to_native_path "$manifest")" SPECKIT_TMPL="$template_name" SPECKIT_SECTION_ENGINE="$(to_native_path "$section_engine")" "${python_cmd[@]}" -c "
 import sys, os, base64
 try:
     import yaml

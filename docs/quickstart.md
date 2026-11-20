@@ -122,7 +122,8 @@ Reads only `spec.md`, `prototype.html`, `quickstart.md`, and the project
 constitution. It creates independently deliverable requirement-level work
 packages in `tasks.md` without choosing a stack, architecture, files, or
 implementation paths. Every `FR-*`, `SC-*`, prototype `data-spec-ref`, and
-`UAT-*` must map to at least one package.
+`UAT-*` must map to at least one package. Delivery obligations use `[BUILD]`;
+every UAT also has one explicit `[UAT]` execution task.
 
 If the frozen contract is internally inconsistent or a required mapping is
 missing, Task stops and sends the issue back to Specify or Clarify. It does not
@@ -162,6 +163,8 @@ checklists remain reviewer-owned.
 Within `quickstart.md`, Implement updates only the corresponding UAT entry's
 `Status`, `Actual Result`, `Evidence`, and `Deviation` fields. It must not change
 the frozen requirements, actions, expected results, references, or identifiers.
+Set status to `PASS`, `FAIL`, or `BLOCKED` only from observed execution; a UAT
+task is complete only when its matching scenario passes.
 Run it once to build everything, or scope it to a set of work packages at a time.
 
 ```text

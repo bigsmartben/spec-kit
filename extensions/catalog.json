@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "updated_at": "2026-09-28T16:20:28Z",
+  "updated_at": "2026-11-20T01:06:18Z",
   "catalog_url": "https://raw.githubusercontent.com/github/spec-kit/main/extensions/catalog.json",
   "extensions": {
     "agent-context": {
@@ -20,7 +20,7 @@
     "assess": {
       "name": "Idea Assessment Pipeline",
       "id": "assess",
-      "version": "1.0.2",
+      "version": "1.0.3",
       "description": "Assess an idea before Spec-Driven Development via intake, research, define, shape, and decide. A go verdict hands off to /speckit.specify; a kill closes it. Lives under .specify/assessments/<slug>/",
       "author": "spec-kit-core",
       "repository": "https://github.com/github/spec-kit",

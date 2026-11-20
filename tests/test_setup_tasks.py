@@ -897,7 +897,7 @@ def test_setup_tasks_ps_handles_literal_bracketed_feature_directory(
     assert json_result.returncode == 0, json_result.stderr + json_result.stdout
     data = json.loads(json_result.stdout)
     assert Path(data["FEATURE_DIR"]) == feat
-    assert "⚠️" in data["TASKS_TEMPLATE_CONTENT"]
+    assert "[UAT]" in data["TASKS_TEMPLATE_CONTENT"]
     assert data["AVAILABLE_DOCS"] == [
         "spec.md",
         "prototype.html",
@@ -1140,7 +1140,7 @@ def test_powershell_command_path_json(powershell_command_repo: Path) -> None:
     data = json.loads(result.stdout)
     assert Path(data["FEATURE_DIR"]) == feature
     assert Path(data["TASKS_TEMPLATE"]) == repo / ".specify" / "templates" / "tasks-template.md"
-    assert "⚠️" in data["TASKS_TEMPLATE_CONTENT"]
+    assert "[UAT]" in data["TASKS_TEMPLATE_CONTENT"]
 
 
 def test_powershell_command_path_format(powershell_command_repo: Path) -> None:

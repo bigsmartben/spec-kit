@@ -539,9 +539,10 @@ def install_shared_infra(
     planned_copies: list[tuple[Path, str, bytes, int]] = []
     planned_templates: list[tuple[Path, str, str]] = []
     # Track every shared path the current bundle produces so we can detect
-    # manifest entries the core no longer ships (stale-script cleanup, #3076).
+    # manifest entries the core no longer ships (stale shared-infra cleanup).
     seen_rels: set[str] = set()
     scanned_variant_dirs: set[str] = set()
+    scanned_templates = False
     variant_dirs = script_variant_dirs(script_type)
 
     def _decide_overwrite(rel: str, dst: Path) -> tuple[bool, str | None]:
@@ -675,6 +676,7 @@ def install_shared_infra(
             for src in templates_src.iterdir():
                 if not src.is_file() or src.name == "vscode-settings.json" or src.name.startswith("."):
                     continue
+                scanned_templates = True
 
                 dst = dest_templates / src.name
                 rel = dst.relative_to(project_path).as_posix()
@@ -790,22 +792,35 @@ def install_shared_infra(
         if refresh_hint:
             console.print(refresh_hint)
 
-    # Remove stale managed scripts: paths a previous install recorded that the
+    # Remove stale managed shared files: paths a previous install recorded that the
     # current core no longer ships — e.g. the legacy
     # ``scripts/<variant>/update-agent-context.sh`` superseded by the bundled
-    # agent-context extension. Left behind, such an orphan can crash when it
-    # sources a refreshed ``common.sh`` (#3076). Only run when the script source
-    # was actually scanned (so a missing/empty source never triggers mass
-    # deletion), scoped to the selected variants, and only for *managed* copies —
+    # agent-context extension, or a removed core page template. Left behind, an
+    # orphan script can crash when it sources a refreshed ``common.sh`` (#3076).
+    # Only run after the corresponding source category was actually scanned (so a
+    # missing/empty source never triggers mass deletion). Normal stale cleanup
+    # is scoped to selected variants; exact retired Plan assets are recognized
+    # across every historical runtime. Copies are removed only for managed
+    # content or after explicit ``force`` —
     # a user-customized file (hash diverges), a symlink, or a recovered entry is
     # preserved by ``_is_managed``.
-    if scanned_variant_dirs:
+    if scanned_variant_dirs or scanned_templates:
         stale_removed: list[str] = []
-        script_prefixes = tuple(
+        managed_prefixes = tuple(
             f".specify/scripts/{variant_dir}/" for variant_dir in scanned_variant_dirs
         )
+        if scanned_templates:
+            managed_prefixes += (".specify/templates/",)
+        retired_plan_paths = {
+            ".specify/scripts/bash/setup-plan.sh",
+            ".specify/scripts/powershell/setup-plan.ps1",
+            ".specify/scripts/python/setup_plan.py",
+            ".specify/templates/plan-template.md",
+        }
         for rel in list(prior_hashes):
-            if rel in seen_rels or not rel.startswith(script_prefixes):
+            if rel in seen_rels or (
+                rel not in retired_plan_paths and not rel.startswith(managed_prefixes)
+            ):
                 continue
             # Guard corrupted/hand-edited manifest keys BEFORE any filesystem
             # access: absolute, ``..``, or (on Windows) drive-relative keys such
@@ -827,13 +842,18 @@ def install_shared_infra(
             if not dst.exists() and not dst.is_symlink():
                 manifest.remove(rel)
                 continue
-            if not _is_managed(rel, dst):
-                continue  # user-modified / symlink / recovered → preserve
-            # Never unlink through a symlinked ancestor (writes/deletes could
-            # escape the project root). The safe-destination check buckets such
-            # paths under ``symlinked_files`` and we leave them in place.
             if not _safe_dest_or_bucket(dst, rel):
                 continue
+            if not _is_managed(rel, dst):
+                # A regular stale file with a recorded hash is user-modified.
+                # Preserve it unless the caller explicitly authorized force.
+                if not force or manifest.is_recovered(rel) or dst.is_symlink():
+                    if dst.is_file() and not dst.is_symlink():
+                        console.print(
+                            "[yellow]⚠[/yellow]  Preserved customized stale "
+                            f"shared infrastructure: {rel}"
+                        )
+                    continue
             try:
                 from .integrations._file_changes import after_file_change, before_file_change
 
@@ -849,7 +869,7 @@ def install_shared_infra(
         if stale_removed:
             console.print(
                 f"[yellow]⚠[/yellow]  Removed {len(stale_removed)} obsolete shared "
-                "script(s) left by a previous install:"
+                "infrastructure file(s) left by a previous install:"
             )
             for path in stale_removed:
                 console.print(f"    {path}")

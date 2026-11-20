@@ -172,10 +172,10 @@ class TestAlquimiaAIIntegration:
         skills_dir = tmp_path / ".alquimia" / "skills"
         assert skills_dir.is_dir()
 
-        plan_skill = skills_dir / "speckit-plan" / "SKILL.md"
-        assert plan_skill.exists()
+        tasks_skill = skills_dir / "speckit-tasks" / "SKILL.md"
+        assert tasks_skill.exists()
 
-        content = plan_skill.read_text(encoding="utf-8")
+        content = tasks_skill.read_text(encoding="utf-8")
         assert "{SCRIPT}" not in content
         assert "{ARGS}" not in content
         assert "__AGENT__" not in content
@@ -186,10 +186,10 @@ class TestAlquimiaAIIntegration:
 
         parts = content.split("---", 2)
         parsed = yaml.safe_load(parts[1])
-        assert parsed["name"] == "speckit-plan"
+        assert parsed["name"] == "speckit-tasks"
         assert parsed["user-invocable"] is True
         assert parsed["disable-model-invocation"] is False
-        assert parsed["metadata"]["source"] == "templates/commands/plan.md"
+        assert parsed["metadata"]["source"] == "templates/commands/tasks.md"
 
     def test_render_skill_unicode(self):
         """Test rendering a skill preserves non-ASCII characters."""
@@ -253,7 +253,8 @@ class TestAlquimiaAIIntegration:
             os.chdir(old_cwd)
 
         assert result.exit_code == 0, result.output
-        assert (project / ".alquimia" / "skills" / "speckit-plan" / "SKILL.md").exists()
+        assert (project / ".alquimia" / "skills" / "speckit-tasks" / "SKILL.md").exists()
+        assert not (project / ".alquimia" / "skills" / "speckit-plan").exists()
         assert not (project / ".alquimia" / "commands").exists()
 
         init_options = json.loads(
@@ -336,7 +337,7 @@ class TestAlquimiaAIIntegration:
             project / ".specify" / "integrations" / "alquimia.manifest.json"
         ).exists()
 
-        skill_file = project / ".alquimia" / "skills" / "speckit-plan" / "SKILL.md"
+        skill_file = project / ".alquimia" / "skills" / "speckit-tasks" / "SKILL.md"
         assert skill_file.exists()
         skill_content = skill_file.read_text(encoding="utf-8")
         assert "user-invocable: true" in skill_content

@@ -3572,7 +3572,7 @@ class TestDispatcherCleanupOwnership:
     def test_prior_manifest_failure_does_not_block_teardown(self, tmp_path, caplog, error):
         integration = CopilotIntegration()
         manifest = IntegrationManifest(integration.key, tmp_path)
-        generated = manifest.record_file(".github/skills/speckit-plan/SKILL.md", "# Plan\n")
+        generated = manifest.record_file(".github/skills/speckit-tasks/SKILL.md", "# Tasks\n")
         manifest.save()
         dispatcher = tmp_path / EVENTS_DISPATCHER_REL
         dispatcher.write_text("# User-owned dispatcher\n", encoding="utf-8")
@@ -3592,7 +3592,7 @@ class TestDispatcherCleanupOwnership:
     def test_unreadable_dispatcher_does_not_block_teardown(self, tmp_path, monkeypatch, caplog, force):
         integration = ClaudeIntegration()
         manifest = IntegrationManifest(integration.key, tmp_path)
-        generated = manifest.record_file(".claude/skills/speckit-plan/SKILL.md", "# Plan\n")
+        generated = manifest.record_file(".claude/skills/speckit-tasks/SKILL.md", "# Tasks\n")
         install_integration_events(
             integration, tmp_path, manifest,
             {"pre_tool_use": [{"command": "speckit.x"}]},

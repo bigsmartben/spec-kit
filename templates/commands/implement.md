@@ -14,6 +14,17 @@ $ARGUMENTS
 
 You **MUST** consider the user input before proceeding (if not empty).
 
+Select the invocation scope from `$ARGUMENTS` before executing any task:
+- If no task, phase, or work-package scope is provided, select every unchecked
+  task.
+- If the user limits the run, select only the named task IDs, phase, or work
+  packages. Do not silently add omitted tasks.
+- An incomplete dependency outside the selected scope blocks its dependent
+  task; it does not authorize expanding the run.
+- A user-selected build scope does not implicitly execute its mapped UAT unless
+  the user includes that UAT or requests the mapped acceptance scenarios.
+- Leave out-of-scope tasks and their UAT entries unchanged.
+
 ## Pre-Execution Checks
 
 **Check for extension hooks (before implementation)**:
@@ -97,11 +108,27 @@ You **MUST** consider the user input before proceeding (if not empty).
      authority. Task owns work decomposition; Implement owns the technical
      design and may choose the repository structures required by the task.
 
-4. **Project Setup Verification**:
-   - **REQUIRED**: Create/verify ignore files based on actual project setup:
+4. **Prepare the selected invocation**:
+   - Parse tasks.md for task phases, explicit dependencies, task type
+     (`[BUILD]` or `[UAT]`), story, exact source references, `Done when`
+     conditions, and parallel markers `[P]`.
+   - Validate that every selected task exists and that its explicit dependencies
+     are either complete or part of the selected scope. If a dependency is
+     incomplete and outside the scope, report the exact blocker without
+     expanding the run.
+   - **Choose the technical approach**: Select the architecture, languages,
+     libraries, component boundaries, testing mechanisms, and file paths that
+     best satisfy the selected work, frozen outcomes, and constitution.
+   - Optional file paths in legacy/custom tasks are hints only; generate and
+     own file paths for the core work packages during implementation.
+   - Only after choosing the approach, perform Project Setup Verification when
+     it introduces or uses the corresponding tooling. Do not make unrelated
+     setup edits for out-of-scope work.
+   - Create/verify ignore files based on the actual selected implementation:
 
    **Detection & Creation Logic**:
-   - Check if the following command succeeds to determine if the repository is a git repo (create/verify .gitignore if so):
+   - If the selected approach creates repository-generated artifacts, check
+     whether this is a git repository and create/verify .gitignore:
 
      ```sh
      git rev-parse --git-dir 2>/dev/null
@@ -142,28 +169,19 @@ You **MUST** consider the user input before proceeding (if not empty).
    - **Terraform**: `.terraform/`, `*.tfstate*`, `*.tfvars`, `.terraform.lock.hcl`
    - **Kubernetes/k8s**: `*.secret.yaml`, `secrets/`, `.kube/`, `kubeconfig*`, `*.key`, `*.crt`
 
-5. Parse tasks.md structure and extract:
-   - **Task phases**: user-story delivery, cross-story obligations, and UAT
-   - **Task dependencies**: Sequential vs parallel execution rules by task ID
-   - **Task details**: ID, type (`[BUILD]` or `[UAT]`), story, exact source
-     references, completion condition, and parallel markers `[P]`
-   - **Execution flow**: Order and dependency requirements
-   - Optional file paths in legacy/custom tasks are hints only; generate and
-     own file paths for the core work packages during implementation.
-
-6. Execute implementation following the task plan:
-   - **Phase-by-phase execution**: Complete each phase before moving to the next
+5. Execute implementation following the task plan:
+   - **Scope-limited execution**: Execute only the selected tasks
+   - **Dependency-aware execution**: Treat phase headings as organization, not
+     as permission to run unselected work. Respect explicit task dependencies
+     and independently verifiable delivery checkpoints.
    - **Respect dependencies**: Run sequential tasks in order, parallel tasks [P] can run together
-   - **Follow TDD approach**: Execute test tasks before their corresponding implementation tasks
    - **File-based coordination**: After choosing implementation paths, run
      tasks affecting the same files sequentially even if the requirement-level
      work packages were otherwise independent
-   - **Validation checkpoints**: Verify each phase completion before proceeding
+   - **Validation checkpoints**: Verify each selected delivery checkpoint before
+     proceeding
 
-7. Implementation execution rules:
-   - **Choose the technical approach**: Select the architecture, language
-     libraries, component boundaries, and file paths that best satisfy the
-     frozen outcomes and constitution.
+6. Implementation execution rules:
    - **Tests before code**: When the task requests deterministic evidence or
      the selected approach requires it, create the test first and observe the
      expected failure.
@@ -178,24 +196,37 @@ You **MUST** consider the user input before proceeding (if not empty).
      - Preserve all baseline fields verbatim: user/role, preconditions, actions,
        expected result, requirement refs, and prototype refs.
      - Never change a frozen expectation to make a failing implementation pass.
+     - Do not treat `FAIL` or `BLOCKED` as task completion.
      - Mark the `[UAT]` task complete only for a conclusive `PASS`; leave
        failed/blocked work unchecked and report the exact blocker.
+     - When the evidence indicates a defect in the frozen requirement,
+       prototype, or UAT expectation rather than in the implementation,
+       stop and return the issue to `__SPECKIT_COMMAND_SPECIFY__` or
+       `__SPECKIT_COMMAND_CLARIFY__`, then regenerate the dependent tasks with
+       `__SPECKIT_COMMAND_TASKS__` before continuing.
 
-8. Progress tracking and error handling:
+7. Progress tracking and error handling:
    - Report progress after each completed task
    - Halt execution if any non-parallel task fails
    - For parallel tasks [P], continue with successful tasks, report failed ones
+   - Do not convert a selected task's failure, UAT `FAIL`, or UAT `BLOCKED` into
+     completion or a checked task
    - Provide clear error messages with context for debugging
    - Suggest next steps if implementation cannot proceed
    - **IMPORTANT** For completed tasks, make sure to mark the task off as [X] in the tasks file.
 
-9. Completion validation:
-   - Verify all required tasks are completed
+8. Completion validation:
+   - A scoped run is complete only when every selected task satisfies its
+     `Done when` condition; every selected `[UAT]` task must have a conclusive
+     `PASS`.
+   - If selected work is incomplete, failed, or blocked, report the invocation
+     as `PARTIAL` or `BLOCKED`; this is not full feature completion.
+   - Leave out-of-scope tasks and UAT entries unchanged.
    - Check that implemented features match `spec.md`, `prototype.html`, and
      the frozen UAT expectations in `quickstart.md`
    - Validate that tests pass and coverage meets requirements
-   - Confirm every UAT task is resolved and every modified quickstart entry
-     preserves its expected result and references
+   - Confirm every executed UAT has a recorded outcome and every modified
+     quickstart entry preserves its expected result and references.
 
 Note: This command assumes a complete task breakdown exists in tasks.md. If tasks are incomplete or missing, suggest running `__SPECKIT_COMMAND_TASKS__` first to regenerate the task list.
 
@@ -235,12 +266,18 @@ Check if `.specify/extensions.yml` exists in the project root.
 
 ## Completion Report
 
-Report final status with summary of completed work.
+Report the selected scope and final status (`COMPLETE`, `PARTIAL`, or `BLOCKED`),
+completed and remaining selected tasks, untouched out-of-scope work, UAT
+results, evidence, deviations, and any required Specify/Clarify rerun.
 
 ## Done When
 
-- [ ] All tasks in tasks.md completed and marked `[X]`
+- [ ] Invocation scope derived from `$ARGUMENTS`; omitted tasks left untouched
+- [ ] Every completed selected task marked `[X]`; failed or blocked selected
+      tasks remain unchecked; out-of-scope task state remains unchanged
+- [ ] A scoped run is reported `COMPLETE` only when every selected task satisfies
+      its completion condition and every selected UAT passes
 - [ ] Implementation validated against the frozen Specify contract and task completion conditions
-- [ ] Every UAT has a recorded execution result and all passing UAT tasks are marked complete
+- [ ] Every executed UAT has a recorded result; only passing UAT tasks are marked complete
 - [ ] Extension hooks dispatched or skipped according to the rules in Mandatory Post-Execution Hooks above
 - [ ] Completion reported to user with summary of completed work

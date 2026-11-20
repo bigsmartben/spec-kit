@@ -5910,7 +5910,7 @@ class HookExecutor:
 
     @staticmethod
     def _skill_name_from_command(command: Any) -> str:
-        """Map a command id like speckit.plan to speckit-plan skill name."""
+        """Map a command id like speckit.tasks to speckit-tasks skill name."""
         if not isinstance(command, str):
             return ""
         command_id = command.strip()

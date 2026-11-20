@@ -63,7 +63,7 @@ steps:
   - id: review-spec
     type: gate
     verdict_input: speckit_review_spec_verdict
-    message: "Review the generated spec before task generation."
+    message: "Review the generated specification and UAT contract before task generation."
     options: [approve, reject]
     on_reject: abort
 

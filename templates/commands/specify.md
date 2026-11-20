@@ -112,7 +112,9 @@ Given that feature description, do this:
      }
      ```
      Write the actual resolved directory path value (for example, `specs/003-user-auth`), not the literal string `SPECIFY_FEATURE_DIRECTORY`.
-     This allows downstream commands (`__SPECKIT_COMMAND_PLAN__`, `__SPECKIT_COMMAND_TASKS__`, etc.) to locate the feature directory without relying on git branch name conventions.
+     This allows downstream commands (`__SPECKIT_COMMAND_TASKS__`,
+     `__SPECKIT_COMMAND_IMPLEMENT__`, etc.) to locate the feature directory
+     without relying on git branch name conventions.
 
    **IMPORTANT**:
    - You must only create one feature per `__SPECKIT_COMMAND_SPECIFY__` invocation

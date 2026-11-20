@@ -149,7 +149,7 @@ This confirms that the `specify` command is available and reporting the expected
 After initialization with GitHub Copilot's default skills mode, the following
 skills should be available. Invoke them in your agent's chat, not in the terminal:
 
-- `/speckit-specify` - Create specifications
+- `/speckit-specify` - Freeze the specification, executable prototype, and pending UAT contract
 - `/speckit-tasks` - Create independently deliverable, requirement-level work packages
 - `/speckit-implement` - Choose the technical approach, execute the work, and record UAT results
 - `/speckit-analyze` - Validate cross-artifact consistency

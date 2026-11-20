@@ -28,7 +28,6 @@ CORE_TEMPLATE_NAMES = [
     "spec-template",
     "prototype-template",
     "quickstart-template",
-    "plan-template",
     "tasks-template",
     "checklist-template",
     "constitution-template",

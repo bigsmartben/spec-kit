@@ -211,7 +211,7 @@ Customize Spec-Driven Development, bug fixing, or idea assessment to fit your
 team's standards. Or bring your own process without adopting any of them.
 Combine the [capabilities above](#capabilities) to match your goal:
 
-- Adapt an existing process with a preset, such as requiring regulatory traceability in plans. Use a project-local override for a one-off template change.
+- Adapt an existing process with a preset, such as requiring regulatory traceability in task packages or UAT evidence. Use a project-local override for a one-off template change.
 - Bring your own process by adding its commands through an extension and exposing them to your coding agent through an integration.
 - Automate commands and checks in a workflow. Use overlays to adapt an installed workflow without forking it, or add custom workflow steps when the built-in types are not enough.
 - Share a reusable setup by packaging its extensions, presets, workflows, and workflow steps in a bundle.

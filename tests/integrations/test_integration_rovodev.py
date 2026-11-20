@@ -215,7 +215,7 @@ class TestRovodevIntegration:
         data = yaml.safe_load(prompts_manifest.read_text(encoding="utf-8"))
         names = {entry.get("name") for entry in data.get("prompts", [])}
         assert "my-custom-prompt" in names
-        assert "speckit-plan" in names
+        assert "speckit-tasks" in names
 
     def test_modified_prompts_yml_survives_uninstall(self, tmp_path):
         impl = get_integration(self.KEY)
@@ -329,6 +329,7 @@ class TestRovodevIntegration:
         project.mkdir()
         result = _run_init(project, "--integration", "rovodev")
         assert result.exit_code == 0, result.output
-        assert (project / ".rovodev" / "skills" / "speckit-plan" / "SKILL.md").exists()
+        assert (project / ".rovodev" / "skills" / "speckit-tasks" / "SKILL.md").exists()
+        assert not (project / ".rovodev" / "skills" / "speckit-plan").exists()
         assert (project / ".rovodev" / "prompts.yml").exists()
         assert (project / ".specify" / "integrations" / "rovodev.manifest.json").exists()

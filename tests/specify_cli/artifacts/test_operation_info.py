@@ -112,9 +112,9 @@ def test_get_artifact_info_returns_complete_typed_core_result(
 
 
 def test_bare_name_and_public_id_are_identical(spec_kit_project: Path):
-    by_name = get_artifact_info(ArtifactInfoRequest(spec_kit_project, "speckit.plan"))
+    by_name = get_artifact_info(ArtifactInfoRequest(spec_kit_project, "speckit.tasks"))
     by_id = get_artifact_info(
-        ArtifactInfoRequest(spec_kit_project, "command:speckit.plan")
+        ArtifactInfoRequest(spec_kit_project, "command:speckit.tasks")
     )
 
     assert by_name == by_id
@@ -125,7 +125,7 @@ def test_bare_name_and_public_id_are_identical(spec_kit_project: Path):
     [
         ("speckit.constitution", "command"),
         ("spec-template", "template"),
-        ("setup-plan", "script"),
+        ("setup-tasks", "script"),
     ],
 )
 def test_explicit_kind_selects_each_named_family(
@@ -293,7 +293,7 @@ def test_info_preserves_preset_layer_order(spec_kit_project: Path):
 
 
 def test_info_is_stable_across_repeated_calls(spec_kit_project: Path):
-    request = ArtifactInfoRequest(spec_kit_project, "speckit.plan")
+    request = ArtifactInfoRequest(spec_kit_project, "speckit.tasks")
 
     assert get_artifact_info(request) == get_artifact_info(request)
 
@@ -334,7 +334,7 @@ def test_info_isolates_sequential_explicit_projects(
 
 def test_info_rejects_relative_project_directory():
     with pytest.raises(ArtifactInfoProjectDirectoryError) as exc_info:
-        get_artifact_info(ArtifactInfoRequest(Path("relative"), "speckit.plan"))
+        get_artifact_info(ArtifactInfoRequest(Path("relative"), "speckit.tasks"))
 
     assert exc_info.value.code == "invalid_project_directory"
     assert exc_info.value.details == {"project_directory": "relative"}
@@ -348,7 +348,7 @@ def test_info_rejects_non_project_before_catalog_lookup(
     monkeypatch.setattr(_operation_info, "ArtifactCatalog", catalog)
 
     with pytest.raises(ArtifactInfoProjectError) as exc_info:
-        get_artifact_info(ArtifactInfoRequest(non_project, "speckit.plan"))
+        get_artifact_info(ArtifactInfoRequest(non_project, "speckit.tasks"))
 
     assert exc_info.value.code == "not_a_spec_kit_project"
     assert exc_info.value.details == {"project_directory": str(non_project)}
@@ -375,7 +375,7 @@ def test_info_rejects_invalid_semantic_kind(spec_kit_project: Path):
         get_artifact_info(
             ArtifactInfoRequest(
                 spec_kit_project,
-                "speckit.plan",
+                "speckit.tasks",
                 kind="invalid",  # type: ignore[arg-type]
             )
         )
@@ -513,7 +513,7 @@ def test_info_maps_corrupt_registry_to_resolution_error(
     registry.write_text("{invalid", encoding="utf-8")
 
     with pytest.raises(ArtifactInfoResolutionError) as exc_info:
-        get_artifact_info(ArtifactInfoRequest(spec_kit_project, "speckit.plan"))
+        get_artifact_info(ArtifactInfoRequest(spec_kit_project, "speckit.tasks"))
 
     assert exc_info.value.code == "artifact_resolution_failed"
     assert exc_info.value.message == "artifact resolution failed"
@@ -539,7 +539,7 @@ def test_info_converts_resolution_failures(
     )
 
     with pytest.raises(ArtifactInfoResolutionError) as exc_info:
-        get_artifact_info(ArtifactInfoRequest(spec_kit_project, "speckit.plan"))
+        get_artifact_info(ArtifactInfoRequest(spec_kit_project, "speckit.tasks"))
 
     assert exc_info.value.__cause__ is failure
 
@@ -552,12 +552,12 @@ def test_info_preserves_explicit_resolution_diagnostics(
         artifacts.ArtifactCatalog, "get_artifact_info", Mock(side_effect=failure),
     )
     with pytest.raises(ArtifactInfoResolutionError) as exc_info:
-        get_artifact_info(ArtifactInfoRequest(spec_kit_project, "speckit.plan"))
+        get_artifact_info(ArtifactInfoRequest(spec_kit_project, "speckit.tasks"))
     assert exc_info.value.message == failure.message
     assert str(exc_info.value) == failure.message
     assert exc_info.value.code == "artifact_resolution_failed"
     assert exc_info.value.details == {
-        "project_directory": str(spec_kit_project), "identifier": "speckit.plan",
+        "project_directory": str(spec_kit_project), "identifier": "speckit.tasks",
     }
     assert exc_info.value.__cause__ is failure
 
@@ -684,7 +684,7 @@ def test_info_converts_catalog_project_error(
     )
 
     with pytest.raises(ArtifactInfoProjectError) as exc_info:
-        get_artifact_info(ArtifactInfoRequest(spec_kit_project, "speckit.plan"))
+        get_artifact_info(ArtifactInfoRequest(spec_kit_project, "speckit.tasks"))
 
     assert isinstance(exc_info.value.__cause__, artifacts.NotASpecKitProjectError)
 

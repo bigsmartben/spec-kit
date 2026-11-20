@@ -29,9 +29,7 @@ valid_pack_data = _fixtures.valid_pack_data
 pack_dir = _fixtures.pack_dir
 project_dir = _fixtures.project_dir
 
-SELF_TEST_TEMPLATE_NAMES = [
-    name for name in CORE_TEMPLATE_NAMES if name != "plan-template"
-]
+SELF_TEST_TEMPLATE_NAMES = list(CORE_TEMPLATE_NAMES)
 
 
 class TestIntegration:
@@ -129,7 +127,7 @@ class TestSelfTestPreset:
         manifest = PresetManifest(SELF_TEST_PRESET_DIR / "preset.yml")
         assert manifest.id == "self-test"
         assert manifest.name == "Self-Test Preset"
-        assert manifest.version == "1.0.0"
+        assert manifest.version == "1.0.1"
         assert len(manifest.templates) == 8  # 6 templates + 2 commands
 
     def test_self_test_provides_all_active_core_templates(self):
@@ -138,8 +136,6 @@ class TestSelfTestPreset:
         provided_names = {t["name"] for t in manifest.templates}
         for name in SELF_TEST_TEMPLATE_NAMES:
             assert name in provided_names, f"Self-test preset missing template: {name}"
-        assert "plan-template" not in provided_names
-        assert not (SELF_TEST_PRESET_DIR / "templates" / "plan-template.md").exists()
 
     def test_self_test_template_files_exist(self):
         """Verify that all declared template files actually exist on disk."""
@@ -606,7 +602,7 @@ class TestLeanPreset:
         manifest = PresetManifest(LEAN_PRESET_DIR / "preset.yml")
         assert manifest.id == "lean"
         assert manifest.name == "Lean Workflow"
-        assert manifest.version == "1.0.0"
+        assert manifest.version == "1.0.1"
         assert len(manifest.templates) == 4  # 4 commands
 
     def test_lean_provides_core_workflow_commands(self):
@@ -651,6 +647,10 @@ class TestLeanPreset:
         assert "SC-*" in tasks
         assert "data-spec-ref" in tasks
         assert "UAT-*" in tasks
+        assert "T001" in tasks
+        assert "[BUILD]" in tasks
+        assert "exactly one `[UAT]` task" in tasks
+        assert "Status: PASS" in tasks
         assert "plan.md" not in tasks
         assert "file path" in tasks
 
@@ -665,6 +665,15 @@ class TestLeanPreset:
         assert "Evidence" in implement
         assert "Deviation" in implement
         assert "plan.md" not in implement
+        assert "Select this invocation's scope from `$ARGUMENTS`" in implement
+        assert "Leave out-of-scope work unchanged" in implement
+        assert "FAIL" in implement
+        assert "BLOCKED" in implement
+        assert "leave the task unchecked" in implement
+        assert "If it is missing or" in implement
+        assert "Implement does not create task" in implement
+        assert "return the issue to Specify or Clarify" in implement
+        assert "all selected work" in implement
         assert not (LEAN_PRESET_DIR / "commands" / "speckit.plan.md").exists()
 
     def test_install_lean_preset(self, project_dir):
@@ -865,7 +874,9 @@ class TestConstitutionSyncPreset:
         assert manifest["requires"]["speckit_version"] == ">=0.14.4"
 
     def test_wrapper_uses_core_template_and_propagates(self):
-        text = (self.PRESET_DIR / "commands" / "speckit.constitution.md").read_text()
+        text = (self.PRESET_DIR / "commands" / "speckit.constitution.md").read_text(
+            encoding="utf-8"
+        )
 
         # Parse the Markdown frontmatter as YAML rather than substring-matching,
         # so `strategy: wrap` is asserted structurally (not as text that could

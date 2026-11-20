@@ -112,6 +112,12 @@ else
 fi
 eval "$_paths_output"
 unset _paths_output
+repo_root_display="$(to_native_path "$REPO_ROOT")"
+feature_dir_display="$(to_native_path "$FEATURE_DIR")"
+feature_spec_display="$(to_native_path "$FEATURE_SPEC")"
+prototype_display="$(to_native_path "$PROTOTYPE")"
+quickstart_display="$(to_native_path "$QUICKSTART")"
+tasks_display="$(to_native_path "$TASKS")"
 
 # If paths-only mode, output paths and exit (no validation)
 if $PATHS_ONLY; then
@@ -119,40 +125,40 @@ if $PATHS_ONLY; then
         # Minimal JSON paths payload (no validation performed)
         if has_jq; then
             jq -cn \
-                --arg repo_root "$REPO_ROOT" \
+                --arg repo_root "$repo_root_display" \
                 --arg branch "$CURRENT_BRANCH" \
-                --arg feature_dir "$FEATURE_DIR" \
-                --arg feature_spec "$FEATURE_SPEC" \
-                --arg prototype "$PROTOTYPE" \
-                --arg quickstart "$QUICKSTART" \
-                --arg tasks "$TASKS" \
+                --arg feature_dir "$feature_dir_display" \
+                --arg feature_spec "$feature_spec_display" \
+                --arg prototype "$prototype_display" \
+                --arg quickstart "$quickstart_display" \
+                --arg tasks "$tasks_display" \
                 '{REPO_ROOT:$repo_root,BRANCH:$branch,FEATURE_DIR:$feature_dir,FEATURE_SPEC:$feature_spec,PROTOTYPE:$prototype,QUICKSTART:$quickstart,TASKS:$tasks}'
         else
             printf '{"REPO_ROOT":"%s","BRANCH":"%s","FEATURE_DIR":"%s","FEATURE_SPEC":"%s","PROTOTYPE":"%s","QUICKSTART":"%s","TASKS":"%s"}\n' \
-                "$(json_escape "$REPO_ROOT")" "$(json_escape "$CURRENT_BRANCH")" "$(json_escape "$FEATURE_DIR")" "$(json_escape "$FEATURE_SPEC")" "$(json_escape "$PROTOTYPE")" "$(json_escape "$QUICKSTART")" "$(json_escape "$TASKS")"
+                "$(json_escape "$repo_root_display")" "$(json_escape "$CURRENT_BRANCH")" "$(json_escape "$feature_dir_display")" "$(json_escape "$feature_spec_display")" "$(json_escape "$prototype_display")" "$(json_escape "$quickstart_display")" "$(json_escape "$tasks_display")"
         fi
     else
-        echo "REPO_ROOT: $REPO_ROOT"
+        echo "REPO_ROOT: $repo_root_display"
         echo "BRANCH: $CURRENT_BRANCH"
-        echo "FEATURE_DIR: $FEATURE_DIR"
-        echo "FEATURE_SPEC: $FEATURE_SPEC"
-        echo "PROTOTYPE: $PROTOTYPE"
-        echo "QUICKSTART: $QUICKSTART"
-        echo "TASKS: $TASKS"
+        echo "FEATURE_DIR: $feature_dir_display"
+        echo "FEATURE_SPEC: $feature_spec_display"
+        echo "PROTOTYPE: $prototype_display"
+        echo "QUICKSTART: $quickstart_display"
+        echo "TASKS: $tasks_display"
     fi
     exit 0
 fi
 
 # Validate required directories and files
 if [[ ! -d "$FEATURE_DIR" ]]; then
-    echo "ERROR: Feature directory not found: $FEATURE_DIR" >&2
+    echo "ERROR: Feature directory not found: $feature_dir_display" >&2
     echo "Run $(format_speckit_command specify "$REPO_ROOT") first to create the feature structure." >&2
     exit 1
 fi
 
 # Check for spec.md if required
 if $REQUIRE_SPEC && [[ ! -f "$FEATURE_SPEC" ]]; then
-    echo "ERROR: spec.md not found in $FEATURE_DIR" >&2
+    echo "ERROR: spec.md not found in $feature_dir_display" >&2
     echo "Run $(format_speckit_command specify "$REPO_ROOT") first to create the feature specification." >&2
     exit 1
 fi
@@ -162,12 +168,12 @@ if $REQUIRE_CONTRACT; then
         local path="$1"
         local name="$2"
         if [[ ! -f "$path" ]]; then
-            echo "ERROR: $name not found in $FEATURE_DIR" >&2
+            echo "ERROR: $name not found in $feature_dir_display" >&2
             echo "Run $(format_speckit_command specify "$REPO_ROOT") first to create the frozen requirement contract." >&2
             exit 1
         fi
         if [[ ! -s "$path" ]]; then
-            echo "ERROR: $name is empty in $FEATURE_DIR" >&2
+            echo "ERROR: $name is empty in $feature_dir_display" >&2
             echo "Rerun $(format_speckit_command specify "$REPO_ROOT") to regenerate $name." >&2
             exit 1
         fi
@@ -179,7 +185,7 @@ fi
 
 # Check for tasks.md if required
 if $REQUIRE_TASKS && [[ ! -f "$TASKS" ]]; then
-    echo "ERROR: tasks.md not found in $FEATURE_DIR" >&2
+    echo "ERROR: tasks.md not found in $feature_dir_display" >&2
     echo "Run $(format_speckit_command tasks "$REPO_ROOT") first to create the task list." >&2
     exit 1
 fi
@@ -200,7 +206,7 @@ if [[ -n "$TEMPLATE_NAME" ]]; then
     if TEMPLATE_CONTENT=$(resolve_template_content "$TEMPLATE_NAME" "$REPO_ROOT"; status=$?; printf x; exit "$status"); then
         TEMPLATE_CONTENT="${TEMPLATE_CONTENT%x}"
     else
-        echo "ERROR: Could not resolve required $TEMPLATE_NAME from the template override stack for $REPO_ROOT" >&2
+        echo "ERROR: Could not resolve required $TEMPLATE_NAME from the template override stack for $repo_root_display" >&2
         exit 1
     fi
 fi
@@ -216,13 +222,13 @@ if $JSON_MODE; then
         fi
         if [[ -n "$TEMPLATE_NAME" ]]; then
             jq -cn \
-                --arg feature_dir "$FEATURE_DIR" \
+                --arg feature_dir "$feature_dir_display" \
                 --argjson docs "$json_docs" \
                 --arg template_content "$TEMPLATE_CONTENT" \
                 '{FEATURE_DIR:$feature_dir,AVAILABLE_DOCS:$docs,TEMPLATE_CONTENT:$template_content}'
         else
             jq -cn \
-                --arg feature_dir "$FEATURE_DIR" \
+                --arg feature_dir "$feature_dir_display" \
                 --argjson docs "$json_docs" \
                 '{FEATURE_DIR:$feature_dir,AVAILABLE_DOCS:$docs}'
         fi
@@ -235,14 +241,14 @@ if $JSON_MODE; then
         fi
         if [[ -n "$TEMPLATE_NAME" ]]; then
             printf '{"FEATURE_DIR":"%s","AVAILABLE_DOCS":%s,"TEMPLATE_CONTENT":"%s"}\n' \
-                "$(json_escape "$FEATURE_DIR")" "$json_docs" "$(json_escape "$TEMPLATE_CONTENT")"
+                "$(json_escape "$feature_dir_display")" "$json_docs" "$(json_escape "$TEMPLATE_CONTENT")"
         else
-            printf '{"FEATURE_DIR":"%s","AVAILABLE_DOCS":%s}\n' "$(json_escape "$FEATURE_DIR")" "$json_docs"
+            printf '{"FEATURE_DIR":"%s","AVAILABLE_DOCS":%s}\n' "$(json_escape "$feature_dir_display")" "$json_docs"
         fi
     fi
 else
     # Text output
-    echo "FEATURE_DIR:$FEATURE_DIR"
+    echo "FEATURE_DIR:$feature_dir_display"
     echo "AVAILABLE_DOCS:"
 
     # Show status of each contract document.

@@ -6,8 +6,8 @@ Deliberately self-contained: the github extension owns this script so that
 command (and its ``check_prerequisites`` helper invocation) is deprecated and
 removed. It is a trimmed twin of core ``check_prerequisites.py`` -- it resolves
 the project root and the active feature directory, requires ``tasks.md``, and
-reports the optional design docs that sit next to it. Neither ``spec.md`` nor a
-historical ``plan.md`` is required for this command.
+reports the frozen contract documents that sit next to it when present.
+Only ``tasks.md`` is a prerequisite for this command.
 """
 
 from __future__ import annotations

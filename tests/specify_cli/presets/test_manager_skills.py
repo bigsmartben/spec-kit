@@ -303,7 +303,7 @@ class TestPresetSkills(PresetArtifactTestHelpers):
             "cmdref-install",
             "speckit.specify",
             "Override specify",
-            "Run `__SPECKIT_COMMAND_SPECIFY__` then `__SPECKIT_COMMAND_PLAN__`.\n",
+            "Run `__SPECKIT_COMMAND_SPECIFY__` then `__SPECKIT_COMMAND_TASKS__`.\n",
         )
 
         manager = PresetManager(project_dir)
@@ -313,7 +313,7 @@ class TestPresetSkills(PresetArtifactTestHelpers):
         assert "__SPECKIT_COMMAND_" not in content, "raw command token leaked into SKILL.md"
         # Claude's invoke_separator is "-", so tokens render as /speckit-<cmd>.
         assert "/speckit-specify" in content
-        assert "/speckit-plan" in content
+        assert "/speckit-tasks" in content
 
     def test_restore_skill_resolves_command_refs(self, project_dir, temp_dir):
         """Skill restore on preset removal must also resolve command tokens (issue #2717)."""
@@ -325,7 +325,7 @@ class TestPresetSkills(PresetArtifactTestHelpers):
         core_cmds.mkdir(parents=True, exist_ok=True)
         (core_cmds / "specify.md").write_text(
             "---\ndescription: Core specify\n---\n\n"
-            "Then run `__SPECKIT_COMMAND_PLAN__`.\n"
+            "Then run `__SPECKIT_COMMAND_TASKS__`.\n"
         )
 
         preset_dir = self._create_command_preset(
@@ -341,7 +341,7 @@ class TestPresetSkills(PresetArtifactTestHelpers):
 
         content = (skills_dir / "speckit-specify" / "SKILL.md").read_text()
         assert "__SPECKIT_COMMAND_" not in content, "raw command token leaked on restore"
-        assert "/speckit-plan" in content
+        assert "/speckit-tasks" in content
 
     def test_restore_skill_preserves_dollar_command_refs(self, project_dir, temp_dir):
         """Dollar-style core refs remain native when a preset skill is removed."""
@@ -353,7 +353,7 @@ class TestPresetSkills(PresetArtifactTestHelpers):
         core_cmds.mkdir(parents=True, exist_ok=True)
         raw_core = (
             "---\ndescription: Core specify\n---\n\n"
-            "Then run `__SPECKIT_COMMAND_PLAN__`.\n"
+            "Then run `__SPECKIT_COMMAND_TASKS__`.\n"
         )
         (core_cmds / "specify.md").write_text(raw_core)
 
@@ -369,8 +369,8 @@ class TestPresetSkills(PresetArtifactTestHelpers):
         manager.remove("dollar-cmdref-restore")
 
         content = (skills_dir / "speckit-specify" / "SKILL.md").read_text()
-        assert "$speckit-plan" in content
-        assert "/speckit-plan" not in content
+        assert "$speckit-tasks" in content
+        assert "/speckit-tasks" not in content
 
     def test_reconcile_override_skill_resolves_command_refs(self, project_dir, temp_dir):
         """Reconcile's project-override restore must resolve command tokens (issue #2717).
@@ -390,7 +390,7 @@ class TestPresetSkills(PresetArtifactTestHelpers):
         overrides_dir.mkdir(parents=True, exist_ok=True)
         (overrides_dir / "speckit.specify.md").write_text(
             "---\ndescription: Override specify\n---\n\n"
-            "Then run `__SPECKIT_COMMAND_PLAN__`.\n"
+            "Then run `__SPECKIT_COMMAND_TASKS__`.\n"
         )
 
         preset_dir = self._create_command_preset(
@@ -407,7 +407,7 @@ class TestPresetSkills(PresetArtifactTestHelpers):
         content = (skills_dir / "speckit-specify" / "SKILL.md").read_text()
         assert "override:speckit.specify" in content, "skill should be restored from the project override"
         assert "__SPECKIT_COMMAND_" not in content, "raw command token leaked on reconcile"
-        assert "/speckit-plan" in content
+        assert "/speckit-tasks" in content
         assert "version" not in yaml.safe_load(content.split("---", 2)[1])["metadata"]
 
     def test_extension_restore_resolves_command_refs(self, project_dir, temp_dir):
@@ -425,7 +425,7 @@ class TestPresetSkills(PresetArtifactTestHelpers):
         (extension_dir / "commands").mkdir(parents=True, exist_ok=True)
         (extension_dir / "commands" / "cmd.md").write_text(
             "---\ndescription: Extension fakeext cmd\n---\n\n"
-            "Then run `__SPECKIT_COMMAND_PLAN__`.\n"
+            "Then run `__SPECKIT_COMMAND_TASKS__`.\n"
         )
         extension_manifest = {
             "schema_version": "1.0",
@@ -463,7 +463,7 @@ class TestPresetSkills(PresetArtifactTestHelpers):
         content = (skills_dir / "speckit-fakeext-cmd" / "SKILL.md").read_text()
         assert "source: extension:fakeext" in content, "skill should be restored from the extension"
         assert "__SPECKIT_COMMAND_" not in content, "raw command token leaked on extension restore"
-        assert "/speckit-plan" in content
+        assert "/speckit-tasks" in content
 
     def test_core_command_override_skill_uses_preset_command_description(self, project_dir, temp_dir):
         """Preset skill overrides for core commands should keep preset frontmatter descriptions."""
@@ -691,7 +691,9 @@ class TestPresetSkills(PresetArtifactTestHelpers):
         content = skill_file.read_text(encoding="utf-8")
         assert "preset:self-test" not in content
         assert "templates/commands/specify.md" in content
-        assert "Create or update the feature specification" in content
+        assert "Create the feature specification, executable prototype" in content
+        assert "pending UAT" in content
+        assert "baseline" in content
         from specify_cli import get_speckit_version
 
         assert yaml.safe_load(content.split("---", 2)[1])["metadata"]["version"] == get_speckit_version()
@@ -876,7 +878,7 @@ class TestPresetSkills(PresetArtifactTestHelpers):
             "---\n"
             "description: Extension fakeext cmd\n"
             "scripts:\n"
-            "  sh: ../../scripts/bash/setup-plan.sh --json \"{ARGS}\"\n"
+            "  sh: ../../scripts/bash/setup-tasks.sh --json \"{ARGS}\"\n"
             "---\n\n"
             "extension:fakeext\n"
             "Run {SCRIPT}\n"
@@ -946,7 +948,7 @@ class TestPresetSkills(PresetArtifactTestHelpers):
         assert "preset:ext-skill-restore" not in content
         assert "source: extension:fakeext" in content
         assert "extension:fakeext" in content
-        assert '.specify/scripts/bash/setup-plan.sh --json "$ARGUMENTS"' in content
+        assert '.specify/scripts/bash/setup-tasks.sh --json "$ARGUMENTS"' in content
         # Extension-relative subdir references must resolve to their
         # installed location on restore too (#2101), not just on first
         # registration.
@@ -1411,7 +1413,7 @@ class TestPresetSkills(PresetArtifactTestHelpers):
         preset_dir = self._create_multi_command_preset(
             temp_dir,
             "partial-skill-failure-preset",
-            ["speckit.specify", "speckit.plan"],
+            ["speckit.specify", "speckit.tasks"],
         )
         manager = PresetManager(project_dir)
         manager.install_from_directory(preset_dir, "0.1.5")
@@ -1419,16 +1421,16 @@ class TestPresetSkills(PresetArtifactTestHelpers):
 
         original_read_text = Path.read_text
 
-        def fail_plan_source(path, *args, **kwargs):
+        def fail_tasks_source(path, *args, **kwargs):
             if (
-                path.name == "speckit.plan.md"
+                path.name == "speckit.tasks.md"
                 and path.parent.name == "commands"
                 and "partial-skill-failure-preset" in path.parts
             ):
                 raise UnicodeDecodeError("utf-8", b"\xff", 0, 1, "invalid")
             return original_read_text(path, *args, **kwargs)
 
-        monkeypatch.setattr(Path, "read_text", fail_plan_source)
+        monkeypatch.setattr(Path, "read_text", fail_tasks_source)
         manager.register_enabled_presets_for_agent("copilot")
 
         metadata = manager.registry.get("partial-skill-failure-preset")

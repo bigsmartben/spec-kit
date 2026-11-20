@@ -106,22 +106,22 @@ class TestIntegrationSwitch(IntegrationCatalogCliTestBase):
 
         shared_rels = [
             ".specify/scripts/bash/check-prerequisites.sh",
-            ".specify/templates/plan-template.md",
+            ".specify/templates/quickstart-template.md",
             ".specify/.gitignore",
         ]
         clean = {rel: (switch_copilot_commands_template / rel).read_bytes() for rel in shared_rels}
-        assert b"/speckit.plan" in clean[shared_rels[0]]
-        assert b"/speckit.plan" in clean[shared_rels[1]]
+        assert b"/speckit.tasks" in clean[shared_rels[0]]
+        assert b"/speckit.specify" in clean[shared_rels[1]]
         shared_manifest = project / ".specify/integrations/speckit.manifest.json"
         prior_hashes = json.loads(shared_manifest.read_bytes())["files"]
         customized = {rel: (project / rel).read_bytes() + b"\n# user customization\n" for rel in shared_rels}
         for rel, content in customized.items():
             (project / rel).write_bytes(content)
 
-        old_skill = project / ".claude/skills/speckit-plan/SKILL.md"
+        old_skill = project / ".claude/skills/speckit-tasks/SKILL.md"
         if target_state != "default":
             old_skill.write_bytes(b"User-edited outgoing skill\n")
-        target_skill = project / ".github/agents/speckit.plan.agent.md"
+        target_skill = project / ".github/agents/speckit.tasks.agent.md"
         if target_state != "new":
             target_skill.write_bytes(b"User-edited installed skill\n")
             target_manifest = project / ".specify/integrations/copilot.manifest.json"
@@ -210,7 +210,7 @@ class TestIntegrationSwitch(IntegrationCatalogCliTestBase):
         from specify_cli.integrations.codex import CodexIntegration
         from specify_cli.integrations.manifest import IntegrationManifest
 
-        rel = ".agents/skills/speckit-plan/SKILL.md"
+        rel = ".agents/skills/speckit-tasks/SKILL.md"
         original_setup = CodexIntegration.setup
 
         def setup_with_recovered_file(self, project_root, manifest, *args, **kwargs):
@@ -256,7 +256,7 @@ class TestIntegrationSwitch(IntegrationCatalogCliTestBase):
             assert manifest_path.read_text(encoding="utf-8") == "{invalid"
             assert "snapshot manifest hashes for integration 'codex'" in output
 
-    @pytest.mark.parametrize("command", ["plan", "tasks"])
+    @pytest.mark.parametrize("command", ["specify", "tasks"])
     @pytest.mark.parametrize("flags", [[], ["--refresh-shared-infra"]], ids=["normal", "refresh"])
     def test_switch_installed_target_preserves_modified_manifest_hash(
         self, tmp_path, tasks_preset_src, command, flags
@@ -309,7 +309,7 @@ class TestIntegrationSwitch(IntegrationCatalogCliTestBase):
         result = _run_in_project(project, args)
 
         assert result.exit_code == 1, result.output
-        assert not (project / ".github/skills/speckit-plan/SKILL.md").exists(), result.output
+        assert not (project / ".github/skills/speckit-tasks/SKILL.md").exists(), result.output
         assert generated
         assert all(not path.exists() for path in generated)
         assert not stale_manifest.exists()
@@ -437,7 +437,7 @@ class TestIntegrationSwitch(IntegrationCatalogCliTestBase):
             "_unregister_extensions_for_agent", "_unregister_presets_for_agent",
         ):
             monkeypatch.setattr(command_switch, name, unexpected_lifecycle)
-        template = project / ".specify" / "templates" / "plan-template.md"
+        template = project / ".specify" / "templates" / "quickstart-template.md"
         script = project / ".specify" / "scripts" / "bash" / "check-prerequisites.sh"
         template.write_text("# custom shared template\n", encoding="utf-8")
         script.write_text("# custom shared script\n", encoding="utf-8")
@@ -454,8 +454,8 @@ class TestIntegrationSwitch(IntegrationCatalogCliTestBase):
         assert result.exit_code == 0, result.output
         assert "shared infrastructure refreshed" in result.output
         assert "managed shared infrastructure refreshed" not in result.output
-        assert "/speckit-plan" in template.read_text(encoding="utf-8")
-        assert "/speckit-plan" in script.read_text(encoding="utf-8")
+        assert "/speckit-specify" in template.read_text(encoding="utf-8")
+        assert "/speckit-tasks" in script.read_text(encoding="utf-8")
         assert len(refreshes) == 1
         assert {path: (path.read_bytes(), path.stat().st_mtime_ns) for path in before} == before
 
@@ -524,7 +524,7 @@ class TestIntegrationSwitch(IntegrationCatalogCliTestBase):
             if path.is_file() and path.parent.name in selected
         ]
         assert rels
-        rels += [Path(".specify/templates/plan-template.md"), Path(".specify/.gitignore")]
+        rels += [Path(".specify/templates/quickstart-template.md"), Path(".specify/.gitignore")]
         expected = {rel: (clean / rel).read_bytes() for rel in rels}
         for rel in rels:
             (project / rel).write_bytes(b"# edited shared runtime\n")
@@ -538,7 +538,7 @@ class TestIntegrationSwitch(IntegrationCatalogCliTestBase):
 
         assert result.exit_code == 0, result.output
         assert {rel: (project / rel).read_bytes() for rel in rels} == expected
-        assert b"$speckit-plan" in (project / ".specify/templates/plan-template.md").read_bytes()
+        assert b"$speckit-specify" in (project / ".specify/templates/quickstart-template.md").read_bytes()
         state = json.loads((project / ".specify/integration.json").read_bytes())
         assert state["default_integration"] == "codex"
         assert state["integration_settings"]["codex"]["script"] == script_type
@@ -555,7 +555,7 @@ class TestIntegrationSwitch(IntegrationCatalogCliTestBase):
     def test_switch_between_integrations(self, tmp_path):
         project = _init_project(tmp_path, "claude")
         # Verify claude files exist (claude uses skills)
-        assert (project / ".claude" / "skills" / "speckit-plan" / "SKILL.md").exists()
+        assert (project / ".claude" / "skills" / "speckit-tasks" / "SKILL.md").exists()
         shared_script = project / ".specify" / "scripts" / "bash" / "check-prerequisites.sh"
         assert "/speckit-specify" in shared_script.read_text(encoding="utf-8")
 
@@ -572,11 +572,11 @@ class TestIntegrationSwitch(IntegrationCatalogCliTestBase):
         assert "Switched to" in result.output
 
         # Old claude files removed
-        assert not (project / ".claude" / "skills" / "speckit-plan" / "SKILL.md").exists()
+        assert not (project / ".claude" / "skills" / "speckit-tasks" / "SKILL.md").exists()
 
         # New default Copilot skills created
         assert (
-            project / ".github" / "skills" / "speckit-plan" / "SKILL.md"
+            project / ".github" / "skills" / "speckit-tasks" / "SKILL.md"
         ).exists()
         assert "/speckit-specify" in shared_script.read_text(encoding="utf-8")
         assert "/speckit.specify" not in shared_script.read_text(encoding="utf-8")
@@ -590,7 +590,7 @@ class TestIntegrationSwitch(IntegrationCatalogCliTestBase):
     ):
         project = _init_project(tmp_path, "claude")
         claude_skill = (
-            project / ".claude" / "skills" / "speckit-plan" / "SKILL.md"
+            project / ".claude" / "skills" / "speckit-tasks" / "SKILL.md"
         )
         before_state = json.loads(
             (project / ".specify" / "integration.json").read_text(
@@ -632,7 +632,7 @@ class TestIntegrationSwitch(IntegrationCatalogCliTestBase):
         self, tmp_path, integration_options
     ):
         project = _init_project(tmp_path, "claude")
-        claude_skill = project / ".claude" / "skills" / "speckit-plan" / "SKILL.md"
+        claude_skill = project / ".claude" / "skills" / "speckit-tasks" / "SKILL.md"
         state_path = project / ".specify" / "integration.json"
         options_path = project / ".specify" / "init-options.json"
         before_state = state_path.read_text(encoding="utf-8")
@@ -659,8 +659,8 @@ class TestIntegrationSwitch(IntegrationCatalogCliTestBase):
         ])
 
         assert result.exit_code == 0, result.output
-        assert (project / ".myagent" / "commands" / "speckit.plan.md").exists()
-        assert not (project / ".claude" / "skills" / "speckit-plan" / "SKILL.md").exists()
+        assert (project / ".myagent" / "commands" / "speckit.tasks.md").exists()
+        assert not (project / ".claude" / "skills" / "speckit-tasks" / "SKILL.md").exists()
         data = json.loads((project / ".specify" / "integration.json").read_text(encoding="utf-8"))
         assert data["default_integration"] == "generic"
         assert data["installed_integrations"] == ["generic"]
@@ -697,7 +697,7 @@ class TestIntegrationSwitch(IntegrationCatalogCliTestBase):
 
         assert result.exit_code == 0, result.output
         assert (
-            project / ".github" / "agents" / "speckit.plan.agent.md"
+            project / ".github" / "agents" / "speckit.tasks.agent.md"
         ).exists()
         assert not (project / ".github" / "skills").exists()
         state = json.loads(
@@ -965,7 +965,7 @@ class TestIntegrationSwitch(IntegrationCatalogCliTestBase):
         shared_script = project / ".specify" / "scripts" / "bash" / "setup-tasks.sh"
         assert shared_script.exists()
         shared_content = shared_script.read_text(encoding="utf-8")
-        assert "/speckit-plan" in shared_content
+        assert "/speckit-specify" in shared_content
 
         old_cwd = os.getcwd()
         try:
@@ -981,8 +981,8 @@ class TestIntegrationSwitch(IntegrationCatalogCliTestBase):
 
         assert shared_script.exists()
         updated = shared_script.read_text(encoding="utf-8")
-        assert "/speckit.plan" in updated
-        assert "/speckit-plan" not in updated
+        assert "/speckit.specify" in updated
+        assert "/speckit-specify" not in updated
 
     def test_switch_refreshes_stale_managed_shared_infra(self, tmp_path):
         """Regression for #2293: stale managed shared scripts get refreshed on switch."""
@@ -990,7 +990,7 @@ class TestIntegrationSwitch(IntegrationCatalogCliTestBase):
 
         project = _init_project(tmp_path, "claude")
         shared_script = project / ".specify" / "scripts" / "bash" / "setup-tasks.sh"
-        assert "/speckit-plan" in shared_script.read_text(encoding="utf-8")
+        assert "/speckit-specify" in shared_script.read_text(encoding="utf-8")
 
         # Simulate a stale vendored script: write truncated content as bytes
         # (write_text would translate \n→\r\n on Windows and break the hash)
@@ -1021,8 +1021,8 @@ class TestIntegrationSwitch(IntegrationCatalogCliTestBase):
         # Stale managed file should be replaced by the target integration's rendered version.
         updated = shared_script.read_text(encoding="utf-8")
         assert "# stale vendored copy" not in updated
-        assert "/speckit.plan" in updated
-        assert "/speckit-plan" not in updated
+        assert "/speckit.specify" in updated
+        assert "/speckit-specify" not in updated
 
     @pytest.mark.parametrize("target_state", ["new", "installed", "default"])
     @pytest.mark.parametrize(
@@ -1036,7 +1036,7 @@ class TestIntegrationSwitch(IntegrationCatalogCliTestBase):
         project = _init_codex_switch_project(tmp_path, target_state)
         rels = [
             ".specify/scripts/bash/setup-tasks.sh",
-            ".specify/templates/plan-template.md",
+            ".specify/templates/quickstart-template.md",
             ".specify/.gitignore",
         ]
         custom_bytes = b"# team custom workflow\n"
@@ -1085,7 +1085,7 @@ class TestIntegrationSwitch(IntegrationCatalogCliTestBase):
         outside.mkdir()
         rels = [".specify/.gitignore"]
         rels += ([".specify/scripts/bash", ".specify/templates"] if ancestor else [
-            ".specify/scripts/bash/common.sh", ".specify/templates/plan-template.md",
+            ".specify/scripts/bash/common.sh", ".specify/templates/quickstart-template.md",
         ])
         for index, rel in enumerate(rels):
             path = project / rel
@@ -1150,10 +1150,10 @@ class TestIntegrationSwitch(IntegrationCatalogCliTestBase):
         assert opts["integration"] == "codex"
         assert opts["ai"] == "codex"
 
-        template = project / ".specify" / "templates" / "plan-template.md"
-        assert "$speckit-plan" in template.read_text(encoding="utf-8")
+        template = project / ".specify" / "templates" / "quickstart-template.md"
+        assert "$speckit-specify" in template.read_text(encoding="utf-8")
 
-    @pytest.mark.parametrize("edited_command", [None, "plan", "tasks"])
+    @pytest.mark.parametrize("edited_command", [None, "specify", "tasks"])
     def test_failed_switch_syncs_fallback_manifest_without_blessing_user_edits(
         self, tmp_path, tasks_preset_src, monkeypatch, edited_command
     ):

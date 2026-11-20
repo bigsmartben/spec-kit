@@ -1062,7 +1062,7 @@ class IntegrationBase(ABC):
         """Replace ``__SPECKIT_COMMAND_<NAME>__`` placeholders with invocations.
 
         Each placeholder encodes a command name in upper-case with
-        underscores (e.g. ``__SPECKIT_COMMAND_PLAN__``,
+        underscores (e.g. ``__SPECKIT_COMMAND_TASKS__``,
         ``__SPECKIT_COMMAND_GIT_COMMIT__``).  The replacement uses
         *separator* to join the segments:
 

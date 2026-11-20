@@ -42,16 +42,16 @@ def _preset(project, preset_id="info-preset"):
         "provides:\n"
         "  templates:\n"
         "    - type: command\n"
-        "      name: speckit.plan\n"
-        "      file: commands/plan.md\n"
-        "      description: Wrapped plan\n"
+        "      name: speckit.tasks\n"
+        "      file: commands/tasks.md\n"
+        "      description: Wrapped tasks\n"
         "      strategy: WRAP\n"
         "    - type: template\n"
         "      name: spec-template\n"
         "      file: templates/spec.md\n"
         "    - type: script\n"
-        "      name: setup-plan\n"
-        "      file: scripts/setup-plan.sh\n"
+        "      name: setup-tasks\n"
+        "      file: scripts/setup-tasks.sh\n"
         "      strategy: wrap\n",
         encoding="utf-8",
     )
@@ -127,10 +127,10 @@ def test_preset_info_json_expands_the_list_item(tmp_path, monkeypatch):
     assert info["source"] == SOURCE
     assert info["commands"] == [
         {
-            "name": "speckit.plan",
-            "description": "Wrapped plan",
+            "name": "speckit.tasks",
+            "description": "Wrapped tasks",
             "source": PRESET_SOURCE,
-            "sourcePath": "commands/plan.md",
+            "sourcePath": "commands/tasks.md",
             "strategy": "wrap",
         }
     ]
@@ -145,10 +145,10 @@ def test_preset_info_json_expands_the_list_item(tmp_path, monkeypatch):
     ]
     assert info["scripts"] == [
         {
-            "name": "setup-plan",
+            "name": "setup-tasks",
             "description": "",
             "source": PRESET_SOURCE,
-            "sourcePath": "scripts/setup-plan.sh",
+            "sourcePath": "scripts/setup-tasks.sh",
             "strategy": "wrap",
         }
     ]
@@ -161,7 +161,7 @@ def test_preset_info_json_gives_an_empty_description_as_a_string(tmp_path, monke
     _preset(project)
     manifest = project / ".specify" / "presets" / "info-preset" / "preset.yml"
     text = manifest.read_text(encoding="utf-8")
-    manifest.write_text(text.replace("      description: Wrapped plan\n", "      description:\n"), encoding="utf-8")
+    manifest.write_text(text.replace("      description: Wrapped tasks\n", "      description:\n"), encoding="utf-8")
     monkeypatch.chdir(project)
 
     info = _json_result(runner.invoke(app, ["preset", "info", "info-preset", "--json"]))

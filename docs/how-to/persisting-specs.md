@@ -104,7 +104,7 @@ Living spec works well when:
 - the product contract is stable enough to own the workflow
 - the team is comfortable regenerating derived task packages after contract changes
 - consistency between requirements and implementation matters more than keeping
-  every intermediate plan intact
+  every intermediate technical record intact
 
 The main risk is losing useful implementation rationale if implementation-owned
 decisions are discarded without preserving them elsewhere.

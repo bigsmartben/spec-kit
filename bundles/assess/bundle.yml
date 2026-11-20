@@ -3,7 +3,7 @@ schema_version: "1.0"
 bundle:
   id: "assess"
   name: "Idea Assessment Pipeline"
-  version: "1.0.0"
+  version: "1.0.1"
   role: "developer"
   description: "Idea triage before Spec-Driven Development: intake, research, define, shape, decide with a verdict review gate; surviving ideas hand off manually to the specify command."
   author: "GitHub"
@@ -17,7 +17,7 @@ requires:
 provides:
   extensions:
     - id: "assess"
-      version: "1.0.2"
+      version: "1.0.3"
   workflows:
     - id: "assess"
       version: "1.0.0"

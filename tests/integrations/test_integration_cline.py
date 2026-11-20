@@ -371,7 +371,7 @@ class TestClineIntegration(MarkdownIntegrationTests):
         )
         assert specify_file is not None
         specify_contents = specify_file.read_text(encoding="utf-8")
-        assert "/speckit-plan" in specify_contents
+        assert "/speckit-tasks" in specify_contents
         assert "/speckit.plan" not in specify_contents
 
     def test_integration_flag_creates_files(self, tmp_path):
@@ -434,7 +434,6 @@ class TestClineIntegration(MarkdownIntegrationTests):
                 "create-new-feature.sh",
                 "markdown_sections.py",
                 "resolve-template.sh",
-                "setup-plan.sh",
                 "setup-tasks.sh",
             ]:
                 files.append(f".specify/scripts/bash/{name}")
@@ -445,7 +444,6 @@ class TestClineIntegration(MarkdownIntegrationTests):
                 "create-new-feature.ps1",
                 "markdown_sections.py",
                 "resolve-template.ps1",
-                "setup-plan.ps1",
                 "setup-tasks.ps1",
             ]:
                 files.append(f".specify/scripts/powershell/{name}")
@@ -453,7 +451,6 @@ class TestClineIntegration(MarkdownIntegrationTests):
         for name in [
             "checklist-template.md",
             "constitution-template.md",
-            "plan-template.md",
             "prototype-template.md",
             "quickstart-template.md",
             "spec-template.md",

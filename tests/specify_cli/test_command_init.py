@@ -299,7 +299,7 @@ def test_rendering_init_preserves_command_guidance(tmp_path):
     assert result.exit_code == 0, result.output
     output = _strip(result.output)
     assert "Start using slash commands" in output
-    for command in ("constitution", "specify", "plan", "tasks", "implement", "converge",
+    for command in ("constitution", "specify", "tasks", "implement", "converge",
                     "clarify", "analyze", "checklist"):
         assert f"/speckit.{command}" in output
         assert (tmp_path / "proj" / ".agent" / "commands" / f"speckit.{command}.md").is_file()
@@ -317,7 +317,7 @@ def test_rendering_init_preserves_skill_guidance(tmp_path, monkeypatch):
     assert "Start using skills" in output
     assert "Enhancement Skills" in output
     assert "specify integration switch <key>" not in output
-    for command in ("constitution", "specify", "plan", "tasks", "implement", "converge",
+    for command in ("constitution", "specify", "tasks", "implement", "converge",
                     "clarify", "analyze", "checklist"):
         assert f"/speckit-{command}" in output
         assert (tmp_path / "proj" / ".github" / "skills" / f"speckit-{command}" / "SKILL.md").is_file()
@@ -347,9 +347,9 @@ provides:
     monkeypatch.chdir(project)
     result = CliRunner().invoke(app, ["preset", "add", "--dev", str(preset)])
     assert result.exit_code == 0, result.output
-    plan_rel = ".agents/skills/speckit-plan/SKILL.md"
-    original_plan = (project / plan_rel).read_bytes()
-    (project / plan_rel).write_bytes(b"User-edited skill\n")
+    specify_rel = ".agents/skills/speckit-specify/SKILL.md"
+    original_specify = (project / specify_rel).read_bytes()
+    (project / specify_rel).write_bytes(b"User-edited skill\n")
 
     result = CliRunner().invoke(app, ["init", "--here", "--force", *args])
     assert result.exit_code == 0, result.output
@@ -361,8 +361,8 @@ provides:
     assert manifest.files[rel] == hashlib.sha256(content).hexdigest(), (
         "manifest hash must match the preset-overridden skill (#5078)"
     )
-    assert (project / plan_rel).read_bytes() == original_plan, "force re-init still replaces user edits"
-    assert manifest.files[plan_rel] == hashlib.sha256(original_plan).hexdigest()
+    assert (project / specify_rel).read_bytes() == original_specify, "force re-init still replaces user edits"
+    assert manifest.files[specify_rel] == hashlib.sha256(original_specify).hexdigest()
     result = CliRunner().invoke(app, ["integration", "status", "--json"])
     assert result.exit_code == 0, result.output
     assert json.loads(result.output)["modified_managed_files"] == 0
@@ -382,7 +382,7 @@ def test_init_force_keeps_recovered_markers(tmp_path, monkeypatch):
     project = tmp_path / "proj"
     integration_class = type(get_integration("codex"))
     original_setup = integration_class.setup
-    rel = ".agents/skills/speckit-plan/SKILL.md"
+    rel = ".agents/skills/speckit-tasks/SKILL.md"
 
     def setup_with_recovered_file(self, project_root, manifest, *args, **kwargs):
         created = original_setup(self, project_root, manifest, *args, **kwargs)
@@ -467,9 +467,9 @@ def test_init_here_rolls_back_when_it_fails_before_committing(tmp_path, monkeypa
     project = _existing_target(tmp_path, monkeypatch, existing, "claude")
     if existing == "project":
         skills = project / ".claude" / "skills"
-        (skills / "speckit-plan" / "SKILL.md").write_text("# user customization\n", encoding="utf-8")
-        (skills / "speckit-tasks" / "SKILL.md").unlink()
-        (skills / "speckit-tasks").rmdir()
+        (skills / "speckit-tasks" / "SKILL.md").write_text("# user customization\n", encoding="utf-8")
+        (skills / "speckit-specify" / "SKILL.md").unlink()
+        (skills / "speckit-specify").rmdir()
     before = _tree(project)
     _fail_init_at(monkeypatch, failure, "claude")
 

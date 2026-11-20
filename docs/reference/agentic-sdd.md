@@ -127,6 +127,10 @@ Task guarantees that at least one package maps to every:
 - prototype `data-spec-ref`
 - `UAT-*` acceptance scenario
 
+Delivery obligations are `[BUILD]` work packages. Every `UAT-*` also has
+exactly one `[UAT]` execution package that depends on the build packages needed
+to make the scenario observable.
+
 When the frozen contract contains a conflict or cannot supply one of those
 mappings, Task blocks. It reports the problem and returns it to
 `/speckit.specify` or `/speckit.clarify`; it does not invent a requirement,
@@ -185,6 +189,8 @@ corresponding `quickstart.md` entry:
 
 It must preserve the baseline `User / Role`, `Preconditions`, `User Actions`,
 `Expected Result`, requirement and prototype references, and UAT identifier.
+Set `Status` to `PASS`, `FAIL`, or `BLOCKED` only after executing the scenario.
+Mark its `[UAT]` task complete only for a conclusive `PASS`.
 Do not use implementation discoveries to silently rewrite the frozen contract.
 If the implementation shows that the intended behavior must change, return to
 Specify or Clarify and then regenerate the dependent tasks.

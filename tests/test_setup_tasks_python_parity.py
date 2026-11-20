@@ -109,7 +109,7 @@ def test_installed_python_json_preserves_stock_tasks_template(
         project,
     )
     assert created.returncode == 0, created.stderr
-    feature = project / json_stdout(created)["FEATURE_DIR"]
+    feature = Path(json_stdout(created)["SPEC_FILE"]).parent
     (feature / "prototype.html").write_text("<!doctype html>\n", encoding="utf-8")
     (feature / "quickstart.md").write_text("# UAT\n", encoding="utf-8")
     template = project / ".specify/templates/tasks-template.md"
@@ -167,7 +167,6 @@ def test_powershell_json_preserves_non_ascii_template_on_legacy_stdout(repo: Pat
 
 @requires_bash
 def test_python_json_output_matches_bash(repo: Path) -> None:
-    feature = repo / "specs" / "001-my-feature"
     bash = run(bash_cmd(repo, SCRIPT, "--json"), repo)
     py = run(py_cmd(repo, SCRIPT, "--json"), repo)
 
@@ -178,7 +177,6 @@ def test_python_json_output_matches_bash(repo: Path) -> None:
 
 @requires_bash
 def test_python_text_output_matches_bash(repo: Path) -> None:
-    feature = repo / "specs" / "001-my-feature"
     bash = run(bash_cmd(repo, SCRIPT), repo)
     py = run(py_cmd(repo, SCRIPT), repo)
 
@@ -198,7 +196,9 @@ def test_python_override_template_wins_matches_bash(repo: Path) -> None:
 
     assert py.returncode == bash.returncode == 0
     assert json_stdout(py) == json_stdout(bash)
-    assert json_stdout(py)["TASKS_TEMPLATE"].endswith("overrides/tasks-template.md")
+    resolved = Path(json_stdout(py)["TASKS_TEMPLATE"])
+    assert resolved.parent.name == "overrides"
+    assert resolved.name == "tasks-template.md"
 
 
 @requires_bash
@@ -215,10 +215,9 @@ def test_all_variants_return_composed_tasks_template(repo: Path) -> None:
         results.append(run(ps_cmd(repo, SCRIPT, "-Json"), repo))
 
     assert all(result.returncode == 0 for result in results)
-    assert all(
-        json_stdout(result)["TASKS_TEMPLATE_CONTENT"] == expected
-        for result in results
-    )
+    for variant, result in zip(("bash", "python", "powershell"), results):
+        assert result.returncode == 0, (variant, result.stderr)
+        assert json_stdout(result)["TASKS_TEMPLATE_CONTENT"] == expected, variant
 
 
 @requires_bash
@@ -233,7 +232,8 @@ def test_all_variants_fail_for_broken_tasks_composition(repo: Path) -> None:
     if HAS_POWERSHELL:
         results.append(run(ps_cmd(repo, SCRIPT, "-Json"), repo))
 
-    assert all(result.returncode != 0 for result in results)
+    for variant, result in zip(("bash", "python", "powershell"), results):
+        assert result.returncode != 0, (variant, result.stdout)
     assert all(result.stdout == "" for result in results)
 
 
@@ -332,7 +332,6 @@ def test_all_variants_feature_context_error_matches(
 
 @pytest.mark.skipif(not HAS_POWERSHELL, reason="no PowerShell available")
 def test_python_json_output_matches_powershell(repo: Path) -> None:
-    feature = repo / "specs" / "001-my-feature"
     ps = run(ps_cmd(repo, SCRIPT, "-Json"), repo)
     py = run(py_cmd(repo, SCRIPT, "--json"), repo)
 
@@ -364,7 +363,6 @@ def test_python_text_output_survives_a_legacy_stdout_code_page(repo: Path) -> No
     the rendering these markers already have in-tree (Test-FileExists in
     scripts/powershell/common.ps1, and normalize_status_text).
     """
-    feature = repo / "specs" / "001-my-feature"
     env = clean_env()
     env["PYTHONIOENCODING"] = "cp1252"
     result = run(py_cmd(repo, SCRIPT), repo, env=env)

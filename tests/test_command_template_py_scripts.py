@@ -5,9 +5,8 @@ Covers #3283: ``py:`` lines in the ``scripts:`` frontmatter of
 and ``process_template`` turns them into a valid Python invocation
 (interpreter-prefixed, path rewritten to the ``.specify`` tree).
 
-``plan.md`` and ``tasks.md`` gain their ``py:`` lines together with
-``setup_plan.py``/``setup_tasks.py`` in the core-scripts port (#3280); the
-existence check below enforces that ordering.
+``tasks.md`` and the prerequisite scripts use their matching ``py:`` variants;
+the existence check below enforces that ordering.
 """
 
 import os
@@ -86,9 +85,9 @@ def test_template_renders_python_invocation(name: str):
 def test_py_missing_variant_rejects_opposite_shell_only():
     opposite_variant = "sh" if os.name == "nt" else "ps"
     opposite_command = (
-        "scripts/bash/setup-plan.sh --json"
+        "scripts/bash/setup-tasks.sh --json"
         if opposite_variant == "sh"
-        else "scripts/powershell/setup-plan.ps1 -Json"
+        else "scripts/powershell/setup-tasks.ps1 -Json"
     )
     content = """---
 scripts:
@@ -107,7 +106,7 @@ def test_missing_script_preference_keeps_available_shell(monkeypatch):
     )
 
     selected = IntegrationBase.select_script_variant(
-        None, {"sh": "scripts/bash/setup-plan.sh --json"}
+        None, {"sh": "scripts/bash/setup-tasks.sh --json"}
     )
 
     assert selected == "sh"
@@ -127,12 +126,12 @@ def test_spaced_python_interpreter_uses_powershell_call_operator(monkeypatch):
         "specify_cli.integrations.base.os", SimpleNamespace(name="nt")
     )
 
-    content = "---\nscripts:\n  py: scripts/python/setup_plan.py --json\n---\n{SCRIPT}\n"
+    content = "---\nscripts:\n  py: scripts/python/setup_tasks.py --json\n---\n{SCRIPT}\n"
     result = IntegrationBase.process_template(content, "agent", "py")
 
     assert (
         f"& '{quoted_interpreter}' "
-        ".specify/scripts/python/setup_plan.py --json"
+        ".specify/scripts/python/setup_tasks.py --json"
     ) in result
 
 
@@ -149,12 +148,12 @@ def test_spaced_python_interpreter_uses_posix_shell_quoting(monkeypatch):
         "specify_cli.integrations.base.os", SimpleNamespace(name="posix")
     )
 
-    content = "---\nscripts:\n  py: scripts/python/setup_plan.py --json\n---\n{SCRIPT}\n"
+    content = "---\nscripts:\n  py: scripts/python/setup_tasks.py --json\n---\n{SCRIPT}\n"
     result = IntegrationBase.process_template(content, "agent", "py")
 
     assert (
         f"{shlex.quote(interpreter)} "
-        ".specify/scripts/python/setup_plan.py --json"
+        ".specify/scripts/python/setup_tasks.py --json"
     ) in result
 
 

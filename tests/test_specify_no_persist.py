@@ -1,6 +1,6 @@
 """Tests for SPECIFY_FEATURE_NO_PERSIST, the env-level equivalent of --no-persist (#4128).
 
-Scripts like setup-plan/setup-tasks call get_feature_paths() without
+Scripts like setup-tasks call get_feature_paths() without
 --no-persist, so every invocation with SPECIFY_FEATURE_DIRECTORY set
 overwrites .specify/feature.json. In multi-agent setups where several
 processes each set their own SPECIFY_FEATURE_DIRECTORY, this creates a
@@ -28,8 +28,8 @@ from tests.parity_helpers import (
     run,
 )
 
-SCRIPT = "setup-plan"
-PLAN_TEMPLATE = PROJECT_ROOT / "templates" / "plan-template.md"
+SCRIPT = "setup-tasks"
+TASKS_TEMPLATE = PROJECT_ROOT / "templates" / "tasks-template.md"
 
 
 def _setup_repo(tmp_path: Path, name: str = "proj") -> Path:
@@ -37,8 +37,17 @@ def _setup_repo(tmp_path: Path, name: str = "proj") -> Path:
     install_scripts(repo, SCRIPT)
     templates = repo / ".specify" / "templates"
     templates.mkdir(parents=True, exist_ok=True)
-    shutil.copy(PLAN_TEMPLATE, templates / "plan-template.md")
+    shutil.copy(TASKS_TEMPLATE, templates / "tasks-template.md")
     return repo
+
+
+def _feature_dir(repo: Path, name: str) -> Path:
+    feature = repo / name
+    feature.mkdir(parents=True)
+    (feature / "spec.md").write_text("# Specification\n", encoding="utf-8")
+    (feature / "prototype.html").write_text("<!doctype html>\n", encoding="utf-8")
+    (feature / "quickstart.md").write_text("# Quickstart\n", encoding="utf-8")
+    return feature
 
 
 def _feature_json(repo: Path) -> dict | None:
@@ -55,7 +64,7 @@ def repo(tmp_path: Path) -> Path:
 
 @requires_bash
 def test_bash_persists_by_default(repo: Path) -> None:
-    (repo / "specs" / "001-a").mkdir(parents=True)
+    _feature_dir(repo, "specs/001-a")
     env = clean_env()
     env["SPECIFY_FEATURE_DIRECTORY"] = "specs/001-a"
     result = run(bash_cmd(repo, SCRIPT, "--json"), repo, env)
@@ -65,7 +74,7 @@ def test_bash_persists_by_default(repo: Path) -> None:
 
 @requires_bash
 def test_bash_specify_no_persist_suppresses_write(repo: Path) -> None:
-    (repo / "specs" / "001-a").mkdir(parents=True)
+    _feature_dir(repo, "specs/001-a")
     env = clean_env()
     env["SPECIFY_FEATURE_DIRECTORY"] = "specs/001-a"
     env["SPECIFY_FEATURE_NO_PERSIST"] = "1"
@@ -78,8 +87,8 @@ def test_bash_specify_no_persist_suppresses_write(repo: Path) -> None:
 def test_bash_specify_no_persist_does_not_clobber_existing_pin(repo: Path) -> None:
     """A second agent's SPECIFY_FEATURE_DIRECTORY must not overwrite the
     first agent's persisted feature.json when SPECIFY_FEATURE_NO_PERSIST is set."""
-    (repo / "specs" / "001-a").mkdir(parents=True)
-    (repo / "specs" / "002-b").mkdir(parents=True)
+    _feature_dir(repo, "specs/001-a")
+    _feature_dir(repo, "specs/002-b")
     env = clean_env()
     env["SPECIFY_FEATURE_DIRECTORY"] = "specs/001-a"
     result = run(bash_cmd(repo, SCRIPT, "--json"), repo, env)
@@ -95,7 +104,7 @@ def test_bash_specify_no_persist_does_not_clobber_existing_pin(repo: Path) -> No
 
 @pytest.mark.skipif(not HAS_POWERSHELL, reason="no PowerShell available")
 def test_ps_specify_no_persist_suppresses_write(repo: Path) -> None:
-    (repo / "specs" / "001-a").mkdir(parents=True)
+    _feature_dir(repo, "specs/001-a")
     env = clean_env()
     env["SPECIFY_FEATURE_DIRECTORY"] = "specs/001-a"
     env["SPECIFY_FEATURE_NO_PERSIST"] = "true"
@@ -105,7 +114,7 @@ def test_ps_specify_no_persist_suppresses_write(repo: Path) -> None:
 
 
 def test_py_specify_no_persist_suppresses_write(repo: Path) -> None:
-    (repo / "specs" / "001-a").mkdir(parents=True)
+    _feature_dir(repo, "specs/001-a")
     env = clean_env()
     env["SPECIFY_FEATURE_DIRECTORY"] = "specs/001-a"
     env["SPECIFY_FEATURE_NO_PERSIST"] = "1"

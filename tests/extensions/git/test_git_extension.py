@@ -200,6 +200,18 @@ class TestGitExtensionManifest:
         assert "speckit.git.initialize" in names
         assert "speckit.git.commit" in names
 
+    def test_catalog_version_matches_manifest(self):
+        from specify_cli.extensions import ExtensionManifest
+
+        manifest = ExtensionManifest(EXT_DIR / "extension.yml")
+        catalog = json.loads(
+            (PROJECT_ROOT / "extensions" / "catalog.json").read_text(
+                encoding="utf-8"
+            )
+        )
+
+        assert catalog["extensions"]["git"]["version"] == manifest.version
+
     def test_manifest_hooks(self):
         """Manifest declares expected hooks."""
         from specify_cli.extensions import ExtensionManifest

@@ -38,10 +38,11 @@ class TestCodexInitFlow:
         result = runner.invoke(app, ["init", str(target), "--integration", "codex", "--ignore-agent-tools", "--script", "sh"])
 
         assert result.exit_code == 0, f"init --integration codex failed: {result.output}"
-        assert (target / ".agents" / "skills" / "speckit-plan" / "SKILL.md").exists()
+        assert (target / ".agents" / "skills" / "speckit-tasks" / "SKILL.md").exists()
+        assert not (target / ".agents" / "skills" / "speckit-plan").exists()
 
-    def test_plan_skill_has_no_context_placeholder(self, tmp_path):
-        """The core plan skill must not carry a context-file placeholder —
+    def test_tasks_skill_has_no_context_placeholder(self, tmp_path):
+        """The core tasks skill must not carry a context-file placeholder —
         agent context files are owned by the opt-in agent-context extension."""
         target = tmp_path / "test-proj"
         target.mkdir()
@@ -50,11 +51,11 @@ class TestCodexInitFlow:
         manifest = IntegrationManifest("codex", target)
         integration.setup(target, manifest, script_type="sh")
 
-        plan_skill = target / ".agents" / "skills" / "speckit-plan" / "SKILL.md"
-        content = plan_skill.read_text(encoding="utf-8")
+        tasks_skill = target / ".agents" / "skills" / "speckit-tasks" / "SKILL.md"
+        content = tasks_skill.read_text(encoding="utf-8")
         assert "__CONTEXT_FILE__" not in content
 
-    def test_plan_skill_ignores_extension_config(self, tmp_path):
+    def test_tasks_skill_ignores_extension_config(self, tmp_path):
         """The extension config must not influence rendered commands: the CLI
         no longer reads any context-file metadata when rendering."""
         import yaml
@@ -83,8 +84,8 @@ class TestCodexInitFlow:
         manifest = IntegrationManifest("codex", target)
         integration.setup(target, manifest, script_type="sh")
 
-        plan_skill = target / ".agents" / "skills" / "speckit-plan" / "SKILL.md"
-        content = plan_skill.read_text(encoding="utf-8")
+        tasks_skill = target / ".agents" / "skills" / "speckit-tasks" / "SKILL.md"
+        content = tasks_skill.read_text(encoding="utf-8")
         assert "FROM_CONFIG.md" not in content
         assert "ALSO_CONFIG.md" not in content
         assert "__CONTEXT_FILE__" not in content

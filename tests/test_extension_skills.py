@@ -1021,7 +1021,7 @@ class TestExtensionSkillRegistration:
             "---\n"
             "description: Scripted plan command\n"
             "scripts:\n"
-            "  sh: ../../scripts/bash/setup-plan.sh --json \"{ARGS}\"\n"
+            "  sh: ../../scripts/bash/setup-tasks.sh --json \"{ARGS}\"\n"
             "---\n\n"
             "Run {SCRIPT}\n"
             "Review templates/checklist.md and memory/constitution.md for __AGENT__.\n"
@@ -1034,7 +1034,7 @@ class TestExtensionSkillRegistration:
         assert "{SCRIPT}" not in content
         assert "{ARGS}" not in content
         assert "__AGENT__" not in content
-        assert '.specify/scripts/bash/setup-plan.sh --json "$ARGUMENTS"' in content
+        assert '.specify/scripts/bash/setup-tasks.sh --json "$ARGUMENTS"' in content
         assert ".specify/templates/checklist.md" in content
         assert ".specify/memory/constitution.md" in content
 
@@ -1161,12 +1161,12 @@ class TestExtensionSkillRegistration:
     @pytest.mark.parametrize(
         ("ai", "expected_invocation"),
         [
-            ("claude", "/speckit-plan"),
-            ("copilot", "/speckit-plan"),
-            ("codex", "$speckit-plan"),
-            ("kimi", "/skill:speckit-plan"),
-            ("zcode", "$speckit-plan"),
-            ("bob", "/speckit-plan"),
+            ("claude", "/speckit-tasks"),
+            ("copilot", "/speckit-tasks"),
+            ("codex", "$speckit-tasks"),
+            ("kimi", "/skill:speckit-tasks"),
+            ("zcode", "$speckit-tasks"),
+            ("bob", "/speckit-tasks"),
         ],
     )
     def test_skill_registration_resolves_command_ref_tokens(
@@ -1205,14 +1205,14 @@ class TestExtensionSkillRegistration:
             "---\n"
             "description: Run command\n"
             "---\n\n"
-            "Use __SPECKIT_COMMAND_PLAN__ before proceeding.\n"
+            "Use __SPECKIT_COMMAND_TASKS__ before proceeding.\n"
         )
 
         manager = ExtensionManager(project_dir)
         manager.install_from_directory(ext_dir, "0.1.0", register_commands=False)
 
         content = (skills_dir / "speckit-command-ref-ext-run" / "SKILL.md").read_text()
-        assert "__SPECKIT_COMMAND_PLAN__" not in content
+        assert "__SPECKIT_COMMAND_TASKS__" not in content
         assert expected_invocation in content
 
     def test_skill_registration_resolves_hyphenated_command_ref_tokens(

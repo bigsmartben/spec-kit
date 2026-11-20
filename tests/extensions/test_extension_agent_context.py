@@ -403,6 +403,11 @@ class TestBundledUpdaterPathValidation:
             )
             if create_link.returncode != 0:
                 pytest.skip(f"symlink unavailable: {create_link.stderr}")
+            if not (project / "link").is_symlink():
+                pytest.skip(
+                    "Git Bash copied the target directory instead of creating "
+                    "a native symlink"
+                )
         else:
             try:
                 (project / "link").symlink_to(outside, target_is_directory=True)

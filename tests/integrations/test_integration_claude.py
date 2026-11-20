@@ -77,10 +77,10 @@ class TestClaudeIntegration:
         skills_dir = tmp_path / ".claude" / "skills"
         assert skills_dir.is_dir()
 
-        plan_skill = skills_dir / "speckit-plan" / "SKILL.md"
-        assert plan_skill.exists()
+        tasks_skill = skills_dir / "speckit-tasks" / "SKILL.md"
+        assert tasks_skill.exists()
 
-        content = plan_skill.read_text(encoding="utf-8")
+        content = tasks_skill.read_text(encoding="utf-8")
         assert "{SCRIPT}" not in content
         assert "{ARGS}" not in content
         assert "__AGENT__" not in content
@@ -89,10 +89,10 @@ class TestClaudeIntegration:
 
         parts = content.split("---", 2)
         parsed = yaml.safe_load(parts[1])
-        assert parsed["name"] == "speckit-plan"
+        assert parsed["name"] == "speckit-tasks"
         assert parsed["user-invocable"] is True
         assert parsed["disable-model-invocation"] is False
-        assert parsed["metadata"]["source"] == "templates/commands/plan.md"
+        assert parsed["metadata"]["source"] == "templates/commands/tasks.md"
 
     def test_render_skill_unicode(self):
         """Test rendering a skill preserves non-ASCII characters."""
@@ -156,7 +156,8 @@ class TestClaudeIntegration:
             os.chdir(old_cwd)
 
         assert result.exit_code == 0, result.output
-        assert (project / ".claude" / "skills" / "speckit-plan" / "SKILL.md").exists()
+        assert (project / ".claude" / "skills" / "speckit-tasks" / "SKILL.md").exists()
+        assert not (project / ".claude" / "skills" / "speckit-plan").exists()
         assert not (project / ".claude" / "commands").exists()
 
         init_options = json.loads(
@@ -228,7 +229,7 @@ class TestClaudeIntegration:
         assert (project / ".specify" / "integration.json").exists()
         assert (project / ".specify" / "integrations" / "claude.manifest.json").exists()
 
-        skill_file = project / ".claude" / "skills" / "speckit-plan" / "SKILL.md"
+        skill_file = project / ".claude" / "skills" / "speckit-tasks" / "SKILL.md"
         assert skill_file.exists()
         skill_content = skill_file.read_text(encoding="utf-8")
         assert "user-invocable: true" in skill_content
@@ -660,7 +661,7 @@ class TestClaudeNoModelInvocationOption:
             parsed_options={"no_model_invocation": True},
             script_type="sh",
         )
-        result = i.post_process_skill_content("---\nname: speckit-plan\n---\n\nBody\n")
+        result = i.post_process_skill_content("---\nname: speckit-tasks\n---\n\nBody\n")
         assert "disable-model-invocation: true" in result
         assert "disable-model-invocation: false" not in result
 
@@ -702,7 +703,7 @@ class TestClaudeNoModelInvocationOption:
                     parsed_options={"no_model_invocation": True},
                     script_type="sh",
                 )
-        result = i.post_process_skill_content("---\nname: speckit-plan\n---\n\nBody\n")
+        result = i.post_process_skill_content("---\nname: speckit-tasks\n---\n\nBody\n")
         assert "disable-model-invocation: false" in result
 
     def test_setup_without_option_resets_to_false(self, tmp_path):
@@ -722,7 +723,7 @@ class TestClaudeNoModelInvocationOption:
         assert len(skill_files) > 0
         for f in skill_files:
             assert _skill_frontmatter(f)["disable-model-invocation"] is False, f.parent.name
-        result = i.post_process_skill_content("---\nname: speckit-plan\n---\n\nBody\n")
+        result = i.post_process_skill_content("---\nname: speckit-tasks\n---\n\nBody\n")
         assert "disable-model-invocation: false" in result
 
     def test_cli_rejects_value_for_flag(self, tmp_path):
@@ -797,7 +798,7 @@ class TestClaudeNoModelInvocationOption:
         from tests.specify_cli.integrations._helpers import _init_project, _run_in_project
 
         project = _init_project(tmp_path, "claude", "--no-model-invocation")
-        skill_file = project / ".claude" / "skills" / "speckit-plan" / "SKILL.md"
+        skill_file = project / ".claude" / "skills" / "speckit-tasks" / "SKILL.md"
         assert _skill_frontmatter(skill_file)["disable-model-invocation"] is True
 
         get_integration("claude")._disable_model_invocation = False

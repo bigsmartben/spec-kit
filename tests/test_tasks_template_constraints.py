@@ -26,6 +26,7 @@ def test_task_generation_uses_only_the_frozen_specify_contract():
         "`spec.md`",
         "`prototype.html`",
         "`quickstart.md`",
+        "Treat `spec.md`, `prototype.html`, and `quickstart.md` as read-only",
         "Do not read or infer a technical plan",
         "Implement owns those decisions",
     ):
@@ -86,6 +87,7 @@ def test_task_template_has_coverage_and_uat_sections():
         "| Source Kind | Source ID | Task IDs | Coverage Note |",
         "## Phase [N+1]: UAT Execution",
         "Execute UAT-001",
+        "Status: PASS",
         "Every UAT must have exactly one `[UAT]` task",
         "chooses the technical approach, repository paths, and testing mechanisms",
     ):
@@ -121,6 +123,21 @@ def test_implement_executes_uat_and_updates_only_result_fields():
     ):
         assert clause in text, f"Missing Implement/UAT rule: {clause}"
     assert "**REQUIRED**: Read plan.md" not in text
+
+
+def test_implement_handles_scoped_and_blocked_runs_without_claiming_full_completion():
+    text = " ".join(IMPLEMENT_COMMAND.read_text(encoding="utf-8").split())
+    for clause in (
+        "Select the invocation scope from `$ARGUMENTS`",
+        "Leave out-of-scope tasks and their UAT entries unchanged",
+        "A scoped run is complete only when",
+        "Do not treat `FAIL` or `BLOCKED` as task completion",
+        "return the issue to `__SPECKIT_COMMAND_SPECIFY__`",
+        "regenerate the dependent tasks",
+    ):
+        assert clause in text, f"Missing Implement scope/failure rule: {clause}"
+    assert "Verify all required tasks are completed" not in text
+    assert "All tasks in tasks.md completed and marked `[X]`" not in text
 
 
 def test_converge_uses_contract_and_uat_state_without_plan():

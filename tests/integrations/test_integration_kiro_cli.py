@@ -148,4 +148,5 @@ class TestKiroIntegration:
             os.chdir(old_cwd)
 
         assert result.exit_code == 0
-        assert (target / ".kiro" / "prompts" / "speckit.plan.md").exists()
+        assert (target / ".kiro" / "prompts" / "speckit.tasks.md").exists()
+        assert not (target / ".kiro" / "prompts" / "speckit.plan.md").exists()

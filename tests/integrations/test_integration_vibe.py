@@ -86,10 +86,10 @@ class TestVibeIntegration(SkillsIntegrationTests):
         skills_dir = tmp_path / ".vibe" / "skills"
         assert skills_dir.is_dir()
 
-        plan_skill = skills_dir / "speckit-plan" / "SKILL.md"
-        assert plan_skill.exists()
+        tasks_skill = skills_dir / "speckit-tasks" / "SKILL.md"
+        assert tasks_skill.exists()
 
-        content = plan_skill.read_text(encoding="utf-8")
+        content = tasks_skill.read_text(encoding="utf-8")
         assert "{SCRIPT}" not in content
         assert "{ARGS}" not in content
         assert "__AGENT__" not in content
@@ -98,10 +98,10 @@ class TestVibeIntegration(SkillsIntegrationTests):
 
         parts = content.split("---", 2)
         parsed = yaml.safe_load(parts[1])
-        assert parsed["name"] == "speckit-plan"
+        assert parsed["name"] == "speckit-tasks"
         assert parsed["user-invocable"] is True
         assert parsed["disable-model-invocation"] is False
-        assert parsed["metadata"]["source"] == "templates/commands/plan.md"
+        assert parsed["metadata"]["source"] == "templates/commands/tasks.md"
 
     def test_render_skill_unicode(self):
         """Test rendering a skill preserves non-ASCII characters."""
@@ -1022,7 +1022,7 @@ class TestVibeNoModelInvocationOption:
             parsed_options={"no_model_invocation": True},
             script_type="sh",
         )
-        result = i.post_process_skill_content("---\nname: speckit-plan\n---\n\nBody\n")
+        result = i.post_process_skill_content("---\nname: speckit-tasks\n---\n\nBody\n")
         assert "disable-model-invocation: true" in result
         assert "disable-model-invocation: false" not in result
 
@@ -1161,7 +1161,7 @@ class TestVibeNoModelInvocationOption:
         from tests.specify_cli.integrations._helpers import _init_project, _run_in_project
 
         project = _init_project(tmp_path, "vibe", "--no-model-invocation")
-        skill_file = project / ".vibe" / "skills" / "speckit-plan" / "SKILL.md"
+        skill_file = project / ".vibe" / "skills" / "speckit-tasks" / "SKILL.md"
         assert _skill_frontmatter(skill_file)["disable-model-invocation"] is True
 
         get_integration("vibe")._disable_model_invocation = False

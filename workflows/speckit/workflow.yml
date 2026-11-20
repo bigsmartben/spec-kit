@@ -8,7 +8,7 @@ workflow:
 
 requires:
   # Gate verdict inputs require CLI 0.15.1 or later.
-  speckit_version: ">=0.15.1"
+  speckit_version: ">=1.4.4"
   integrations:
     # The three commands below (specify, tasks, implement) are core
     # spec-kit commands provided by every integration. The list here is an

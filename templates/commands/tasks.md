@@ -74,6 +74,9 @@ You **MUST** consider the user input before proceeding (if not empty).
    - **Required**: `quickstart.md` for `UAT-*`, ordered user actions, expected
      results, requirement references, prototype references, and pending state
    - **IF EXISTS**: `/memory/constitution.md` for governing constraints
+   - Treat `spec.md`, `prototype.html`, and `quickstart.md` as read-only
+     authority. Task may create or replace only `tasks.md`; it must never
+     "repair" the source contract or alter UAT expectations.
    - Do not read or infer a technical plan from `plan.md`, data-model documents,
      API contracts, research files, the current implementation, or unstated
      repository conventions. Implement owns those decisions.
@@ -236,13 +239,20 @@ Every task MUST strictly follow this format:
    `US1`, `proto:<data-spec-ref>`, or `UAT-003`.
 8. **Depends**: `none` or an explicit comma-separated list of task IDs.
 9. **Done when**: Observable acceptance condition derived from the frozen
-   contract. A `[UAT]` task additionally says that the matching quickstart
-   execution fields are recorded.
+   contract. A `[UAT]` task is complete only when the matching quickstart entry
+   records `Status: PASS`, actual result, evidence, and deviation. These
+   completion conditions are the acceptance evidence Implement must produce;
+   they are not technical instructions.
+
+No task may introduce a framework, library, architecture, protocol, API,
+component boundary, or repository file path. If a task needs such a choice,
+describe the outcome and leave the technical decision to Implement. Implement
+owns the paths and all other realization choices.
 
 **Examples**:
 
 - CORRECT: `- [ ] T001 [US1] [BUILD] Deliver the account creation outcome | Refs: FR-001, proto:account-form | Depends: none | Done when: the specified account flow and visible states are available`
-- CORRECT: `- [ ] T014 [US1] [UAT] Execute UAT-001 for account creation | Refs: UAT-001, FR-001, proto:account-form | Depends: T001 | Done when: quickstart.md records a conclusive status, actual result, evidence, and deviation`
+- CORRECT: `- [ ] T014 [US1] [UAT] Execute UAT-001 for account creation | Refs: UAT-001, FR-001, proto:account-form | Depends: T001 | Done when: quickstart.md records Status: PASS, actual result, evidence, and deviation`
 - WRONG: `- [ ] T001 [BUILD] Use React and create src/components/Form.tsx` (technology/path lock-in)
 - WRONG: `- [ ] T001 Deliver account creation` (missing type, references, dependencies, and completion condition)
 - WRONG: `- [ ] T014 [UAT] Run acceptance tests` (missing UAT ID and exact contract references)

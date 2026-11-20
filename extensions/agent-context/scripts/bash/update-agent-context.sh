@@ -174,6 +174,7 @@ fi
 
 _opts_lines=()
 while IFS= read -r _line || [[ -n "$_line" ]]; do
+  _line="${_line%$'\r'}"
   _opts_lines+=("$_line")
 done < <(printf '%s\n' "$_raw_opts")
 if (( ${#_opts_lines[@]} < 1 )); then
@@ -209,6 +210,7 @@ fi
 
 CONTEXT_FILES=()
 while IFS= read -r _line || [[ -n "$_line" ]]; do
+  _line="${_line%$'\r'}"
   [[ -n "$_line" ]] && CONTEXT_FILES+=("$_line")
 done < <(printf '%s\n' "$_context_files_raw")
 
@@ -249,6 +251,47 @@ PY
     echo "agent-context: context file path resolves outside the project root; got '$CONTEXT_FILE'." >&2
     exit 1
   fi
+  case "$(uname -s 2>/dev/null || true)" in
+    MINGW*|MSYS*|CYGWIN*)
+      if command -v realpath >/dev/null 2>&1; then
+        _root_check="$PROJECT_ROOT"
+        if command -v cygpath >/dev/null 2>&1; then
+          _root_check="$(cygpath -u "$PROJECT_ROOT")"
+        fi
+        _root_real="$(realpath -m "$_root_check")"
+        _context_real="$(realpath -m "$_root_check/$CONTEXT_FILE")"
+        if [[ "${_root_real,,}" != "${_context_real,,}" &&
+              "${_context_real,,}" != "${_root_real,,}/"* ]]; then
+          echo "agent-context: context file path resolves outside the project root; got '$CONTEXT_FILE'." >&2
+          exit 1
+        fi
+      fi
+      _root_check="$PROJECT_ROOT"
+      if command -v cygpath >/dev/null 2>&1; then
+        _root_check="$(cygpath -u "$PROJECT_ROOT")"
+      fi
+      _root_physical="$(cd "$_root_check" && pwd -P)"
+      _walk="$_root_check"
+      IFS='/' read -ra _link_parts <<< "$CONTEXT_FILE"
+      for _link_part in "${_link_parts[@]}"; do
+        _walk="$_walk/$_link_part"
+        if [[ -L "$_walk" ]]; then
+          if [[ -d "$_walk" ]]; then
+            _link_target="$(cd "$_walk" && pwd -P)"
+          elif command -v realpath >/dev/null 2>&1; then
+            _link_target="$(realpath -m "$_walk")"
+          else
+            _link_target="$_root_physical"
+          fi
+          if [[ "${_root_physical,,}" != "${_link_target,,}" &&
+                "${_link_target,,}" != "${_root_physical,,}/"* ]]; then
+            echo "agent-context: context file path resolves outside the project root; got '$CONTEXT_FILE'." >&2
+            exit 1
+          fi
+        fi
+      done
+      ;;
+  esac
 done
 unset _cf_parts _seg
 
@@ -259,6 +302,7 @@ FEATURE_DIRECTORY="${1:-}"
 ARTIFACT_PATHS_JSON="$("$_python" - "$PROJECT_ROOT" "$FEATURE_DIRECTORY" <<'PY'
 import json
 import re
+import subprocess
 import sys
 from pathlib import Path
 from stat import S_ISREG
@@ -270,12 +314,25 @@ root = Path(project_root).resolve()
 def feature_dir_from_value(value):
     normalized = value.replace("\\", "/").rstrip("/")
     if not normalized:
-        return None
+        return None, ""
     if sys.platform.startswith("win") and re.match(r"^/[A-Za-z]/", normalized):
         normalized = normalized[1].upper() + ":/" + normalized[3:]
+    if sys.platform.startswith("win") and normalized.startswith("/"):
+        try:
+            converted = subprocess.run(
+                ["cygpath", "-w", normalized],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            if converted.returncode == 0 and converted.stdout.strip():
+                native = Path(converted.stdout.strip())
+                return native, normalized
+        except OSError:
+            pass
     if normalized.startswith("/") or re.match(r"^[A-Za-z]:/", normalized):
-        return Path(normalized)
-    return Path(project_root) / normalized
+        return Path(normalized), normalized
+    return Path(project_root) / normalized, ""
 
 def display_path(candidate, contained):
     resolved = candidate.resolve()
@@ -284,7 +341,7 @@ def display_path(candidate, contained):
     except ValueError:
         return "" if contained else resolved.as_posix()
 
-def paths_for_feature(feature_dir, contained):
+def paths_for_feature(feature_dir, contained, display_root=""):
     paths = []
     for name in artifact_names:
         candidate = feature_dir / name
@@ -292,6 +349,8 @@ def paths_for_feature(feature_dir, contained):
             if not candidate.is_file():
                 continue
             displayed = display_path(candidate, contained)
+            if display_root and not candidate.resolve().is_relative_to(root):
+                displayed = display_root.rstrip("/") + "/" + name
         except (OSError, ValueError):
             continue
         if displayed:
@@ -310,9 +369,9 @@ if not feature_value:
         except Exception:
             feature_value = ""
 
-feature_dir = feature_dir_from_value(feature_value)
+feature_dir, display_root = feature_dir_from_value(feature_value)
 if feature_dir is not None:
-    paths = paths_for_feature(feature_dir, False)
+    paths = paths_for_feature(feature_dir, False, display_root)
     if any(Path(path).name == "spec.md" for path in paths):
         print(json.dumps(paths))
         raise SystemExit(0)

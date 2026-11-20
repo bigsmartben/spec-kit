@@ -94,8 +94,8 @@ class TestIntegrationUpgradeLayout:
         registry.write_text(
             json.dumps({
                 "presets": {
-                    "p1": {"registered_commands": {"bob": ["speckit.plan"]}},
-                    "p2": {"registered_commands": {"codex": ["speckit.plan"]}},
+                    "p1": {"registered_commands": {"bob": ["speckit.tasks"]}},
+                    "p2": {"registered_commands": {"codex": ["speckit.tasks"]}},
                     "p3": {"registered_skills": ["speckit-x"]},
                     "p4": {"registered_skills": {"bob": ["speckit-y"]}},
                     "p5": {"registered_skills": {"codex": ["speckit-z"]}},

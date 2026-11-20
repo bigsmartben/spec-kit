@@ -235,8 +235,8 @@ class TestOpencodeIntegration(MarkdownIntegrationTests):
         canonical = tmp_path / ".opencode" / "commands"
         command_files = list(canonical.glob("speckit.*.md"))
         assert command_files
-        plan = canonical / integration.command_filename("plan")
-        text = plan.read_text(encoding="utf-8")
+        tasks = canonical / integration.command_filename("tasks")
+        text = tasks.read_text(encoding="utf-8")
         assert "{SCRIPT}" not in text
         assert "__AGENT__" not in text
 
@@ -311,7 +311,7 @@ class TestOpencodeIntegration(MarkdownIntegrationTests):
             (b"!.specify/\n!.specify/**\n.specify/**\n", "later exclusion"),
             (b"!.specify/\n!.specify/**\n/.specify/templates/**\n", "later exclusion"),
             (b"!.specify/\n!.specify/**\n.specify/memory/custom.md\n", "custom.md"),
-            (b"!.specify/\n!.specify/**\n.specify/templates/plan-template.md\n", "plan-template.md"),
+            (b"!.specify/\n!.specify/**\n.specify/templates/tasks-template.md\n", "tasks-template.md"),
             (b"!.specify/\n!.specify/**\n.specify/memory\n!.specify/memory/*.md\n", "constitution.md"),
             (b"!.specify/**\n*.md\n", "constitution.md"),
             (
@@ -868,7 +868,7 @@ class TestOpencodeIntegration(MarkdownIntegrationTests):
         from tests.specify_cli.integrations._helpers import _init_project, _run_in_project
 
         project = _init_project(tmp_path, "opencode")
-        template = project / ".specify" / "templates" / "plan-template.md"
+        template = project / ".specify" / "templates" / "tasks-template.md"
         script = project / ".specify" / "scripts" / "bash" / "common.sh"
         template.write_text("custom template\n", encoding="utf-8")
         script.write_text("# custom script\n", encoding="utf-8")

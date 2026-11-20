@@ -10,16 +10,13 @@ is unavailable.
 from __future__ import annotations
 
 import errno
-import io
 import json
 import os
-import re
 import runpy
 import shutil
 import subprocess
 import sys
 import time
-from contextlib import redirect_stdout
 from pathlib import Path
 
 import pytest
@@ -435,28 +432,10 @@ def test_mtime_fallback_selects_only_in_project_files(
     assert (repo / "AGENTS.md").read_bytes() == expected.encode("utf-8")
 
 
-@pytest.fixture(params=["python", "bash-python"])
-def mtime_resolver(request, monkeypatch):
-    """Run actual resolver code; the Bash heredoc needs no shell for IO injection."""
-    if request.param == "python":
-        return runpy.run_path(str(PY_SCRIPT))["_resolve_artifact_paths"]
-
-    matches = re.findall(
-        r"ARTIFACT_PATHS_JSON=\"\$\(\"\"\$_python\" - \"\$PROJECT_ROOT\" \"\$FEATURE_DIRECTORY\" <<'PY'\n(.*?)\nPY\n\)\"",
-        BASH_SCRIPT.read_text(encoding="utf-8"),
-        re.DOTALL,
-    )
-    assert len(matches) == 1, "expected exactly one artifact resolver heredoc"
-    code = compile(matches[0], str(BASH_SCRIPT), "exec")
-
-    def resolve(project_root):
-        output = io.StringIO()
-        with monkeypatch.context() as patch, redirect_stdout(output):
-            patch.setattr(sys, "argv", ["-", str(project_root), ""])
-            exec(code, {})
-        return json.loads(output.getvalue())
-
-    return resolve
+@pytest.fixture
+def mtime_resolver():
+    """Run the Python resolver directly for injected I/O failures."""
+    return runpy.run_path(str(PY_SCRIPT))["_resolve_artifact_paths"]
 
 
 @pytest.fixture(params=[False, True], ids=["alone", "with-spec"])
@@ -578,22 +557,22 @@ def test_mtime_fallback_propagates_sort_stat_errors(
         pytest.param(run_bash, id="bash", marks=requires_bash),
     ],
 )
-@pytest.mark.parametrize("has_regular_plan", [False, True], ids=["alone", "with-plan"])
+@pytest.mark.parametrize("has_regular_spec", [False, True], ids=["alone", "with-spec"])
 def test_mtime_fallback_skips_inaccessible_external_symlink(
-    tmp_path, run_script, has_regular_plan
+    tmp_path, run_script, has_regular_spec
 ):
     repo = make_project(tmp_path / "project", context_file="AGENTS.md")
-    expected_plan = ""
-    if has_regular_plan:
-        expected_plan = "specs/001-valid/plan.md"
-        plan = repo / expected_plan
-        plan.parent.mkdir(parents=True)
-        plan.write_text("# plan\n", encoding="utf-8")
+    expected_spec = ""
+    if has_regular_spec:
+        expected_spec = "specs/001-valid/spec.md"
+        spec = repo / expected_spec
+        spec.parent.mkdir(parents=True)
+        spec.write_text("# specification\n", encoding="utf-8")
     private = tmp_path / "private"
     private.mkdir()
-    target = private / "plan.md"
-    target.write_text("# external plan\n", encoding="utf-8")
-    candidate = repo / "specs/999-candidate/plan.md"
+    target = private / "spec.md"
+    target.write_text("# external specification\n", encoding="utf-8")
+    candidate = repo / "specs/999-candidate/spec.md"
     candidate.parent.mkdir(parents=True)
     try:
         candidate.symlink_to(target)
@@ -617,37 +596,34 @@ def test_mtime_fallback_skips_inaccessible_external_symlink(
     assert result.stderr == ""
     expected = (
         "<!-- SPECKIT START -->\n"
-        "For additional context about technologies to be used, project structure,\n"
-        "shell commands, and other important information, read the current plan\n"
+        "Use the active Spec Kit feature artifacts as the product contract:\n"
     )
-    if expected_plan:
-        expected += f"at {expected_plan}\n"
+    if expected_spec:
+        expected += f"- `{expected_spec}`\n"
     expected += "<!-- SPECKIT END -->\n"
     assert (repo / "AGENTS.md").read_bytes() == expected.encode("utf-8")
 
 
 @requires_posix_bash
-def test_python_mtime_fallback_skips_plan_reached_through_escaping_symlink(
+def test_python_mtime_fallback_skips_spec_reached_through_escaping_symlink(
     tmp_path: Path,
 ) -> None:
-    """A plan reached via a specs/ symlink out of the project is not selected.
+    """A spec reached via a specs/ symlink outside the project is not selected.
 
-    ``relative_to()`` is lexical, so ``specs/linked/001-x/plan.md`` looks
+    ``relative_to()`` is lexical, so ``specs/linked/001-x/spec.md`` looks
     in-project even when ``specs/linked`` points outside the tree. Resolving
     before the containment check rejects it, so the fallback finds nothing and
-    the ``at <plan>`` line is omitted rather than naming an out-of-project file
-    with an in-project-looking path. Mirrors the bash twin's ``_resolved_rel``.
+    no out-of-project file is named with an in-project-looking path.
     """
     repo_a, repo_b = twin_projects(tmp_path, context_file="AGENTS.md")
     for repo in (repo_a, repo_b):
         outside = repo.parent / f"outside-{repo.name}" / "001-x"
         outside.mkdir(parents=True, exist_ok=True)
-        (outside / "plan.md").write_text("# plan\n", encoding="utf-8")
+        (outside / "spec.md").write_text("# specification\n", encoding="utf-8")
         specs = repo / "specs"
         specs.mkdir(parents=True, exist_ok=True)
         (specs / "linked").symlink_to(outside.parent, target_is_directory=True)
-        # Sanity: the plan really is reachable through the symlink.
-        assert (specs / "linked" / "001-x" / "plan.md").is_file()
+        assert (specs / "linked" / "001-x" / "spec.md").is_file()
 
     bash = run_bash(repo_a)
     py = run_python(repo_b)
@@ -655,7 +631,8 @@ def test_python_mtime_fallback_skips_plan_reached_through_escaping_symlink(
     assert_parity(bash, py, repo_a, repo_b)
     content = (repo_b / "AGENTS.md").read_bytes()
     assert content == (repo_a / "AGENTS.md").read_bytes()
-    assert b"\nat " not in content
+    assert b"outside-" not in content
+    assert b"spec.md`" not in content
 
 
 @requires_posix_bash
@@ -663,11 +640,11 @@ def test_python_prefers_feature_json_over_mtime_matching_bash(tmp_path: Path) ->
     repo_a, repo_b = twin_projects(tmp_path, context_file="AGENTS.md")
     now = time.time()
     for repo in (repo_a, repo_b):
-        add_plan(repo, "specs/001-active")
-        stale = repo / "specs" / "000-stale" / "plan.md"
+        add_feature_artifacts(repo, "specs/001-active")
+        stale = repo / "specs" / "000-stale" / "spec.md"
         stale.parent.mkdir(parents=True, exist_ok=True)
-        stale.write_text("# plan\n", encoding="utf-8")
-        os.utime(repo / "specs" / "001-active" / "plan.md", (now - 10, now - 10))
+        stale.write_text("# stale specification\n", encoding="utf-8")
+        os.utime(repo / "specs" / "001-active" / "spec.md", (now - 10, now - 10))
         os.utime(stale, (now, now))
 
     bash = run_bash(repo_a)
@@ -676,11 +653,14 @@ def test_python_prefers_feature_json_over_mtime_matching_bash(tmp_path: Path) ->
     assert_parity(bash, py, repo_a, repo_b)
     content = (repo_b / "AGENTS.md").read_bytes()
     assert content == (repo_a / "AGENTS.md").read_bytes()
-    assert b"at specs/001-active/plan.md" in content
+    assert b"- `specs/001-active/spec.md`" in content
+    assert b"specs/000-stale/spec.md" not in content
 
 
 @requires_posix_bash
-def test_python_no_plan_omits_at_line_matching_bash(tmp_path: Path) -> None:
+def test_python_without_feature_omits_artifact_bullets_matching_bash(
+    tmp_path: Path,
+) -> None:
     repo_a, repo_b = twin_projects(tmp_path, context_file="AGENTS.md")
 
     bash = run_bash(repo_a)
@@ -689,7 +669,7 @@ def test_python_no_plan_omits_at_line_matching_bash(tmp_path: Path) -> None:
     assert_parity(bash, py, repo_a, repo_b)
     content = (repo_b / "AGENTS.md").read_bytes()
     assert content == (repo_a / "AGENTS.md").read_bytes()
-    assert b"\nat " not in content
+    assert b"\n- `" not in content
 
 
 # ── Config gates and path validation ─────────────────────────────────────────
@@ -762,7 +742,7 @@ def test_python_self_seed_from_init_options_matching_shell(
 ) -> None:
     repo_a, repo_b = twin_projects(tmp_path)
     for repo in (repo_a, repo_b):
-        add_plan(repo)
+        add_feature_artifacts(repo)
         (repo / ".specify" / "init-options.json").write_text(
             json.dumps({"integration": integration}), encoding="utf-8"
         )
@@ -784,7 +764,8 @@ def test_python_self_seed_from_init_options_matching_shell(
     content = (repo_b / context_file).read_bytes()
     assert (repo_a / context_file).read_bytes() == content
     assert b"<!-- SPECKIT START -->" in content
-    assert b"specs/001-demo/plan.md" in content
+    for artifact in ("spec.md", "prototype.html", "quickstart.md", "tasks.md"):
+        assert f"specs/001-demo/{artifact}".encode() in content
 
 
 @requires_posix_bash
@@ -813,8 +794,8 @@ def test_python_rejects_escaping_paths_matching_bash(
 def test_python_fresh_context_file_matches_powershell(tmp_path: Path) -> None:
     repo_a = make_project(tmp_path / "proj-ps", context_file="AGENTS.md")
     repo_b = make_project(tmp_path / "proj-py", context_file="AGENTS.md")
-    add_plan(repo_a)
-    add_plan(repo_b)
+    add_feature_artifacts(repo_a)
+    add_feature_artifacts(repo_b)
 
     ps = run_powershell(repo_a)
     py = run_python(repo_b)
@@ -824,28 +805,25 @@ def test_python_fresh_context_file_matches_powershell(tmp_path: Path) -> None:
 
 
 @pytest.mark.skipif(not POWERSHELL, reason="no PowerShell available")
-def test_python_mtime_fallback_finds_nested_plan_matches_powershell(
+def test_python_mtime_fallback_finds_nested_spec_matches_powershell(
     tmp_path: Path,
 ) -> None:
-    """Python's mtime fallback must recurse like the PowerShell twin.
-
-    With no feature.json, discovery falls back to scanning under specs/. A plan
-    at specs/<scope>/<feature>/plan.md sits more than one level deep; the old
-    Python one-level glob missed it while PowerShell already recurses (#3024).
-    """
+    """All implementations recurse for scoped feature specifications."""
     repo_a = make_project(tmp_path / "proj-ps", context_file="AGENTS.md")
     repo_b = make_project(tmp_path / "proj-py", context_file="AGENTS.md")
     for repo in (repo_a, repo_b):
-        plan = repo / "specs" / "backend" / "001-nested" / "plan.md"
-        plan.parent.mkdir(parents=True, exist_ok=True)
-        plan.write_text("# plan\n", encoding="utf-8")
+        spec = repo / "specs" / "backend" / "001-nested" / "spec.md"
+        spec.parent.mkdir(parents=True, exist_ok=True)
+        spec.write_text("# specification\n", encoding="utf-8")
 
     ps = run_powershell(repo_a)
     py = run_python(repo_b)
 
     assert ps.returncode == py.returncode == 0, ps.stderr + py.stderr
     assert (repo_a / "AGENTS.md").read_bytes() == (repo_b / "AGENTS.md").read_bytes()
-    assert b"at specs/backend/001-nested/plan.md" in (repo_b / "AGENTS.md").read_bytes()
+    assert b"- `specs/backend/001-nested/spec.md`" in (
+        repo_b / "AGENTS.md"
+    ).read_bytes()
 
 
 @pytest.mark.skipif(not POWERSHELL, reason="no PowerShell available")
@@ -858,7 +836,7 @@ def test_python_upsert_matches_powershell(tmp_path: Path) -> None:
         "\ntail\n"
     )
     for repo in (repo_a, repo_b):
-        add_plan(repo)
+        add_feature_artifacts(repo)
         (repo / "AGENTS.md").write_text(existing, encoding="utf-8")
 
     ps = run_powershell(repo_a)

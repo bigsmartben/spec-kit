@@ -22,7 +22,7 @@ def test_converge_scaffold_includes_complete_assessment_guidance():
         "Include every existing task in the intent inventory",
         "regardless of checkbox state or Convergence phase",
         "completion claims are not evidence",
-        "Verify current behavior against the spec, plan, tasks, and constitution",
+        "Verify current behavior against the frozen contract, tasks, and constitution",
         "for corrective task chains, assess the resulting behavior, "
         "not superseded implementation details",
         "Check both unmet obligations and implementation that contradicts, exceeds, "
@@ -35,3 +35,47 @@ def test_converge_scaffold_includes_complete_assessment_guidance():
 
 def test_converge_scaffold_uses_the_defined_intent_inventory():
     assert "assessment inventory" not in _normalized_template()
+
+
+def test_converge_scaffold_consumes_constitution_architecture_ssot():
+    text = _normalized_template()
+    for clause in (
+        "`Repository Blueprint (Architecture SSOT)`",
+        "`CAP-*`",
+        "`ACCEPT-*`",
+        "`SYS-*`",
+        "`SUB-*`",
+        "`CMP-*`",
+        "`SEQ-*`",
+        "`CON-*`",
+        "`INV-*`",
+        "dependency direction",
+        "public-contract owners",
+        "cross-component sequences",
+        "architectural invariants",
+    ):
+        assert clause in text, f"converge.md is missing architecture authority: {clause!r}"
+
+
+def test_converge_scaffold_reuses_existing_tasks_before_appending():
+    text = _normalized_template()
+    for clause in (
+        "**Existing task map**",
+        "Reuse an existing unchecked task",
+        "Reuse the exactly one existing `[UAT]` task",
+        "`append_build` findings",
+        "`existing_tasks_pending`",
+        "repeated symptoms MUST NOT become duplicate tasks",
+        "Do **not** modify `tasks.md` and do not create an empty Convergence phase",
+    ):
+        assert clause in text, f"converge.md is missing task deduplication guidance: {clause!r}"
+
+
+def test_converge_scaffold_only_appends_build_tasks():
+    text = _normalized_template()
+
+    assert "- [ ] T042 [BUILD]" in text
+    assert "corrective or refactoring `[BUILD]` task" in text
+    assert "All appended Convergence tasks MUST use `[BUILD]`" in text
+    assert "Never append a new `[UAT]` task" in text
+    assert "[BUILD|UAT]" not in text

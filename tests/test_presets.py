@@ -669,7 +669,7 @@ class TestLeanPreset:
         assert "Leave out-of-scope work unchanged" in implement
         assert "FAIL" in implement
         assert "BLOCKED" in implement
-        assert "leave the task unchecked" in implement
+        assert "leave it unchecked" in implement
         assert "If it is missing or" in implement
         assert "Implement does not create task" in implement
         assert "return the issue to Specify or Clarify" in implement
@@ -679,14 +679,14 @@ class TestLeanPreset:
     def test_install_lean_preset(self, project_dir):
         """Test installing the lean preset from its directory."""
         manager = PresetManager(project_dir)
-        manifest = manager.install_from_directory(LEAN_PRESET_DIR, "0.6.0")
+        manifest = manager.install_from_directory(LEAN_PRESET_DIR, "1.4.4")
         assert manifest.id == "lean"
         assert manager.registry.is_installed("lean")
 
     def test_lean_overrides_commands(self, project_dir):
         """Test that lean preset overrides are resolved correctly."""
         manager = PresetManager(project_dir)
-        manager.install_from_directory(LEAN_PRESET_DIR, "0.6.0")
+        manager.install_from_directory(LEAN_PRESET_DIR, "1.4.4")
 
         resolver = PresetResolver(project_dir)
         for name in LEAN_COMMAND_NAMES:

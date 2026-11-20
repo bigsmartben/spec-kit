@@ -2,11 +2,13 @@
 
 The `/speckit.*` slash commands drive the core Spec-Driven Development (SDD) process — an **agentic process** your coding agent runs step by step. For a guided, end-to-end run see the [Quick Start Guide](../quickstart.md); this page is the detailed reference for each command — including arguments, output, and how they interact. For the philosophy behind the process, see [Understand Spec-Driven Development](../how-to/sdd.md). For bug triage, see [Agentic Bug Fix](agentic-bugfix.md).
 
-The core process has three stages. `/speckit.specify` freezes the product
-contract, `/speckit.tasks` packages that contract without making technical
-decisions, and `/speckit.implement` owns and delivers the implementation. The
-clarify, checklist, and analyze commands are optional quality gates around
-those stages.
+The core process has three delivery stages. `/speckit.specify` freezes the
+product contract, `/speckit.tasks` packages that contract without making
+technical decisions, and `/speckit.implement` owns and delivers the
+implementation. `/speckit.converge` then closes the loop by checking the
+implementation against that contract, the existing tasks, and the Constitution
+architecture SSOT. The clarify, checklist, and analyze commands are optional
+quality gates around those stages.
 
 For evaluating an idea before committing to a specification, see
 [Agentic Idea Assessment](agentic-assessment.md). Assessment is optional and
@@ -16,13 +18,17 @@ independent of the SDD process.
 > Commands are written in `/speckit.*` form throughout this page. GitHub Copilot's default skills mode uses `/speckit-*`; some other agents use `$speckit-*` (e.g. Codex, ZCode) or `/skill:speckit-*` (e.g. Kimi). See [Command invocation](../integrations/cli.md#command-invocation).
 
 ```text
-/speckit.specify -> /speckit.tasks -> /speckit.implement
+/speckit.specify -> /speckit.tasks -> /speckit.implement -> /speckit.converge
+                                                ^                |
+                                                +-- corrective --+
+                                                     [BUILD] tasks
 ```
 
 Use `/speckit.constitution` before this flow when the project has no agreed
 principles. Add `/speckit.clarify` and `/speckit.checklist` before Task, and
 `/speckit.analyze` after Task and before Implement, when the added review is
-useful.
+useful. Run `/speckit.converge` after an implementation pass and return its
+newly appended `[BUILD]` tasks to `/speckit.implement`.
 
 ## Command overview
 
@@ -33,17 +39,23 @@ skills by default.
 
 | Command | Agent skill | Purpose |
 | --- | --- | --- |
-| `/speckit.constitution` | `speckit-constitution` | Establish or update project principles |
+| `/speckit.constitution` | `speckit-constitution` | Establish or update project principles and the embedded architecture SSOT |
 | `/speckit.specify` | `speckit-specify` | Define requirements, construction prototype, and pending UAT baseline |
 | `/speckit.tasks` | `speckit-tasks` | Turn the frozen contract into independently deliverable, requirement-level work packages |
 | `/speckit.implement` | `speckit-implement` | Make technical decisions, execute the work, and persist UAT results |
+| `/speckit.converge` | `speckit-converge` | Check implemented behavior and architecture, then append only uncovered `[BUILD]` work |
 | `/speckit.clarify` | `speckit-clarify` | Resolve ambiguity before task generation (optional quality gate; formerly `/quizme`) |
 | `/speckit.analyze` | `speckit-analyze` | Check artifact consistency after tasks and before implementation (optional quality gate) |
 | `/speckit.checklist` | `speckit-checklist` | Generate requirements-quality checklists (optional quality gate) |
 
 ## `/speckit.constitution`
 
-Creates or updates the project **constitution** — the guiding principles that every later phase is evaluated against — and keeps dependent templates in sync. Run it once up front and update it whenever your principles change. Pass the principles as arguments.
+Creates or updates the project **constitution** — the guiding principles and
+single repository architecture SSOT that every later phase is evaluated
+against. Its architecture section defines stable
+`CAP/ACCEPT/SYS/SUB/CMP/SEQ/CON/INV` authority for capabilities, component
+boundaries, sequences, public contracts, and invariants. Run it once up front
+and amend it through Constitution when repository authority changes.
 
 ```text
 /speckit.constitution This project follows a "Library-First" approach. All features must be implemented as standalone libraries first. We use TDD strictly. We prefer functional programming patterns.
@@ -194,3 +206,42 @@ Mark its `[UAT]` task complete only for a conclusive `PASS`.
 Do not use implementation discoveries to silently rewrite the frozen contract.
 If the implementation shows that the intended behavior must change, return to
 Specify or Clarify and then regenerate the dependent tasks.
+
+## `/speckit.converge`
+
+Runs after Implement to compare the present codebase with the frozen product
+contract, the existing work packages, and the Constitution's governance and
+architecture SSOT. It can assess feature behavior, UAT evidence, responsibility
+ownership, dependency direction, component sequences, cross-component public
+contracts, and architectural invariants.
+
+Converge is append-only. It never changes application code, the frozen Specify
+artifacts, or the Constitution. It creates only corrective `[BUILD]` tasks that
+are not already represented by an existing task. Architecture drift can
+therefore become a traceable refactoring work package without requiring a
+separate blueprint argument.
+
+Before appending a task, Converge checks the existing task IDs, source
+references, checkbox state, dependencies, and observable completion conditions.
+An unchecked task whose completion condition already covers the gap is reused;
+the command leaves `tasks.md` unchanged and reports that task ID. A checked task
+that is contradicted by current evidence does require a new corrective task.
+
+UAT remains a separate execution concern. Every `UAT-*` keeps exactly one
+`[UAT]` task. For a `PENDING`, `FAIL`, or `BLOCKED` result, Converge may append
+the `[BUILD]` remediation needed by the underlying implementation defect, but it
+must reuse and rerun the original `[UAT]` task rather than create another one.
+
+```text
+/speckit.converge
+```
+
+The possible outcomes are:
+
+- `tasks_appended`: new corrective `[BUILD]` tasks were appended; return them to
+  Implement and rerun the mapped UAT tasks afterward.
+- `existing_tasks_pending`: current tasks already cover the gaps; no file was
+  changed, and Implement should execute or rerun the reported task IDs.
+- `converged`: implementation satisfies the frozen contract, Constitution
+  authority, and task outcomes; proceed to review without another implementation
+  pass.

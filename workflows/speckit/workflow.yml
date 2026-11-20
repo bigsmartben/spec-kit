@@ -7,7 +7,7 @@ workflow:
   description: "Runs specify → tasks → implement with a specification review gate"
 
 requires:
-  # Gate verdict inputs require CLI 0.15.1 or later.
+  # The frozen three-artifact contract and Task workflow ship together.
   speckit_version: ">=1.4.4"
   integrations:
     # The three commands below (specify, tasks, implement) are core

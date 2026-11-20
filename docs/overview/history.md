@@ -140,8 +140,12 @@ At that point in the product's history, June also closed the core delivery
 loop with `/speckit.converge`. Rather than
 treating implementation as the endpoint, it assesses the code against the
 specification, plan, and tasks, then appends traceable tasks for remaining gaps.
-Those tasks return to `/speckit.implement`, creating a convergence loop without
-rewriting the specification or plan. The
+The current three-stage implementation evolved that loop: Converge now assesses
+the frozen Specify contract, Constitution authority, and tasks, then appends
+only uncovered corrective `[BUILD]` work. It reuses existing unchecked tasks
+and the single existing `[UAT]` task for each acceptance scenario. Those tasks
+return to `/speckit.implement` without rewriting the contract or Constitution.
+The
 [June newsletter](https://github.com/github/spec-kit/blob/main/newsletters/2026-June.md)
 records this shift from generating an implementation to checking whether it
 satisfies the recorded intent.

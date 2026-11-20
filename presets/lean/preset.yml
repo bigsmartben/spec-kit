@@ -21,15 +21,9 @@ provides:
       replaces: "speckit.specify"
 
     - type: "command"
-      name: "speckit.plan"
-      file: "commands/speckit.plan.md"
-      description: "Lean plan - create plan.md from the spec"
-      replaces: "speckit.plan"
-
-    - type: "command"
       name: "speckit.tasks"
       file: "commands/speckit.tasks.md"
-      description: "Lean tasks - create tasks.md from plan and spec"
+      description: "Lean tasks - convert the frozen feature contract into requirement-level work packages"
       replaces: "speckit.tasks"
 
     - type: "command"

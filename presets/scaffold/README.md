@@ -33,8 +33,8 @@ Required fields:
 
 ## Template Types
 
-- **template** — Document scaffolds (spec-template.md, plan-template.md, tasks-template.md, etc.)
-- **command** — AI agent workflow prompts (e.g. speckit.specify, speckit.plan)
+- **template** — Document scaffolds (spec-template.md, prototype-template.md, quickstart-template.md, tasks-template.md, etc.)
+- **command** — AI agent workflow prompts (e.g. speckit.specify, speckit.tasks)
 - **script** — Custom scripts (reserved for future use)
 
 ## Publishing

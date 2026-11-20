@@ -72,7 +72,7 @@ The extension ships its own feature-resolution script in all three supported run
 | PowerShell | `scripts/powershell/resolve-tasks.ps1`   |
 | Python     | `scripts/python/resolve_tasks.py`        |
 
-Once installed they live under `.specify/extensions/github/scripts/`. The script is a trimmed twin of core's `check-prerequisites`: it resolves the project root and active feature directory, requires `plan.md` and `tasks.md`, and reports the design docs alongside them. `spec.md` stays optional. By default, a `SPECIFY_FEATURE_DIRECTORY` override is persisted to `.specify/feature.json` so a later run without the variable resolves to the same feature. When `SPECIFY_FEATURE_NO_PERSIST=1` or `true`, the override still selects the feature for this run, but the script does not create or modify `feature.json`.
+Once installed they live under `.specify/extensions/github/scripts/`. The script is a trimmed twin of core's `check-prerequisites`: it resolves the project root and active feature directory, requires `tasks.md`, and reports the available design docs alongside it. `spec.md` and any historical `plan.md` stay optional and are not resolution prerequisites. By default, a `SPECIFY_FEATURE_DIRECTORY` override is persisted to `.specify/feature.json` so a later run without the variable resolves to the same feature. When `SPECIFY_FEATURE_NO_PERSIST=1` or `true`, the override still selects the feature for this run, but the script does not create or modify `feature.json`.
 
 Prerequisite errors name the Spec Kit command without assuming an integration's invocation syntax. Use the syntax described under [Commands](#commands) for your integration.
 
@@ -125,7 +125,7 @@ layouts under its configured `--commands-dir`.
 | ------------------------- | --------------------------------- |
 | `/speckit.taskstoissues`  | `/speckit.github.taskstoissues`   |
 
-Conversion behavior is unchanged: the same feature resolution, the same `plan.md` and `tasks.md` prerequisites, the same remote validation, the same deduplication across open and closed issues, the same issue titles, and the same hook contract. This extension does **not** register `speckit.taskstoissues` as an alias.
+Conversion keeps the same feature resolution, remote validation, deduplication across open and closed issues, issue titles, and hook contract. It requires only `tasks.md`; a historical `plan.md` is neither required nor consulted. This extension does **not** register `speckit.taskstoissues` as an alias.
 
 ### Presets and dependent extensions
 

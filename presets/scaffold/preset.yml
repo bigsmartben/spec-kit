@@ -31,7 +31,7 @@ requires:
 provides:
   templates:
     # CUSTOMIZE: Define your template overrides
-    # Templates are document scaffolds (spec-template.md, plan-template.md, etc.)
+    # Templates are document scaffolds (spec-template.md, tasks-template.md, etc.)
     #
     # Strategy options (optional, defaults to "replace"):
     #   replace  - Fully replaces the lower-priority template (default)
@@ -46,13 +46,6 @@ provides:
       file: "templates/spec-template.md"
       description: "Custom feature specification template"
       replaces: "spec-template"  # Which core template this overrides (optional)
-
-    # ADD MORE TEMPLATES: Copy this block for each template
-    # - type: "template"
-    #   name: "plan-template"
-    #   file: "templates/plan-template.md"
-    #   description: "Custom plan template"
-    #   replaces: "plan-template"
 
     # COMPOSITION EXAMPLES:
     # The `file` field points to the content file (can differ from the
@@ -96,7 +89,7 @@ provides:
     - type: "command"
       name: "speckit.specify"
       file: "commands/speckit.specify.md"
-      description: "Custom specification command"
+      description: "Specification command producing spec, prototype, and pending UAT baseline"
       replaces: "speckit.specify"
 
     # Override an extension command (e.g. from the "myext" extension):

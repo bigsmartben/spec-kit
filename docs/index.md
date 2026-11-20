@@ -19,7 +19,7 @@ Spec Kit gives your coding agent structured processes that keep intent and evide
 
 | What you need | Start here | What you get | Command reference |
 | --- | --- | --- | --- |
-| Build a feature or application | [Spec-Driven Development](quickstart.md) | A specification carried through planning, implementation, and convergence | [Agentic SDD](reference/agentic-sdd.md) |
+| Build a feature or application | [Spec-Driven Development](quickstart.md) | A frozen contract carried through work packages, implementation, and UAT evidence | [Agentic SDD](reference/agentic-sdd.md) |
 | Diagnose and repair broken behavior | [Bug fixing](guides/bugfix.md) | An assessed cause, scoped fix, and recorded verification | [Agentic Bug Fix](reference/agentic-bugfix.md) |
 | Decide whether an idea deserves investment | [Idea assessment](guides/assessment.md) | An evidence-backed go, clarify, or stop decision | [Agentic Idea Assessment](reference/agentic-assessment.md) |
 
@@ -57,9 +57,12 @@ gates.
 
 ### Spec-driven by default
 
-The core SDD process ships ready to use: **Specify → Plan → Tasks → Implement → Converge**.
+The core SDD process ships ready to use: **Specify → Task → Implement**.
 
-Define what to build before building it. Rich templates, quality checklists, and cross-artifact analysis come out of the box. Each phase produces a Markdown artifact that feeds the next — giving your AI coding agent structured context instead of ad-hoc prompts.
+Specify freezes the requirements, executable prototype, and pending UAT
+baseline. Task turns that contract into independently deliverable,
+technology-neutral work packages with complete traceability. Implement owns
+the technical choices and records UAT execution evidence in the frozen baseline.
 
 <a href="quickstart.md" class="pillar-link">Walk through the workflow →</a>
 
@@ -169,7 +172,7 @@ Community extensions like Quality Gates and Architecture Guard add policy checks
   </a>
   <a href="quickstart.md" class="nav-card">
     <strong>Spec-Driven Development</strong>
-    <span>Define, plan, implement, and converge on a feature</span>
+    <span>Freeze the contract, package the work, and implement with UAT evidence</span>
   </a>
   <a href="guides/bugfix.md" class="nav-card">
     <strong>Bug Fixing</strong>

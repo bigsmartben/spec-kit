@@ -118,7 +118,7 @@
     and meaningful state. References should combine a requirement identity and
     a semantic UI identity, for example:
       data-spec-ref="FR-001:project-list"
-      data-spec-ref="US-002:task-form:validation-error"
+      data-spec-ref="US2:task-form:validation-error"
   -->
   <div
     class="prototype-shell"
@@ -133,7 +133,7 @@
 
       <section
         class="prototype-surface prototype-stack"
-        data-spec-ref="[US-001:primary-flow]"
+        data-spec-ref="[US1:primary-flow]"
         data-prototype-state="default"
         style="padding: var(--space)"
       >

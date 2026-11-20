@@ -34,7 +34,7 @@ Remove this sample item rather than leaving it as an unfilled artifact.
 - **Expected Result**:
   - [Technology-agnostic, directly observable result]
   - [Visible state or business outcome]
-- **Requirement Refs**: [US-###, FR-###, SC-###]
+- **Requirement Refs**: [US1, FR-###, SC-###]
 - **Prototype Refs**: [Exact `data-spec-ref` values]
 - **Status**: PENDING
 - **Actual Result**: Not executed
@@ -45,7 +45,7 @@ Remove this sample item rather than leaving it as an unfilled artifact.
 
 | UAT ID | Requirement Refs | Prototype Refs | Status |
 |--------|------------------|----------------|--------|
-| UAT-001 | [US-### / FR-### / SC-###] | [data-spec-ref] | PENDING |
+| UAT-001 | [US1 / FR-### / SC-###] | [data-spec-ref] | PENDING |
 
 ## Baseline Validation
 

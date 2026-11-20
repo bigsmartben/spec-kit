@@ -1,9 +1,9 @@
 ---
 description: Create the feature specification, executable prototype, and pending UAT baseline from a natural language feature description.
 handoffs:
-  - label: Build Technical Plan
-    agent: speckit.plan
-    prompt: Create a plan for the spec. I am building with...
+  - label: Build Task Work Packages
+    agent: speckit.tasks
+    prompt: Translate the frozen specification, prototype, and UAT contract into work packages
   - label: Clarify Spec Requirements
     agent: speckit.clarify
     prompt: Clarify specification requirements
@@ -179,7 +179,7 @@ Given that feature description, do this:
 
       ## Content Quality
 
-      - [ ] No implementation details (languages, frameworks, APIs)
+      - [ ] No production implementation details in spec.md (languages, frameworks, APIs); prototype HTML/CSS/JS is limited to expressing the UX contract
       - [ ] Focused on user value and business needs
       - [ ] Written for non-technical stakeholders
       - [ ] All mandatory sections completed
@@ -207,7 +207,7 @@ Given that feature description, do this:
       - [ ] All functional requirements have clear acceptance criteria
       - [ ] User scenarios cover primary flows
       - [ ] Feature meets measurable outcomes defined in Success Criteria
-      - [ ] No implementation details leak into specification
+      - [ ] No production implementation details leak into specification prose or UAT expectations
       - [ ] prototype.html is self-contained and has no external runtime dependencies
       - [ ] UAT identifiers are stable and unique
       - [ ] Every UAT status is PENDING
@@ -215,7 +215,7 @@ Given that feature description, do this:
 
       ## Notes
 
-      - Items marked incomplete require spec updates before `__SPECKIT_COMMAND_CLARIFY__` or `__SPECKIT_COMMAND_PLAN__`
+      - Items marked incomplete require contract updates before `__SPECKIT_COMMAND_CLARIFY__` or `__SPECKIT_COMMAND_TASKS__`
       ```
 
    b. **Run Validation Check**: Review `spec.md`, `prototype.html`, and `quickstart.md` together against every checklist item:
@@ -314,7 +314,7 @@ Report completion to the user with:
 - `QUICKSTART_FILE` — the pending UAT baseline path
 - Checklist results summary
 - Cross-artifact mapping summary for requirements, prototype anchors, and UAT IDs
-- Readiness for the next phase (`__SPECKIT_COMMAND_CLARIFY__` or `__SPECKIT_COMMAND_PLAN__`)
+- Readiness for the next phase (`__SPECKIT_COMMAND_CLARIFY__` or `__SPECKIT_COMMAND_TASKS__`)
 
 **NOTE:** Branch creation is handled by the `before_specify` hook (git extension). Feature directory creation and all three Specify artifacts are always handled by this core command.
 

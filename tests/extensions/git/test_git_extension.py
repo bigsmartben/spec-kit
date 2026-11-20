@@ -186,7 +186,7 @@ class TestGitExtensionManifest:
 
         m = ExtensionManifest(EXT_DIR / "extension.yml")
         assert m.id == "git"
-        assert m.version == "1.0.8"
+        assert m.version == "1.0.9"
 
     def test_manifest_commands(self):
         """Manifest declares expected commands."""
@@ -209,8 +209,16 @@ class TestGitExtensionManifest:
         assert "before_specify" in m.hooks
         assert "after_specify" in m.hooks
         assert "after_implement" in m.hooks
+        assert "before_plan" not in m.hooks
+        assert "after_plan" not in m.hooks
         assert m.hooks["before_constitution"]["command"] == "speckit.git.initialize"
         assert m.hooks["before_specify"]["command"] == "speckit.git.feature"
+
+    def test_plan_events_are_not_in_bundled_config_or_docs(self):
+        for relative in ("config-template.yml", "git-config.yml", "README.md"):
+            text = (EXT_DIR / relative).read_text(encoding="utf-8")
+            assert "before_plan" not in text
+            assert "after_plan" not in text
 
     def test_manifest_command_files_exist(self):
         """All command files referenced in the manifest exist."""
@@ -1538,20 +1546,20 @@ class TestAutoCommitBash:
         _write_config(project, (
             "auto_commit:\n"
             "  default: false\n"
-            "  after_plan:\n"
+            "  after_custom:\n"
             "    enabled: true\n"
-            '    message: "[Project] Plan complete"\n'
+            '    message: "[Project] Custom complete"\n'
         ))
         (project / "new-file.txt").write_text("content")
 
-        result = _run_bash("auto-commit.sh", project, "after_plan")
+        result = _run_bash("auto-commit.sh", project, "after_custom")
         assert result.returncode == 0
 
         log = subprocess.run(
             ["git", "log", "--oneline", "-1"],
             cwd=project, capture_output=True, text=True,
         )
-        assert "[Project] Plan complete" in log.stdout
+        assert "[Project] Custom complete" in log.stdout
 
     def test_default_true_with_no_event_key(self, tmp_path: Path):
         """auto-commit.sh uses default: true when event key is absent."""
@@ -1630,11 +1638,11 @@ class TestAutoCommitBash:
         _write_config(project, (
             "auto_commit:\n"
             "  default: false\n"
-            "  after_plan:\n"
+            "  after_custom:\n"
             "    enabled: true\n"
         ))
         (project / "new-file.txt").write_text("content")
-        result = _run_bash("auto-commit.sh", project, "after_plan")
+        result = _run_bash("auto-commit.sh", project, "after_custom")
         assert result.returncode == 0
         assert "\u2713" not in result.stderr, "Must not use Unicode checkmark"
 
@@ -1979,11 +1987,11 @@ class TestAutoCommitPowerShell:
         _write_config(project, (
             "auto_commit:\n"
             "  default: false\n"
-            "  after_plan:\n"
+            "  after_custom:\n"
             "    enabled: true\n"
         ))
         (project / "new-file.txt").write_text("content")
-        result = _run_pwsh("auto-commit.ps1", project, "after_plan")
+        result = _run_pwsh("auto-commit.ps1", project, "after_custom")
         assert result.returncode == 0
         assert "\u2713" not in result.stdout, "Must not use Unicode checkmark"
 
@@ -2428,24 +2436,24 @@ class TestAutoCommitPowerShellCRLF:
         _write_config(project, (
             "auto_commit:\n"
             "  default: false\n"
-            "  after_plan:\n"
+            "  after_custom:\n"
             "    enabled: true\n"
-            '    message: "[Project] Plan done"\n'
+            '    message: "[Project] Custom done"\n'
         ))
         subprocess.run(
             ["git", "config", "core.autocrlf", "true"],
             cwd=project, check=True,
         )
-        (project / "plan.txt").write_bytes(b"plan\ncontent\n")
+        (project / "custom.txt").write_bytes(b"custom\ncontent\n")
 
-        result = _run_pwsh("auto-commit.ps1", project, "after_plan")
+        result = _run_pwsh("auto-commit.ps1", project, "after_custom")
         assert result.returncode == 0
 
         log = subprocess.run(
             ["git", "log", "--format=%s", "-1"],
             cwd=project, capture_output=True, text=True,
         )
-        assert "[Project] Plan done" in log.stdout.strip()
+        assert "[Project] Custom done" in log.stdout.strip()
 
     def test_no_changes_still_skips_with_autocrlf(self, tmp_path: Path):
         """Script correctly detects 'no changes' even with core.autocrlf=true."""

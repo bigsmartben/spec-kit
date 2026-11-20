@@ -1,9 +1,9 @@
 ---
-description: Assess the current codebase against the feature's spec, plan, and tasks, then append any remaining unbuilt work as new tasks to tasks.md so implement can complete it.
+description: Assess the codebase against the frozen Specify contract and tasks, then append remaining work for Implement.
 scripts:
-  sh: scripts/bash/check-prerequisites.sh --json --require-spec --require-tasks --include-tasks
-  ps: scripts/powershell/check-prerequisites.ps1 -Json -RequireSpec -RequireTasks -IncludeTasks
-  py: scripts/python/check_prerequisites.py --json --require-spec --require-tasks --include-tasks
+  sh: scripts/bash/check-prerequisites.sh --json --require-contract --require-tasks --include-tasks
+  ps: scripts/powershell/check-prerequisites.ps1 -Json -RequireContract -RequireTasks -IncludeTasks
+  py: scripts/python/check_prerequisites.py --json --require-contract --require-tasks --include-tasks
 ---
 
 ## User Input
@@ -56,12 +56,12 @@ You **MUST** consider the user input before proceeding (if not empty).
 
 ## Goal
 
-Close the gap between what a feature's specification, plan, and tasks call for and what the
-codebase currently implements. Read `spec.md`, `plan.md`, and `tasks.md` as the **sole
-source of intent** (with the constitution as governing constraints), assess the current
-state of the code, determine which requirements, acceptance criteria, plan decisions, and
-existing tasks are unmet, incomplete, or only partially satisfied, and **append each piece
-of remaining work as a new, traceable task** at the bottom of `tasks.md` so that
+Close the gap between the frozen `spec.md`, `prototype.html`, and
+`quickstart.md` contract plus `tasks.md` and what the codebase currently
+implements. Assess the current state, determine which requirements, success
+criteria, prototype anchors, UAT outcomes, and existing tasks are unmet,
+incomplete, or partially satisfied, and **append each piece of remaining work
+as a new, traceable task** at the bottom of `tasks.md` so that
 `__SPECKIT_COMMAND_IMPLEMENT__` can complete it. This command MUST run only after
 `__SPECKIT_COMMAND_IMPLEMENT__` has run on the current `tasks.md`, and after `__SPECKIT_COMMAND_TASKS__` has produced a complete `tasks.md`.
 
@@ -73,7 +73,8 @@ of the code relative to the feature's artifacts — no git, no branch comparison
 **APPEND-ONLY, NEVER REWRITE**: The command's **only** write is appending a new
 `## Phase N: Convergence` section to `tasks.md`. It MUST NOT:
 
-- modify `spec.md` or `plan.md` in any way;
+- modify the frozen `spec.md`, `prototype.html`, or `quickstart.md` contract
+  or its UAT expectations in any way;
 - rewrite, renumber, reorder, or delete any existing task (including tasks from a prior
   Convergence phase);
 - modify, create, or delete any application code — completing the appended tasks is the
@@ -94,11 +95,13 @@ skip constitution checks gracefully rather than failing.
 Run `{SCRIPT}` once from repo root and parse JSON for FEATURE_DIR and AVAILABLE_DOCS. Derive absolute paths:
 
 - SPEC = FEATURE_DIR/spec.md
-- PLAN = FEATURE_DIR/plan.md
+- PROTOTYPE = FEATURE_DIR/prototype.html
+- QUICKSTART = FEATURE_DIR/quickstart.md
 - TASKS = FEATURE_DIR/tasks.md
 - CONSTITUTION = `/memory/constitution.md` (if present)
-If `spec.md`, `plan.md`, or `tasks.md` is missing, STOP with a clear, actionable message naming the
-prerequisite command to run (`__SPECKIT_COMMAND_SPECIFY__` for a missing spec, `__SPECKIT_COMMAND_PLAN__` for a missing plan,
+If the frozen contract or `tasks.md` is missing, STOP with a clear, actionable
+message naming the prerequisite command to run (`__SPECKIT_COMMAND_SPECIFY__`
+for a missing contract artifact,
 `__SPECKIT_COMMAND_TASKS__` for missing tasks). Do not produce partial output.
 For single quotes in args like "I'm Groot", use escape syntax: e.g 'I'\''m Groot' (or double-quote if possible: "I'm Groot").
 
@@ -109,22 +112,23 @@ Load only the minimal necessary context from each artifact:
 **From spec.md:**
 
 - Functional Requirements (FR-###)
-- Success Criteria (SC-###) — include only items requiring buildable work; exclude
-  post-launch outcome metrics and business KPIs
+- Success Criteria (SC-###), including outcome and measurement-readiness work
 - User Stories and their Acceptance Scenarios
 - Edge Cases (if present)
 
-**From plan.md:**
+**From prototype.html:**
 
-- Architecture/stack choices and technical decisions
-- Data Model references
-- Phases and named touch-points (files/components the plan says will be created or edited)
-- Technical constraints
+- Exact `data-spec-ref` anchors and visible/state behavior
+
+**From quickstart.md:**
+
+- UAT IDs, expected results, source references, and recorded execution fields
 
 **From tasks.md:**
 
 - Task IDs (to compute the next ID and next phase number)
-- Descriptions, phase grouping, and referenced file paths
+- Descriptions, task types, source references, dependencies, and completion
+  conditions
 
 **From constitution (if not an unfilled template):**
 
@@ -134,19 +138,19 @@ Load only the minimal necessary context from each artifact:
 
 Create an internal model (do not echo raw artifacts):
 
-- **Requirements inventory**: one stable key per FR-### / SC-### / user-story acceptance
-  scenario (e.g. `US1/AC2`), plus the plan decisions and constitution principles that
-  impose buildable obligations.
-- **Code-scope map**: from the file paths named in `plan.md` and `tasks.md`, plus a keyword
-  search for the concepts each requirement describes, derive the set of source files and
-  components in scope for assessment. Bound the assessment to these — do **not** infer
-  scope beyond what the artifacts define.
+- **Requirements inventory**: one stable key per FR-### / SC-### / user-story
+  acceptance scenario (for example, `US1/AC2`), every prototype anchor, every
+  UAT, and constitution principles that impose buildable obligations.
+- **Code-scope map**: from task references, source identifiers, the implemented
+  technology actually present in the repository, and targeted source search,
+  derive the files/components in scope. Do not infer technical obligations
+  beyond the frozen contract and tasks.
 
 ### 4. Assess the Codebase and Classify Findings
 
 Include every existing task in the intent inventory, regardless of checkbox state or
-Convergence phase: completion claims are not evidence. Verify current behavior against
-the spec, plan, tasks, and constitution; for corrective task chains, assess the resulting
+Convergence phase: completion claims are not evidence. Verify current behavior against the frozen contract, tasks, and constitution;
+for corrective task chains, assess the resulting
 behavior, not superseded implementation details. Check both unmet obligations and
 implementation that contradicts, exceeds, or falls outside the stated intent.
 
@@ -154,11 +158,12 @@ For each item in the intent inventory, inspect the current code in scope and pro
 `Finding` only where there is a gap. Classify every finding by **gap type**:
 
 - **`missing`**: the required work is absent from the code entirely.
-- **`partial`**: the work exists but does not yet fully satisfy the requirement /
-  acceptance criterion / plan decision.
+- **`partial`**: the work exists but does not yet fully satisfy the requirement,
+  acceptance criterion, prototype anchor, UAT outcome, or task.
 - **`contradicts`**: the code does something that conflicts with stated intent or a
   constitution MUST principle.
-- **`unrequested`**: the code contains work not called for by the spec, plan, or tasks
+- **`unrequested`**: the code contains work not called for by the frozen
+  contract or tasks
   (surfaced for awareness — converge does **not** delete code, it only appends a task to
   review/justify or remove it).
 
@@ -167,6 +172,10 @@ severity, and a short human-readable description with the evidence (the file/are
 
 **Edge cases:**
 
+- Treat every `PENDING`, `FAIL`, or `BLOCKED` UAT as remaining work even when its
+  task checkbox is checked. Treat `PASS` as evidence only when the Actual Result
+  and Evidence fields are populated and remain consistent with the frozen
+  Expected Result. Never rewrite the UAT baseline in Converge.
 - **Little or no code yet**: treat the entire specified scope as `missing` remaining work
   rather than failing.
 - **Nothing remains**: produce zero findings and follow the converged branch in Step 7.
@@ -194,7 +203,7 @@ Before appending anything, output a compact, severity-graded summary (no file wr
 **Summary metrics:**
 
 - Requirements / acceptance criteria checked
-- Plan decisions checked
+- Prototype anchors and UAT outcomes checked
 - Constitution principles checked (or "skipped — template")
 - Findings by gap type (missing / partial / contradicts / unrequested)
 - Findings by severity
@@ -212,11 +221,11 @@ Append to the **end** of `tasks.md`, per the append contract:
    zero-padded IDs `T{M+1:03d}, T{M+2:03d}, …`:
 
    ```markdown
-   - [ ] T042 <imperative description> per <source-ref> (<gap-type>)
+   - [ ] T042 [BUILD|UAT] <imperative description> | Refs: <source-ref> | Depends: none or task IDs | Done when: <observable condition> (<gap-type>)
    ```
 
    `<source-ref>` traces the task to its origin: e.g. `FR-003`, `SC-002`,
-   `US1/AC2`, `plan: storage decision`, `Constitution II`.
+   `US1/AC2`, `proto:account-form`, `UAT-001`, or `Constitution II`.
 
    `<gap-type>` is one of `missing`, `partial`, `contradicts`, `unrequested`.
 
@@ -228,7 +237,7 @@ Append to the **end** of `tasks.md`, per the append contract:
 **If there are no actionable findings** (`converged` outcome):
 
 - Do **not** modify `tasks.md` at all — no empty phase header.
-- Report: **"✅ Converged — the implementation satisfies the spec, plan, and tasks."**
+- Report: **"Converged - the implementation satisfies the frozen Specify contract and tasks."**
 - Include the summary counts of what was checked.
 
 ### 8. Provide Next Actions (Handoff)

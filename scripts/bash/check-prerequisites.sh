@@ -10,6 +10,7 @@
 # OPTIONS:
 #   --json              Output in JSON format
 #   --require-spec      Require spec.md to exist (for analysis phase)
+#   --require-contract  Require spec.md, prototype.html, and quickstart.md
 #   --require-tasks     Require tasks.md to exist (for implementation phase)
 #   --include-tasks     Include tasks.md in AVAILABLE_DOCS list
 #   --paths-only        Only output path variables (no validation)
@@ -26,6 +27,7 @@ set -e
 # Parse command line arguments
 JSON_MODE=false
 REQUIRE_SPEC=false
+REQUIRE_CONTRACT=false
 REQUIRE_TASKS=false
 INCLUDE_TASKS=false
 PATHS_ONLY=false
@@ -38,6 +40,9 @@ while [[ $# -gt 0 ]]; do
             ;;
         --require-spec)
             REQUIRE_SPEC=true
+            ;;
+        --require-contract)
+            REQUIRE_CONTRACT=true
             ;;
         --require-tasks)
             REQUIRE_TASKS=true
@@ -65,6 +70,7 @@ Consolidated prerequisite checking for Spec-Driven Development workflow.
 OPTIONS:
   --json              Output in JSON format
   --require-spec      Require spec.md to exist (for analysis phase)
+  --require-contract  Require spec.md, prototype.html, and quickstart.md
   --require-tasks     Require tasks.md to exist (for implementation phase)
   --include-tasks     Include tasks.md in AVAILABLE_DOCS list
   --paths-only        Only output path variables (no prerequisite validation)
@@ -72,11 +78,11 @@ OPTIONS:
   --help, -h          Show this help message
 
 EXAMPLES:
-  # Check task prerequisites (plan.md required)
-  ./check-prerequisites.sh --json
+  # Check the frozen Specify contract
+  ./check-prerequisites.sh --json --require-contract
 
-  # Check implementation prerequisites (plan.md + tasks.md required)
-  ./check-prerequisites.sh --json --require-tasks --include-tasks
+  # Check implementation prerequisites
+  ./check-prerequisites.sh --json --require-contract --require-tasks --include-tasks
 
   # Get feature paths only (no validation)
   ./check-prerequisites.sh --paths-only
@@ -117,19 +123,21 @@ if $PATHS_ONLY; then
                 --arg branch "$CURRENT_BRANCH" \
                 --arg feature_dir "$FEATURE_DIR" \
                 --arg feature_spec "$FEATURE_SPEC" \
-                --arg impl_plan "$IMPL_PLAN" \
+                --arg prototype "$PROTOTYPE" \
+                --arg quickstart "$QUICKSTART" \
                 --arg tasks "$TASKS" \
-                '{REPO_ROOT:$repo_root,BRANCH:$branch,FEATURE_DIR:$feature_dir,FEATURE_SPEC:$feature_spec,IMPL_PLAN:$impl_plan,TASKS:$tasks}'
+                '{REPO_ROOT:$repo_root,BRANCH:$branch,FEATURE_DIR:$feature_dir,FEATURE_SPEC:$feature_spec,PROTOTYPE:$prototype,QUICKSTART:$quickstart,TASKS:$tasks}'
         else
-            printf '{"REPO_ROOT":"%s","BRANCH":"%s","FEATURE_DIR":"%s","FEATURE_SPEC":"%s","IMPL_PLAN":"%s","TASKS":"%s"}\n' \
-                "$(json_escape "$REPO_ROOT")" "$(json_escape "$CURRENT_BRANCH")" "$(json_escape "$FEATURE_DIR")" "$(json_escape "$FEATURE_SPEC")" "$(json_escape "$IMPL_PLAN")" "$(json_escape "$TASKS")"
+            printf '{"REPO_ROOT":"%s","BRANCH":"%s","FEATURE_DIR":"%s","FEATURE_SPEC":"%s","PROTOTYPE":"%s","QUICKSTART":"%s","TASKS":"%s"}\n' \
+                "$(json_escape "$REPO_ROOT")" "$(json_escape "$CURRENT_BRANCH")" "$(json_escape "$FEATURE_DIR")" "$(json_escape "$FEATURE_SPEC")" "$(json_escape "$PROTOTYPE")" "$(json_escape "$QUICKSTART")" "$(json_escape "$TASKS")"
         fi
     else
         echo "REPO_ROOT: $REPO_ROOT"
         echo "BRANCH: $CURRENT_BRANCH"
         echo "FEATURE_DIR: $FEATURE_DIR"
         echo "FEATURE_SPEC: $FEATURE_SPEC"
-        echo "IMPL_PLAN: $IMPL_PLAN"
+        echo "PROTOTYPE: $PROTOTYPE"
+        echo "QUICKSTART: $QUICKSTART"
         echo "TASKS: $TASKS"
     fi
     exit 0
@@ -142,23 +150,31 @@ if [[ ! -d "$FEATURE_DIR" ]]; then
     exit 1
 fi
 
-if [[ ! -f "$IMPL_PLAN" ]]; then
-    echo "ERROR: plan.md not found in $FEATURE_DIR" >&2
-    echo "Run $(format_speckit_command plan "$REPO_ROOT") first to create the implementation plan." >&2
-    exit 1
-fi
-
-if [[ ! -s "$IMPL_PLAN" ]]; then
-    echo "ERROR: plan.md is empty in $FEATURE_DIR" >&2
-    echo "Populate it, or remove the empty file and rerun $(format_speckit_command plan "$REPO_ROOT") with a valid plan template." >&2
-    exit 1
-fi
-
 # Check for spec.md if required
 if $REQUIRE_SPEC && [[ ! -f "$FEATURE_SPEC" ]]; then
     echo "ERROR: spec.md not found in $FEATURE_DIR" >&2
     echo "Run $(format_speckit_command specify "$REPO_ROOT") first to create the feature specification." >&2
     exit 1
+fi
+
+if $REQUIRE_CONTRACT; then
+    require_contract_file() {
+        local path="$1"
+        local name="$2"
+        if [[ ! -f "$path" ]]; then
+            echo "ERROR: $name not found in $FEATURE_DIR" >&2
+            echo "Run $(format_speckit_command specify "$REPO_ROOT") first to create the frozen requirement contract." >&2
+            exit 1
+        fi
+        if [[ ! -s "$path" ]]; then
+            echo "ERROR: $name is empty in $FEATURE_DIR" >&2
+            echo "Rerun $(format_speckit_command specify "$REPO_ROOT") to regenerate $name." >&2
+            exit 1
+        fi
+    }
+    require_contract_file "$FEATURE_SPEC" "spec.md"
+    require_contract_file "$PROTOTYPE" "prototype.html"
+    require_contract_file "$QUICKSTART" "quickstart.md"
 fi
 
 # Check for tasks.md if required
@@ -170,16 +186,8 @@ fi
 
 # Build list of available documents
 docs=()
-
-# Always check these optional docs
-[[ -f "$RESEARCH" ]] && docs+=("research.md")
-[[ -f "$DATA_MODEL" ]] && docs+=("data-model.md")
-
-# Check contracts directory (only if it exists and has files)
-if [[ -d "$CONTRACTS_DIR" ]] && [[ -n "$(ls -A "$CONTRACTS_DIR" 2>/dev/null)" ]]; then
-    docs+=("contracts/")
-fi
-
+[[ -f "$FEATURE_SPEC" ]] && docs+=("spec.md")
+[[ -f "$PROTOTYPE" ]] && docs+=("prototype.html")
 [[ -f "$QUICKSTART" ]] && docs+=("quickstart.md")
 
 # Include tasks.md if requested and it exists
@@ -237,10 +245,9 @@ else
     echo "FEATURE_DIR:$FEATURE_DIR"
     echo "AVAILABLE_DOCS:"
 
-    # Show status of each potential document
-    check_file "$RESEARCH" "research.md"
-    check_file "$DATA_MODEL" "data-model.md"
-    check_dir "$CONTRACTS_DIR" "contracts/"
+    # Show status of each contract document.
+    check_file "$FEATURE_SPEC" "spec.md"
+    check_file "$PROTOTYPE" "prototype.html"
     check_file "$QUICKSTART" "quickstart.md"
 
     if $INCLUDE_TASKS; then

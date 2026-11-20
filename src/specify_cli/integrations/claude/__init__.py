@@ -24,7 +24,6 @@ EFFORT_LEVELS: tuple[str, ...] = ("low", "medium", "high", "xhigh", "max")
 # when a user invokes the slash command in Claude Code.
 ARGUMENT_HINTS: dict[str, str] = {
     "specify": "Describe the feature you want to specify",
-    "plan": "Optional guidance for the planning phase",
     "tasks": "Optional task generation constraints",
     "implement": "Optional implementation guidance or task filter",
     "analyze": "Optional focus areas for analysis",

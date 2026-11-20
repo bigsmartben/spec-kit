@@ -49,7 +49,6 @@ _CORE_COMMAND_TEMPLATE_ORDER = (
     "constitution",
     "implement",
     "converge",
-    "plan",
     "checklist",
     "specify",
     "tasks",
@@ -350,7 +349,7 @@ class IntegrationBase(ABC):
     # -- Optional ---------------------------------------------------------
 
     invoke_separator: str = "."
-    """Separator used in slash-command invocations (``"."`` → ``/speckit.plan``)."""
+    """Separator used in slash-command invocations (``"."`` → ``/speckit.tasks``)."""
 
     dev_no_symlink: bool = False
     """Whether dev-mode registration should write files instead of symlinks."""
@@ -888,7 +887,7 @@ class IntegrationBase(ABC):
     def command_filename(self, template_name: str) -> str:
         """Return the destination filename for a command template.
 
-        *template_name* is the stem of the source file (e.g. ``"plan"``).
+        *template_name* is the stem of the source file (e.g. ``"tasks"``).
         Default: ``speckit.{template_name}.md``.  Subclasses override
         to change the extension or naming convention.
         """
@@ -1067,7 +1066,7 @@ class IntegrationBase(ABC):
         ``__SPECKIT_COMMAND_GIT_COMMIT__``).  The replacement uses
         *separator* to join the segments:
 
-        * ``separator="."`` → ``/speckit.plan``, ``/speckit.git.commit``
+        * ``separator="."`` → ``/speckit.tasks``, ``/speckit.git.commit``
         * ``separator="-"`` → ``/speckit-plan``, ``/speckit-git-commit``
 
         A hyphen belongs to the segment it sits in rather than separating
@@ -2249,7 +2248,7 @@ class SkillsIntegration(IntegrationBase):
             raw = src_file.read_text(encoding="utf-8")
 
             # Derive the skill name from the template stem
-            command_name = src_file.stem  # e.g. "plan"
+            command_name = src_file.stem  # e.g. "tasks"
             skill_name = f"speckit-{command_name.replace('.', '-')}"
 
             # Parse frontmatter for description. Locate the closing ``---`` on

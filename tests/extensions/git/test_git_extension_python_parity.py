@@ -862,10 +862,10 @@ class TestAutoCommitParity:
         for proj in (bash_proj, py_proj):
             _write_config(proj, "auto_commit:\n  default: true\n")
             self._dirty(proj)
-        b = _run_bash("auto-commit.sh", bash_proj, "after_plan")
-        p = _run_py("auto-commit", py_proj, "after_plan")
+        b = _run_bash("auto-commit.sh", bash_proj, "after_custom")
+        p = _run_py("auto-commit", py_proj, "after_custom")
         _assert_parity(b, p)
-        expected = "[Spec Kit] Auto-commit after plan"
+        expected = "[Spec Kit] Auto-commit after custom"
         assert self._last_message(bash_proj) == self._last_message(py_proj) == expected
 
     def test_explicit_false_beats_default_true(self, tmp_path: Path):
@@ -882,12 +882,12 @@ class TestAutoCommitParity:
     def test_before_event_message(self, tmp_path: Path):
         bash_proj, py_proj = _twin_projects(tmp_path)
         for proj in (bash_proj, py_proj):
-            _write_config(proj, "auto_commit:\n  before_plan:\n    enabled: true\n")
+            _write_config(proj, "auto_commit:\n  before_custom:\n    enabled: true\n")
             self._dirty(proj)
-        b = _run_bash("auto-commit.sh", bash_proj, "before_plan")
-        p = _run_py("auto-commit", py_proj, "before_plan")
+        b = _run_bash("auto-commit.sh", bash_proj, "before_custom")
+        p = _run_py("auto-commit", py_proj, "before_custom")
         _assert_parity(b, p)
-        expected = "[Spec Kit] Auto-commit before plan"
+        expected = "[Spec Kit] Auto-commit before custom"
         assert self._last_message(bash_proj) == self._last_message(py_proj) == expected
 
     def test_no_changes_skips(self, tmp_path: Path):

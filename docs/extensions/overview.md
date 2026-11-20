@@ -38,12 +38,14 @@ Extensions are modular packages that add new commands and functionality to Spec 
 
 ### Specification artifact maintenance
 
-An extension can define commands or hooks that reconcile `spec.md`, `plan.md`,
-and `tasks.md` during or after feature delivery. Any such edits follow the
-extension's documented behavior and the project's governance; they are not
-performed by, or added to the responsibilities of, the core Spec Kit commands.
-The team's persistence model separately determines how artifacts are maintained
-after delivery.
+An extension can define commands or hooks that reconcile the frozen contract
+(`spec.md`, `prototype.html`, `quickstart.md`) and `tasks.md` during or after
+feature delivery. Any such edits follow the extension's documented behavior and
+the project's governance; they are not performed by, or added to the
+responsibilities of, the core Spec Kit commands. Historical or user-owned
+`plan.md` content is left untouched unless the extension explicitly declares
+that behavior. The team's persistence model separately determines how
+artifacts are maintained after delivery.
 
 ---
 
@@ -444,8 +446,8 @@ settings:
   auto_execute_hooks: true  # Reserved; currently not consulted
 
 # Hook configuration
-# Available events: before_specify, after_specify, before_plan, after_plan,
-#                   before_tasks, after_tasks, before_implement, after_implement,
+# Core-emitted events: before_specify, after_specify,
+#                      before_tasks, after_tasks, before_implement, after_implement,
 #                   before_analyze, after_analyze, before_checklist, after_checklist,
 #                   before_clarify, after_clarify, before_constitution, after_constitution,
 #                   before_converge, after_converge,
@@ -460,6 +462,11 @@ hooks:
       optional: true
       prompt: "Create Jira issues from tasks?"
 ```
+
+The hook engine can store arbitrary extension-defined event names, but a core
+command does not emit an event merely because an extension declares it.
+Custom events must be queried and dispatched by an extension-defined command
+or other explicit integration path.
 
 See the [hook configuration contract](api.md#hook-configuration) for all fields
 and current execution limitations.

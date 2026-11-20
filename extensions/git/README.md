@@ -29,7 +29,6 @@ This extension provides Git operations as an optional, self-contained module. It
 | `before_constitution` | `speckit.git.initialize` | No | Init git repo before constitution |
 | `before_specify` | `speckit.git.feature` | No | Create feature branch before specification |
 | `before_clarify` | `speckit.git.commit` | Yes | Commit outstanding changes before clarification |
-| `before_plan` | `speckit.git.commit` | Yes | Commit outstanding changes before planning |
 | `before_tasks` | `speckit.git.commit` | Yes | Commit outstanding changes before task generation |
 | `before_implement` | `speckit.git.commit` | Yes | Commit outstanding changes before implementation |
 | `before_checklist` | `speckit.git.commit` | Yes | Commit outstanding changes before checklist |
@@ -38,7 +37,6 @@ This extension provides Git operations as an optional, self-contained module. It
 | `after_constitution` | `speckit.git.commit` | Yes | Auto-commit after constitution update |
 | `after_specify` | `speckit.git.commit` | Yes | Auto-commit after specification |
 | `after_clarify` | `speckit.git.commit` | Yes | Auto-commit after clarification |
-| `after_plan` | `speckit.git.commit` | Yes | Auto-commit after planning |
 | `after_tasks` | `speckit.git.commit` | Yes | Auto-commit after task generation |
 | `after_implement` | `speckit.git.commit` | Yes | Auto-commit after implementation |
 | `after_checklist` | `speckit.git.commit` | Yes | Auto-commit after checklist |

@@ -1,5 +1,5 @@
 ---
-description: Generate an actionable, dependency-ordered tasks.md for the feature based on available design artifacts.
+description: Translate the frozen Specify contract into traceable, dependency-ordered work packages in tasks.md.
 handoffs:
   - label: Analyze For Consistency
     agent: speckit.analyze
@@ -60,38 +60,89 @@ You **MUST** consider the user input before proceeding (if not empty).
 
 ## Outline
 
-1. **Setup**: Run `{SCRIPT}` from repo root and parse FEATURE_DIR, TASKS_TEMPLATE_CONTENT, TASKS_TEMPLATE, and AVAILABLE_DOCS list. `FEATURE_DIR` and `TASKS_TEMPLATE` must be absolute paths when provided. `AVAILABLE_DOCS` is a list of document names/relative paths available under `FEATURE_DIR` (for example `research.md` or `contracts/`). For single quotes in args like "I'm Groot", use escape syntax: e.g 'I'\''m Groot' (or double-quote if possible: "I'm Groot").
+1. **Setup**: Run `{SCRIPT}` from the repository root and parse `FEATURE_DIR`,
+   `FEATURE_SPEC`, `PROTOTYPE`, `QUICKSTART`, `AVAILABLE_DOCS`,
+   `TASKS_TEMPLATE_CONTENT`, and `TASKS_TEMPLATE`. Contract and template paths
+   must be absolute when provided. For arguments containing single quotes, use
+   safe shell quoting.
 
-2. **Load design documents**: Read from FEATURE_DIR:
-   - **Required**: plan.md (tech stack, libraries, structure), spec.md (user stories with priorities)
-   - **Optional**: data-model.md (entities), contracts/ (interface contracts), research.md (decisions), quickstart.md (test scenarios)
-   - **IF EXISTS**: Load `/memory/constitution.md` for project principles and governance constraints
-   - Note: Not all projects have all documents. Generate tasks based on what's available.
+2. **Load the frozen Specify contract**:
+   - **Required**: `spec.md` for user stories, priorities, `FR-*`, `SC-*`,
+     acceptance scenarios, scope boundaries, and assumptions
+   - **Required**: `prototype.html` for exact `data-spec-ref` anchors and the
+     visible behavior/state contract
+   - **Required**: `quickstart.md` for `UAT-*`, ordered user actions, expected
+     results, requirement references, prototype references, and pending state
+   - **IF EXISTS**: `/memory/constitution.md` for governing constraints
+   - Do not read or infer a technical plan from `plan.md`, data-model documents,
+     API contracts, research files, the current implementation, or unstated
+     repository conventions. Implement owns those decisions.
 
-3. **Execute task generation workflow**:
-   - Load plan.md and extract tech stack, libraries, project structure
-   - Load spec.md and extract user stories with their priorities (P1, P2, P3, etc.)
-   - If data-model.md exists: Extract entities and constrained fields, including constraints encoded in field types, and map to user stories
-   - If contracts/ exists: Map interface contracts to user stories
-   - If research.md exists: Extract decisions for setup tasks
-   - Generate tasks organized by user story (see Task Generation Rules below)
-   - Generate dependency graph showing user story completion order
-   - Create parallel execution examples per user story
-   - Validate task completeness (each user story has all needed tasks, independently testable)
-   - If data-model.md has constrained fields: Verify every constrained field has an explicit, resolving citation to `data-model.md` and its `Entity.field` in at least one implementing task; correct missing or unresolved citations before returning tasks.md
+3. **Validate before generation**:
+   - Build source inventories for every user story, `FR-*`, `SC-*`, unique
+     `data-spec-ref`, and `UAT-*`.
+   - Reject duplicate or malformed source IDs/anchors.
+   - Resolve every prototype and requirement reference used by a UAT to an
+     exact source item.
+   - Detect contradictions among a UAT's expected result, referenced
+     requirement(s), and referenced prototype behavior. Report exact source
+     locations.
+   - Confirm every user-visible story has at least one UAT and every material
+     visible contract item has a stable prototype anchor.
+   - If any source is missing, empty, contradictory, unresolved, or cannot be
+     translated into an independently verifiable obligation, **STOP**. Do not
+     invent or repair requirements, do not reinterpret the prototype/UAT, and
+     do not write a new or partial `tasks.md`. Explain what must return to
+     `__SPECKIT_COMMAND_SPECIFY__` or `__SPECKIT_COMMAND_CLARIFY__`.
 
-4. **Generate tasks.md**: Use TASKS_TEMPLATE_CONTENT (from the JSON output above) as the structure. For compatibility with older setup scripts that omit TASKS_TEMPLATE_CONTENT, read TASKS_TEMPLATE instead. Fill with:
-   - Correct feature name from plan.md
-   - Phase 1: Setup tasks (project initialization)
-   - Phase 2: Foundational tasks (blocking prerequisites for all user stories)
-   - Phase 3+: One phase per user story (in priority order from spec.md)
-   - Each phase includes: story goal, independent test criteria, tests (if requested), implementation tasks
-   - Final Phase: Polish & cross-cutting concerns
-   - All tasks must follow the strict checklist format (see Task Generation Rules below)
-   - Clear file paths for each task
-   - Dependencies section showing story completion order
-   - Parallel execution examples per story
-   - Implementation strategy section (MVP first, incremental delivery)
+4. **Derive work packages**:
+   - Translate user stories and requirements into independently deliverable
+     outcomes in priority order.
+   - Use `[BUILD]` tasks for delivery obligations and `[UAT]` tasks for one
+     explicit execution task per `UAT-*`.
+   - State requirement-level outcomes, source references, dependencies, and
+     observable completion conditions.
+   - Never choose or imply a language, framework, library, database, protocol,
+     architecture, class/component boundary, API shape, test framework, or
+     repository file path.
+   - Use only the frozen contract's terminology. Do not copy long source
+     passages when a stable ID or exact prototype anchor is sufficient.
+
+5. **Generate dependencies and parallel boundaries**:
+   - Express dependencies by task ID.
+   - Mark `[P]` only when the work packages have no incomplete dependency and
+     can produce independent acceptance evidence.
+   - Group shared obligations only when one deliverable can satisfy multiple
+     stories without changing the priority/delivery boundary.
+   - Every `[UAT]` task must depend on all `[BUILD]` tasks needed to make its
+     scenario observable and must identify the matching `UAT-*`.
+
+6. **Prove complete coverage before writing**:
+   - Every `FR-*` maps to at least one `[BUILD]` task.
+   - Every `SC-*` maps to at least one task with an observable completion
+     condition. When an outcome cannot be fully observed until operation,
+     create the requirement-preserving measurement/readiness work package;
+     do not weaken or invent the criterion.
+   - Every `data-spec-ref` maps to at least one `[BUILD]` task.
+   - Every `UAT-*` maps to at least one `[BUILD]` task and exactly one `[UAT]`
+     execution task.
+   - Every task maps to at least one explicit user story, requirement,
+     prototype anchor, or UAT source reference.
+   - Reconcile the generated coverage matrix with the inventories. Any gap is a
+     generation failure and must be corrected or reported as a blocking source
+     defect before returning.
+
+7. **Write `tasks.md`**: Use `TASKS_TEMPLATE_CONTENT` as the structure. For
+   compatibility with older setup scripts that omit that field, read
+   `TASKS_TEMPLATE` instead. The generated file must contain:
+   - A frozen-contract summary identifying all three inputs
+   - One delivery phase per priority-ordered user story
+   - Cross-story requirement/completion phases when required
+   - A UAT execution phase with one task per `UAT-*`
+   - Strict checklist items following Task Generation Rules
+   - A source coverage matrix for every required inventory class
+   - Dependencies and parallel opportunities expressed at work-package level
+   - An incremental delivery strategy based on completed observable outcomes
 
 ## Mandatory Post-Execution Hooks
 
@@ -131,94 +182,118 @@ Check if `.specify/extensions.yml` exists in the project root.
 
 Output path to generated tasks.md and summary:
 - Total task count
-- Task count per user story
+- Task count by `[BUILD]` and `[UAT]`
+- Task count per user story and cross-story work
 - Parallel opportunities identified
-- Independent test criteria for each story
+- Coverage totals for FR, SC, prototype anchors, and UAT
 - Suggested MVP scope (typically just User Story 1)
-- Format validation: Confirm ALL tasks follow the checklist format (checkbox, ID, labels, file paths)
+- Blockers: state "none" only after preflight and coverage validation pass
+- Format validation: confirm every task has a checkbox, ID, type, source
+  references, dependencies, and an observable completion condition
 
 Context for task generation: {ARGS}
 
-The tasks.md should be immediately executable - each task must be specific enough that an LLM can complete it without context beyond the feature's design documents. This does not require copying those documents into task descriptions.
+The generated `tasks.md` must be sufficient for Implement to choose the
+technical approach without any Plan artifact. It must remain faithful to the
+frozen Specify contract and not copy entire source documents into task prose.
 
 ## Task Generation Rules
 
-**CRITICAL**: Tasks MUST be organized by user story to enable independent implementation and testing.
+**CRITICAL**: Organize delivery by user story so each priority can produce an
+independently verifiable increment.
 
-**Tests are OPTIONAL**: Only generate test tasks if explicitly requested in the feature specification or if user requests TDD approach.
+**Tests are OPTIONAL except for UAT**: Generate additional deterministic test work
+only when the frozen contract requests it or the user explicitly requests a
+development approach. Every UAT is mandatory and always has an explicit `[UAT]`
+task.
 
 ### Checklist Format (REQUIRED)
 
 Every task MUST strictly follow this format:
 
 ```text
-- [ ] [TaskID] [P?] [Story?] Description with file path
+- [ ] T001 [P] [US1] [BUILD] Requirement-level outcome | Refs: FR-001, proto:page-main, UAT-001 | Depends: none | Done when: observable condition
 ```
 
 **Format Components**:
 
 1. **Checkbox**: ALWAYS start with `- [ ]` (markdown checkbox)
 2. **Task ID**: Sequential number (T001, T002, T003...) in execution order
-3. **[P] marker**: Include ONLY if task is parallelizable (different files, no dependencies on incomplete tasks)
+3. **[P] marker**: Include ONLY when the work package has no incomplete
+   dependency and can deliver independent acceptance evidence. Do not infer
+   this from file paths because Implement chooses the paths.
 4. **[Story] label**: REQUIRED for user story phase tasks only
    - Format: [US1], [US2], [US3], etc. (maps to user stories from spec.md)
-   - Setup phase: NO story label
-   - Foundational phase: NO story label
    - User Story phases: MUST have story label
-   - Polish phase: NO story label
-5. **Description**: Clear action with exact file path
+   - Cross-story requirements: NO story label unless one story owns the work
+   - UAT tasks: include the story label when the UAT belongs to one story
+5. **Type**: Exactly one of:
+   - `[BUILD]` for a deliverable or verification-enabling obligation
+   - `[UAT]` for executing one frozen `UAT-*` scenario
+6. **Description**: Clear requirement-level deliverable without implementation
+   choices.
+7. **Refs**: One or more exact IDs/anchors, such as `FR-001`, `SC-002`,
+   `US1`, `proto:<data-spec-ref>`, or `UAT-003`.
+8. **Depends**: `none` or an explicit comma-separated list of task IDs.
+9. **Done when**: Observable acceptance condition derived from the frozen
+   contract. A `[UAT]` task additionally says that the matching quickstart
+   execution fields are recorded.
 
 **Examples**:
 
-- ✅ CORRECT: `- [ ] T001 Create project structure per implementation plan`
-- ✅ CORRECT: `- [ ] T005 [P] Implement authentication middleware in src/middleware/auth.py`
-- ✅ CORRECT: `- [ ] T012 [P] [US1] Create User model in src/models/user.py`
-- ✅ CORRECT: `- [ ] T014 [US1] Implement UserService in src/services/user_service.py`
-- ❌ WRONG: `- [ ] Create User model` (missing ID and Story label)
-- ❌ WRONG: `T001 [US1] Create model` (missing checkbox)
-- ❌ WRONG: `- [ ] [US1] Create User model` (missing Task ID)
-- ❌ WRONG: `- [ ] T001 [US1] Create model` (missing file path)
+- CORRECT: `- [ ] T001 [US1] [BUILD] Deliver the account creation outcome | Refs: FR-001, proto:account-form | Depends: none | Done when: the specified account flow and visible states are available`
+- CORRECT: `- [ ] T014 [US1] [UAT] Execute UAT-001 for account creation | Refs: UAT-001, FR-001, proto:account-form | Depends: T001 | Done when: quickstart.md records a conclusive status, actual result, evidence, and deviation`
+- WRONG: `- [ ] T001 [BUILD] Use React and create src/components/Form.tsx` (technology/path lock-in)
+- WRONG: `- [ ] T001 Deliver account creation` (missing type, references, dependencies, and completion condition)
+- WRONG: `- [ ] T014 [UAT] Run acceptance tests` (missing UAT ID and exact contract references)
 
 ### Task Organization
 
-1. **From User Stories (spec.md)** - PRIMARY ORGANIZATION:
+1. **From User Stories (`spec.md`) - PRIMARY ORGANIZATION**:
    - Each user story (P1, P2, P3...) gets its own phase
-   - Map all related components to their story:
-     - Models needed for that story
-     - Services needed for that story
-     - Interfaces/UI needed for that story
-     - If tests requested: Tests specific to that story
-   - Mark story dependencies (most stories should be independent)
+   - Each phase names its story goal and observable independent outcome
+   - Add only the work required for that frozen story boundary
+   - Keep story dependencies explicit and minimal; shared work must not blur
+     ownership or alter delivery priority
 
-2. **From Contracts**:
-   - Map each interface contract → to the user story it serves
-   - If tests requested: Each interface contract → contract test task [P] before implementation in that story's phase
+2. **From Functional Requirements (`FR-*`) and Success Criteria (`SC-*`)**:
+   - Map every item to at least one `[BUILD]` or cross-story task
+   - Preserve identifiers and measurable outcomes
+   - Do not convert a user/business outcome into an assumed implementation
+     architecture or monitoring system
 
-3. **From Data Model**:
-   - Map each entity to the user story(ies) that need it
-   - If entity serves multiple stories: Put in earliest story or Setup phase
-   - Relationships → service layer tasks in appropriate story phase
-   - data-model.md is the canonical source for field constraints (max/min length, nullable/required, enum values, validation rules), including constraints encoded in field types
-   - Cite each constrained field explicitly using `data-model.md` and its exact `Entity.field` in the implementing task description; plain text or links are acceptable when both are unambiguous. A shared implementing task may cite multiple fields
-   - Associate each cited field explicitly with its canonical definition. A field mention elsewhere in the task is not a citation merely because other fields in that task cite data-model.md
-   - Use citations instead of duplicated constraint prose. Do not require verbatim copies of constraints in tasks.md. Do not restate unchanged constraints; state a constraint only when the task adds to or narrows the canonical rule, and identify that task-specific addition or narrowing. Task-specific constraints MUST NOT contradict the canonical field definition
+3. **From the Prototype (`data-spec-ref`)**:
+   - Map every stable anchor to at least one `[BUILD]` task
+   - Group anchors only when they form one observable contract outcome
+   - Never soften the prototype as inspiration or redesign a state in Task
 
-4. **From Setup/Infrastructure**:
-   - Shared infrastructure → Setup phase (Phase 1)
-   - Foundational/blocking tasks → Foundational phase (Phase 2)
-   - Story-specific setup → within that story's phase
+4. **From the UAT baseline (`UAT-*`)**:
+   - Map every UAT to the `[BUILD]` work needed to make the scenario executable
+   - Emit exactly one `[UAT]` task per UAT ID in the UAT execution phase
+   - Preserve user/role, preconditions, ordered actions, expected result, and
+     exact references; Implement executes them later
+   - A `[UAT]` task never changes expected results or source references
 
 ### Phase Structure
 
-- **Phase 1**: Setup (project initialization)
-- **Phase 2**: Foundational (blocking prerequisites - MUST complete before user stories)
-- **Phase 3+**: User Stories in priority order (P1, P2, P3...)
-  - Within each story: Tests (if requested) → Models → Services → Endpoints → Integration
-  - Each phase should be a complete, independently testable increment
-- **Final Phase**: Polish & Cross-Cutting Concerns
+- **Phase 1+**: User Stories in priority order (P1, P2, P3...)
+  - `[BUILD]` work needed for each independently verifiable increment
+  - Optional requested test-enabling work when it is part of the contract
+  - Completion checkpoint expressed as an observable outcome
+- **Cross-Story Phase**: Only for explicit requirements shared across stories
+- **Final UAT Phase**: Exactly one `[UAT]` task per `UAT-*`
+- **No implicit Setup/Foundation phase**: If the contract requires a shared
+  prerequisite, identify the actual requirement/SC and task it in a requirement
+  phase. Implement creates technical setup as needed.
 
 ## Done When
 
-- [ ] tasks.md generated with all phases, task IDs, and file paths
+- [ ] `tasks.md` generated from the frozen contract with all task metadata
+- [ ] Every FR, SC, prototype anchor, and UAT appears in the coverage matrix
+- [ ] Every UAT has exactly one `[UAT]` execution task
+- [ ] No framework, architecture, library, API, component, or file-path choice
+      was introduced by Task
+- [ ] Every missing/conflicting/unresolvable contract condition blocked
+      generation instead of being designed around
 - [ ] Extension hooks dispatched or skipped according to the rules in Mandatory Post-Execution Hooks above
-- [ ] Completion reported to user with task count, story breakdown, and MVP scope
+- [ ] Completion reported with counts, coverage, blockers, and MVP scope

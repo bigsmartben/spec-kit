@@ -1,9 +1,8 @@
 ---
 description: "Create the feature specification, prototype, and pending UAT baseline (preset override)"
 scripts:
-  sh: scripts/bash/resolve-template.sh spec-template --json
-  ps: scripts/powershell/resolve-template.ps1 spec-template -Json
-  py: scripts/python/resolve_template.py spec-template --json
+  sh: scripts/bash/create-new-feature.sh "{ARGS}"
+  ps: scripts/powershell/create-new-feature.ps1 "{ARGS}"
 ---
 
 ## User Input
@@ -14,13 +13,19 @@ $ARGUMENTS
 
 Given the feature description above:
 
-1. Resolve the active `spec-template` with `{SCRIPT}`, then resolve the
-   `prototype-template` and `quickstart-template` by replacing the literal
-   `spec-template` argument in the same resolver command. Stop if any
-   composition fails.
+1. Create the feature branch and initial directory by running
+   `{SCRIPT} --json --short-name "<short-name>" "<description>"`. The JSON
+   output contains `BRANCH_NAME` and `SPEC_FILE`; derive the feature directory
+   from `SPEC_FILE`.
 
-2. Create or select the feature directory and persist its path in
-   `.specify/feature.json`.
+2. Resolve the composed templates using the script variant installed by
+   `.specify/init-options.json`:
+   - Bash: `.specify/scripts/bash/resolve-template.sh <template-name> --json`
+   - PowerShell: `.specify/scripts/powershell/resolve-template.ps1 <template-name> -Json`
+   - Python: the selected Python interpreter on
+     `.specify/scripts/python/resolve_template.py <template-name> --json`
+   Use `spec-template`, `prototype-template`, and `quickstart-template`. Stop
+   if any composition fails.
 
 3. Write `spec.md` from the composed spec template.
 

@@ -11,7 +11,7 @@ organization, or bring a different process entirely.
 | Connect Spec Kit to a coding agent or adapt its command/skill delivery | Integration |
 | Add a new command, capability, or process | Extension |
 | Integrate an external tool or service | Extension |
-| Change the format or terminology of specs, plans, or tasks | Preset |
+| Change the format or terminology of specs, prototypes, UAT baselines, or task packages | Preset |
 | Enforce organizational or regulatory standards in existing templates | Preset |
 | Ship reusable domain-specific templates | Presets for overrides; extensions for templates accompanying new commands |
 | Make a one-off template adjustment in a single project | Project-local override |
@@ -62,7 +62,7 @@ specify preset add <preset-name>
 ```
 
 Use a preset to require regulatory traceability, enforce test-first task ordering,
-add security review gates to plans, or localize a workflow. Presets can also adapt
+add security review gates to implementation, or localize a workflow. Presets can also adapt
 the methodology to Agile, Kanban, Waterfall, jobs-to-be-done, or domain-driven
 design. The
 [pirate-speak demo](https://github.com/mnriem/spec-kit-pirate-speak-preset-demo)

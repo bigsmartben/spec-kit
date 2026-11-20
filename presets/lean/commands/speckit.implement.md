@@ -1,5 +1,5 @@
 ---
-description: Execute the implementation plan by processing all tasks in tasks.md.
+description: Choose and execute the implementation, then run the frozen UAT contract.
 ---
 
 ## User Input
@@ -12,11 +12,26 @@ $ARGUMENTS
 
 1. Read `.specify/feature.json` to get the feature directory path.
 
-2. **Load context**: `.specify/memory/constitution.md` and `<feature_directory>/spec.md` and `<feature_directory>/plan.md` and `<feature_directory>/tasks.md`.
+2. **Load the frozen contract and work packages**:
+   - `.specify/memory/constitution.md`
+   - `<feature_directory>/spec.md`
+   - `<feature_directory>/prototype.html`
+   - `<feature_directory>/quickstart.md`
+   - `<feature_directory>/tasks.md`
 
-3. **Execute tasks** in order:
-   - Complete each task before moving to the next
-   - Mark completed tasks by changing `- [ ]` to `- [x]` in `<feature_directory>/tasks.md`
-   - Halt on failure and report the issue
+3. **Own the technical choices**. Select the architecture, dependencies, file
+   layout, implementation details, test strategy, and commands needed to satisfy
+   the frozen contract and work packages.
 
-4. **Validate**: Verify all tasks are completed and the implementation matches the spec.
+4. Execute the work packages in dependency order:
+   - Complete each package before moving to a dependent package.
+   - Mark completed packages by changing `- [ ]` to `- [x]` in `tasks.md`.
+   - Halt on a blocking failure and report the issue.
+
+5. Run every `UAT-*` scenario in `quickstart.md`. For each scenario, update
+   **only** the existing `Status`, `Actual Result`, `Evidence`, and `Deviation`
+   fields. Do not rewrite the frozen preconditions, actions, expected result,
+   requirement references, or prototype references.
+
+6. Validate that every work package and UAT scenario is complete, and report the
+   implementation approach, test evidence, deviations, and any blocked cases.

@@ -24,7 +24,7 @@ Spec Kitは、AIコーディングエージェントに構造化されたプロ�
 
 | やりたいこと | プロセス | 成果 |
 | --- | --- | --- |
-| 機能やアプリケーションを構築する | [仕様駆動開発](#仕様駆動開発) | 計画・実装・収束まで一貫して活用される仕様 |
+| 機能やアプリケーションを構築する | [仕様駆動開発](#仕様駆動開発) | 凍結した製品契約から作業パッケージ、実装、UAT証跡へ |
 | 不具合のある動作を診断し、修正する | [バグ修正](#バグ修正) | 評価された原因、範囲を絞った修正、記録された検証 |
 | アイデアに投資する価値があるか判断する | [アイデア評価](#アイデア評価) | 根拠に基づく、進める(go)・要確認・中止のいずれかの決定 |
 
@@ -57,22 +57,20 @@ cd my-project
 
 ## 仕様駆動開発
 
-作る **方法(how)** を決める前に、 **何を(what)・なぜ(why)** を定義します。SDDは要件を仕様・技術計画・実行可能なタスクへと変換し、それらの成果物に沿って実装を導きます。
+作る **方法(how)** を決める前に、**何を(what)・なぜ(why)** を定義し、観測可能な製品契約として凍結します。SDDはその契約を独立して提供可能な要件レベルの作業パッケージへ変換し、実装段階で技術的な判断を行います。
 
-**プロジェクトごとに一度だけ全体ルール(constitution)を定め、機能ごとに 仕様化(specify) → 計画(plan) → タスク化(tasks) → 実装(implement) → 収束(converge) を行います。**
+**プロジェクトごとに一度だけ全体ルール(constitution)を定め、機能ごとに 仕様化(specify) → タスク化(tasks) → 実装(implement) を行います。**
 
 エージェントのチャットで、以下のスキルを呼び出します:
 
 ```text
 /speckit-constitution Create principles focused on code quality, testing, and maintainability.
 /speckit-specify Build a photo organizer with albums grouped by date and a tile preview of each album.
-/speckit-plan Use Vite with vanilla JavaScript. Keep images local and store metadata in SQLite.
 /speckit-tasks
 /speckit-implement
-/speckit-converge
 ```
 
-収束結果が **Converged** と報告されるまで、**implement → converge** を繰り返します。追加の品質ゲートが必要な場合は、明確化・チェックリスト・一貫性分析を加えてください。
+Specifyは `spec.md`、`prototype.html`、`quickstart.md` の保留中UAT基準を凍結します。Taskはその契約とconstitutionだけを読み、完全なトレーサビリティを持つ技術中立な作業パッケージを生成します。矛盾や対応漏れがあればSpecifyへ戻します。Implementが技術選定と実行を担い、対応するUATで `Status`、`Actual Result`、`Evidence`、`Deviation` だけを更新します。必要に応じて明確化、チェックリスト、一貫性分析を追加してください。
 
 [SDD実践ガイド](https://github.github.io/spec-kit/quickstart.html) ·
 [コマンドリファレンス](https://github.github.io/spec-kit/reference/agentic-sdd.html)

@@ -100,7 +100,8 @@ normally gitignored; the linked commit preserves a historical snapshot.
 
 &#128100; The feature form's proposed solution and alternatives can seed a
 design discussion; contributors and maintainers can refine the approach
-during PR review. A separate SDD plan is not required for every issue.
+during PR review. A separate SDD design artifact is not required for every
+issue.
 Larger changes need prior discussion and agreement with maintainers, as the
 [contribution guide](https://github.com/github/spec-kit/blob/main/CONTRIBUTING.md#submitting-a-pull-request)
 explains. When decisions should remain useful across changes, the repository
@@ -110,10 +111,11 @@ keeps internal design documents for contributors. Supported
 separately on this site.
 
 &#9733; The [bundler SDD snapshot](https://github.com/github/spec-kit/commit/3fd1e54d4b237af6124bb967e2eae24c93685a89)
-illustrates the deeper path: its plan, research, data model, contracts, and
-tasks made the design actionable through `/speckit.plan` and
-`/speckit.tasks`. This shows where Spec Kit itself was used without
-presenting that level of detail as the default for every change.
+illustrates the deeper path used at that time: its plan, research, data model,
+contracts, and tasks made the design actionable through `/speckit.plan` and
+`/speckit.tasks`. This is a historical snapshot, not the current core
+sequence. Today Specify freezes the contract, Task packages requirement-level
+outcomes, and Implement owns the technical design.
 
 ### 4. Development: make reviewable changes
 
@@ -279,9 +281,10 @@ feature, and later made feature assessment consume Spec Kit's `assess`
 extension. These were separate additions, not steps every issue must follow.
 
 Together they give the project choices. For features, `assess` can inform a
-human decision about a request; substantial implementation work can use SDD
-to specify and plan it, as the bundler did. There is no automatic handoff
-between those processes. A small change can stay in an issue and PR, while
+human decision about a request; substantial implementation work can use the
+current SDD flow to specify, package requirement-level outcomes, and implement
+it. The historical bundler additionally used the former Plan stage. There is no
+automatic handoff between those processes. A small change can stay in an issue and PR, while
 a bug can move through human-gated assessment, repair, and verification.
 Code changes still face conventional checks and maintainer review; issue
 verdicts and catalog proposals have their own human gates.

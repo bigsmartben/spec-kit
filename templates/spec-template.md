@@ -20,7 +20,7 @@
 
 | Requirement | Prototype Reference | Covered Behavior / State |
 |-------------|---------------------|--------------------------|
-| [US-001 / FR-001] | [data-spec-ref] | [What is fixed by the prototype] |
+| [US1 / FR-001] | [data-spec-ref] | [What is fixed by the prototype] |
 
 ## User Acceptance Contract *(mandatory)*
 

@@ -18,7 +18,7 @@ baseline_status: "PENDING"
 - **Preconditions**: [PRECONDITIONS]
 - **Actions**: [ORDERED ACTIONS]
 - **Expected Result**: [OBSERVABLE RESULT]
-- **Requirement Refs**: [US-### / FR-### / SC-###]
+- **Requirement Refs**: [US1 / FR-### / SC-###]
 - **Prototype Refs**: [EXACT data-spec-ref]
 - **Status**: PENDING
 - **Actual Result**: Not executed

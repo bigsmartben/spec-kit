@@ -27,27 +27,28 @@ _paths_output=$(get_feature_paths) || { echo "ERROR: Failed to resolve feature p
 eval "$_paths_output"
 unset _paths_output
 
-# Validate required files
-if [[ ! -f "$IMPL_PLAN" ]]; then
-    echo "ERROR: plan.md not found in $FEATURE_DIR" >&2
-    echo "Run $(format_speckit_command plan "$REPO_ROOT") first to create the implementation plan." >&2
-    exit 1
-fi
+# Validate the frozen Specify contract.
+require_nonempty() {
+    local path="$1"
+    local name="$2"
+    if [[ ! -f "$path" ]]; then
+        echo "ERROR: $name not found in $FEATURE_DIR" >&2
+        echo "Run $(format_speckit_command specify "$REPO_ROOT") first to create the frozen requirement contract." >&2
+        return 1
+    fi
+    if [[ ! -s "$path" ]]; then
+        echo "ERROR: $name is empty in $FEATURE_DIR" >&2
+        echo "Rerun $(format_speckit_command specify "$REPO_ROOT") to regenerate $name." >&2
+        return 1
+    fi
+}
 
-if [[ ! -f "$FEATURE_SPEC" ]]; then
-    echo "ERROR: spec.md not found in $FEATURE_DIR" >&2
-    echo "Run $(format_speckit_command specify "$REPO_ROOT") first to create the feature structure." >&2
-    exit 1
-fi
+require_nonempty "$FEATURE_SPEC" "spec.md"
+require_nonempty "$PROTOTYPE" "prototype.html"
+require_nonempty "$QUICKSTART" "quickstart.md"
 
 # Build available docs list
-docs=()
-[[ -f "$RESEARCH" ]] && docs+=("research.md")
-[[ -f "$DATA_MODEL" ]] && docs+=("data-model.md")
-if [[ -d "$CONTRACTS_DIR" ]] && [[ -n "$(ls -A "$CONTRACTS_DIR" 2>/dev/null)" ]]; then
-    docs+=("contracts/")
-fi
-[[ -f "$QUICKSTART" ]] && docs+=("quickstart.md")
+docs=("spec.md" "prototype.html" "quickstart.md")
 
 # Resolve tasks template through override stack
 TASKS_TEMPLATE=$(resolve_template "tasks-template" "$REPO_ROOT") || true
@@ -69,10 +70,13 @@ if $JSON_MODE; then
         fi
         jq -cn \
             --arg feature_dir "$FEATURE_DIR" \
+            --arg feature_spec "$FEATURE_SPEC" \
+            --arg prototype "$PROTOTYPE" \
+            --arg quickstart "$QUICKSTART" \
             --argjson docs "$json_docs" \
             --arg tasks_template "${TASKS_TEMPLATE:-}" \
             --arg tasks_template_content "$TASKS_TEMPLATE_CONTENT" \
-            '{FEATURE_DIR:$feature_dir,AVAILABLE_DOCS:$docs,TASKS_TEMPLATE:$tasks_template,TASKS_TEMPLATE_CONTENT:$tasks_template_content}'
+            '{FEATURE_DIR:$feature_dir,FEATURE_SPEC:$feature_spec,PROTOTYPE:$prototype,QUICKSTART:$quickstart,AVAILABLE_DOCS:$docs,TASKS_TEMPLATE:$tasks_template,TASKS_TEMPLATE_CONTENT:$tasks_template_content}'
     else
         if [[ ${#docs[@]} -eq 0 ]]; then
             json_docs="[]"
@@ -80,15 +84,14 @@ if $JSON_MODE; then
             json_docs=$(for d in "${docs[@]}"; do printf '"%s",' "$(json_escape "$d")"; done)
             json_docs="[${json_docs%,}]"
         fi
-        printf '{"FEATURE_DIR":"%s","AVAILABLE_DOCS":%s,"TASKS_TEMPLATE":"%s","TASKS_TEMPLATE_CONTENT":"%s"}\n' \
-            "$(json_escape "$FEATURE_DIR")" "$json_docs" "$(json_escape "${TASKS_TEMPLATE:-}")" "$(json_escape "$TASKS_TEMPLATE_CONTENT")"
+        printf '{"FEATURE_DIR":"%s","FEATURE_SPEC":"%s","PROTOTYPE":"%s","QUICKSTART":"%s","AVAILABLE_DOCS":%s,"TASKS_TEMPLATE":"%s","TASKS_TEMPLATE_CONTENT":"%s"}\n' \
+            "$(json_escape "$FEATURE_DIR")" "$(json_escape "$FEATURE_SPEC")" "$(json_escape "$PROTOTYPE")" "$(json_escape "$QUICKSTART")" "$json_docs" "$(json_escape "${TASKS_TEMPLATE:-}")" "$(json_escape "$TASKS_TEMPLATE_CONTENT")"
     fi
 else
     echo "FEATURE_DIR: $FEATURE_DIR"
     echo "TASKS_TEMPLATE: ${TASKS_TEMPLATE:-not found}"
     echo "AVAILABLE_DOCS:"
-    check_file "$RESEARCH" "research.md"
-    check_file "$DATA_MODEL" "data-model.md"
-    check_dir "$CONTRACTS_DIR" "contracts/"
+    check_file "$FEATURE_SPEC" "spec.md"
+    check_file "$PROTOTYPE" "prototype.html"
     check_file "$QUICKSTART" "quickstart.md"
 fi

@@ -28,10 +28,10 @@ def format_cline_command_name(cmd_name: str) -> str:
     The function is idempotent: already-formatted names are returned unchanged.
 
     Examples:
-        >>> format_cline_command_name("plan")
-        'speckit-plan'
-        >>> format_cline_command_name("speckit.plan")
-        'speckit-plan'
+        >>> format_cline_command_name("tasks")
+        'speckit-tasks'
+        >>> format_cline_command_name("speckit.tasks")
+        'speckit-tasks'
         >>> format_cline_command_name("speckit.git.commit")
         'speckit-git-commit'
 

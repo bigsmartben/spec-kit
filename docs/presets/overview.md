@@ -40,7 +40,8 @@ result does not itself permit installation by ID.
 
 ## How presets take effect
 
-Templates define what gets produced, such as a specification or plan.
+Templates define what gets produced, such as a specification, prototype, UAT
+baseline, or task-package format.
 Commands contain the instructions your coding agent follows to produce it.
 Scripts provide executable behavior and require the same scrutiny as other
 code you install.

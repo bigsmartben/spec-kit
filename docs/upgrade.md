@@ -114,7 +114,7 @@ The integration upgrade command uses the install manifest to detect local edits.
 These files are **never touched** by the manifest-aware integration/extension upgrade path:
 
 - ✅ **Your specifications** (`specs/001-my-feature/spec.md`, etc.) - **CONFIRMED SAFE**
-- ✅ **Your implementation plans** (`specs/001-my-feature/plan.md`, `tasks.md`, etc.) - **CONFIRMED SAFE**
+- ✅ **Your feature artifacts** (`specs/001-my-feature/spec.md`, `prototype.html`, `quickstart.md`, `tasks.md`, and historical or user-owned `plan.md` files) - **CONFIRMED SAFE**
 - ✅ **Your constitution** (`.specify/memory/constitution.md`) when using `specify integration upgrade`
 - ✅ **Your source code** - **CONFIRMED SAFE**
 - ✅ **Your git history** - **CONFIRMED SAFE**
@@ -209,29 +209,33 @@ ls -la .kilocode/workflows/
 
 # Delete old versions (example filenames - yours may differ)
 rm .kilocode/workflows/speckit.specify-old.md
-rm .kilocode/workflows/speckit.plan-v1.md
+rm .kilocode/workflows/speckit.tasks-v1.md
 ```
 
 Restart your IDE to refresh the command list.
 
 ---
 
-## Behavior change: `/constitution` no longer propagates into templates
+## Historical behavior: `/constitution` no longer propagates into templates
 
-The `/constitution` command ([#3790](https://github.com/github/spec-kit/pull/3790)) is scoped to
-its own artifact. It updates
+This section records earlier releases and does not describe a current core
+Plan phase. The `/constitution` command
+([#3790](https://github.com/github/spec-kit/pull/3790)) is scoped to its own
+artifact. It updates
 `.specify/memory/constitution.md` and writes a Sync Impact Report, and **no longer edits**
 `plan-template.md`, `spec-template.md`, `tasks-template.md`, installed command files, or
 guidance docs.
 
 ### Why
 
-Spec Kit uses **runtime resolution**: `plan`, `tasks`, and `analyze` read
-`.specify/memory/constitution.md` live on every run, and `analyze` is the dedicated drift
-checker. The governed templates carry a pointer, not a copy — `plan-template.md` ships
-`[Gates determined based on constitution file]`, and `/plan` fills that section from the live
-constitution each run. Propagation duplicated the single source of truth and fought the
-preset/override composition system (a `replace` preset shadows an edited core template).
+At the time of that release, Spec Kit used **runtime resolution**: `plan`,
+`tasks`, and `analyze` read `.specify/memory/constitution.md` live on every
+run, and `analyze` was the dedicated drift checker. The governed templates
+carried a pointer, not a copy — legacy `plan-template.md` shipped
+`[Gates determined based on constitution file]`, and the former `/plan`
+command filled that section from the live constitution each run. Propagation
+duplicated the single source of truth and fought the preset/override
+composition system (a `replace` preset shadows an edited core template).
 
 More broadly, presets and extensions — not in-place file edits — are how Spec Kit now governs
 shared assets. Composing policy through the resolution stack keeps it centrally owned, versioned,
@@ -239,24 +243,27 @@ and auditable across repositories, instead of frozen into per-repo copies no cor
 
 ### Is this a breaking change for existing projects?
 
-**No — your workflow keeps working.** You would only notice a difference if you relied on
-`/constitution` editing those files in place. The templates are scaffolds, not authorities. When you
-run `/plan`, it copies the template into a per-feature `plan.md` and re-derives the Constitution
-Check from the live constitution; `/analyze` validates against it. Even if a previous
-`/constitution` run materialized concrete gate text into `.specify/templates/plan-template.md`,
-the live constitution remains the source of truth at runtime.
+**No existing feature content is removed.** You would only notice the historical
+change if you relied on `/constitution` editing files in place. The current
+core flow has no `/plan`; Task reads the constitution directly with the frozen
+Specify contract. Legacy `plan.md` feature files and locally customized
+`plan-template.md` files remain historical or user-owned content.
 
 On a **non-forced upgrade**, a materialized template is *preserved* (its hash diverges from the
 recorded managed copy, so the refresh treats it as a customization and does not overwrite it).
 Nothing regresses.
 
-### Optional cleanup — return to the runtime pointer
+### Legacy template handling
 
-A frozen, pre-filled Constitution Check is a slightly misleading scaffold and can bias the first
-`/plan` pass. To move fully back to runtime resolution, reset the section body in
-`.specify/templates/plan-template.md` to the pointer:
+A frozen, pre-filled Constitution Check may remain in a local
+`.specify/templates/plan-template.md`. Do not delete or reset it as part of
+this migration: it can preserve a team's history or support an optional
+preset/extension that still provides its own Plan command. Leave the file
+unchanged unless that owning process explicitly requires an update.
 
 ```text
+Historical legacy scaffold:
+
 ## Constitution Check
 
 *GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
@@ -264,7 +271,8 @@ A frozen, pre-filled Constitution Check is a slightly misleading scaffold and ca
 [Gates determined based on constitution file]
 ```
 
-Leave the rest of the file untouched. This is cleanup, not a required migration.
+This is a compatibility reference, not an instruction for the current core
+workflow.
 
 ### Keeping the old behavior (opt-in)
 
@@ -353,7 +361,9 @@ If you later decide you want the git extension's commands and hooks, install it 
 specify extension add git
 ```
 
-Projects that do not use Git can still work with Spec Kit by setting `SPECIFY_FEATURE_DIRECTORY` to the feature directory path before planning commands:
+Projects that do not use Git can still work with Spec Kit by setting
+`SPECIFY_FEATURE_DIRECTORY` to the feature directory path before core feature
+commands:
 
 ```bash
 # Bash/Zsh
@@ -435,7 +445,8 @@ Only Spec Kit infrastructure files:
 
 **What stays untouched:**
 
-- Your `specs/` directory (specifications, plans, tasks)
+- Your `specs/` directory (the frozen contract, task packages, UAT results, and
+  any historical or user-owned plans)
 - Your source code files
 - Your `.git/` directory and git history
 - Any other files not part of Spec Kit templates
@@ -506,7 +517,11 @@ The `specify` CLI tool is used for:
 - **Fallback recovery:** `specify init --here --force` when integration metadata is missing or the manifest-aware path cannot be used
 - **Diagnostics:** `specify check` to verify tool installation
 
-Once you've run `specify init`, the slash commands (like `/speckit.specify`, `/speckit.plan`, etc.) are **permanently installed** in your project's agent folder (`.claude/`, `.github/skills/`, `.pi/prompts/`, `.omp/commands/`, etc.). Your AI coding agent reads these command files directly—no need to run `specify` again.
+Once you've run `specify init`, the slash commands (such as
+`/speckit.specify`, `/speckit.tasks`, and `/speckit.implement`) are
+**permanently installed** in your project's agent folder (`.claude/`,
+`.github/skills/`, `.pi/prompts/`, `.omp/commands/`, etc.). Your AI coding
+agent reads these command files directly—no need to run `specify` again.
 
 **If your agent isn't recognizing slash commands:**
 

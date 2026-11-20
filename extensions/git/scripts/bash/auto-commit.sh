@@ -195,7 +195,7 @@ if [ "$_commit_style" = "conventional" ]; then
 fi
 
 # Derive a human-readable command name from the event
-# e.g., after_specify -> specify, before_plan -> plan
+# e.g., after_specify -> specify, before_tasks -> tasks
 _command_name=$(echo "$EVENT_NAME" | sed 's/^after_//' | sed 's/^before_//')
 _phase=$(echo "$EVENT_NAME" | grep -q '^before_' && echo 'before' || echo 'after')
 

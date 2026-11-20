@@ -636,7 +636,7 @@ def _resolve_event_command_argv(
 ) -> list[str] | None:
     """Resolve a command template's ``scripts:`` entry to a runnable argv.
 
-    ``scripts:`` values are command strings (e.g. ``scripts/bash/setup-plan.sh --json``),
+    ``scripts:`` values are command strings (e.g. ``scripts/bash/setup-tasks.sh --json``),
     not bare paths, so joining the whole value into a ``Path`` made ``exists()``
     false and real commands silently no-op'd. This resolves the stored variant
     (honoring the project's sh/ps/py selection), splits the command string

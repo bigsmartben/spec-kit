@@ -10,7 +10,7 @@
 
 | Requirement | Prototype Reference |
 |-------------|---------------------|
-| Requirement 1 | US-001:self-test |
+| Requirement 1 | US1:self-test |
 
 ## User Acceptance Contract
 

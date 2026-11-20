@@ -21,12 +21,6 @@ provides:
       replaces: "spec-template"
 
     - type: "template"
-      name: "plan-template"
-      file: "templates/plan-template.md"
-      description: "Self-test plan template"
-      replaces: "plan-template"
-
-    - type: "template"
       name: "tasks-template"
       file: "templates/tasks-template.md"
       description: "Self-test tasks template"

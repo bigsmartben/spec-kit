@@ -29,6 +29,10 @@ valid_pack_data = _fixtures.valid_pack_data
 pack_dir = _fixtures.pack_dir
 project_dir = _fixtures.project_dir
 
+SELF_TEST_TEMPLATE_NAMES = [
+    name for name in CORE_TEMPLATE_NAMES if name != "plan-template"
+]
+
 
 class TestIntegration:
     """Integration tests for complete preset workflows."""
@@ -126,14 +130,16 @@ class TestSelfTestPreset:
         assert manifest.id == "self-test"
         assert manifest.name == "Self-Test Preset"
         assert manifest.version == "1.0.0"
-        assert len(manifest.templates) == 9  # 7 templates + 2 commands
+        assert len(manifest.templates) == 8  # 6 templates + 2 commands
 
-    def test_self_test_provides_all_core_templates(self):
-        """Verify the self-test preset provides an override for every core template."""
+    def test_self_test_provides_all_active_core_templates(self):
+        """Verify the self-test preset overrides every active core template."""
         manifest = PresetManifest(SELF_TEST_PRESET_DIR / "preset.yml")
         provided_names = {t["name"] for t in manifest.templates}
-        for name in CORE_TEMPLATE_NAMES:
+        for name in SELF_TEST_TEMPLATE_NAMES:
             assert name in provided_names, f"Self-test preset missing template: {name}"
+        assert "plan-template" not in provided_names
+        assert not (SELF_TEST_PRESET_DIR / "templates" / "plan-template.md").exists()
 
     def test_self_test_template_files_exist(self):
         """Verify that all declared template files actually exist on disk."""
@@ -144,10 +150,28 @@ class TestSelfTestPreset:
 
     def test_self_test_templates_have_marker(self):
         """Verify each template contains the preset:self-test marker."""
-        for name in CORE_TEMPLATE_NAMES:
+        for name in SELF_TEST_TEMPLATE_NAMES:
             tmpl_path = SELF_TEST_PRESET_DIR / "templates" / f"{name}.md"
             content = tmpl_path.read_text()
             assert "preset:self-test" in content, f"{name}.md missing preset:self-test marker"
+
+    @pytest.mark.parametrize(
+        ("template_name", "expected"),
+        [
+            ("prototype-template", "<!doctype html>"),
+            ("quickstart-template", "artifact: \"user-acceptance-baseline\""),
+        ],
+    )
+    def test_self_test_specify_companion_templates_resolve(
+        self, project_dir, template_name, expected
+    ):
+        """Self-test overrides must participate in runtime template resolution."""
+        install_self_test_preset(PresetManager(project_dir))
+
+        content = PresetResolver(project_dir).resolve_content(template_name)
+
+        assert expected in content
+        assert "preset:self-test" in content
 
     def test_self_test_not_in_catalog(self):
         """Verify the self-test preset is NOT in the catalog (it's local-only)."""
@@ -452,7 +476,6 @@ CORE_CONSTITUTION_COMMAND = (
 
 LEAN_COMMAND_NAMES = [
     "speckit.specify",
-    "speckit.plan",
     "speckit.tasks",
     "speckit.implement",
     "speckit.constitution",
@@ -584,7 +607,7 @@ class TestLeanPreset:
         assert manifest.id == "lean"
         assert manifest.name == "Lean Workflow"
         assert manifest.version == "1.0.0"
-        assert len(manifest.templates) == 5  # 5 commands
+        assert len(manifest.templates) == 4  # 4 commands
 
     def test_lean_provides_core_workflow_commands(self):
         """Verify the lean preset provides overrides for core workflow commands."""
@@ -617,6 +640,32 @@ class TestLeanPreset:
             content = cmd_path.read_text()
             assert "hooks." not in content, f"{name} should not reference extension hooks"
             assert "extensions.yml" not in content, f"{name} should not reference extensions.yml"
+
+    def test_lean_task_command_preserves_contract_boundary(self):
+        tasks = (LEAN_PRESET_DIR / "commands" / "speckit.tasks.md").read_text()
+
+        assert "spec.md" in tasks
+        assert "prototype.html" in tasks
+        assert "quickstart.md" in tasks
+        assert "FR-*" in tasks
+        assert "SC-*" in tasks
+        assert "data-spec-ref" in tasks
+        assert "UAT-*" in tasks
+        assert "plan.md" not in tasks
+        assert "file path" in tasks
+
+    def test_lean_implement_command_owns_technical_choices_and_uat(self):
+        implement = (
+            LEAN_PRESET_DIR / "commands" / "speckit.implement.md"
+        ).read_text()
+
+        assert "Own the technical choices" in implement
+        assert "Status" in implement
+        assert "Actual Result" in implement
+        assert "Evidence" in implement
+        assert "Deviation" in implement
+        assert "plan.md" not in implement
+        assert not (LEAN_PRESET_DIR / "commands" / "speckit.plan.md").exists()
 
     def test_install_lean_preset(self, project_dir):
         """Test installing the lean preset from its directory."""
@@ -828,10 +877,12 @@ class TestConstitutionSyncPreset:
 
         assert "{CORE_TEMPLATE}" in body
         assert "strategy: wrap" not in body  # only in frontmatter
-        # The three governed scaffolds the old checklist propagated into.
-        assert "plan-template.md" in body
+        # The active governed scaffolds propagated into the Specify/Task/Implement flow.
         assert "spec-template.md" in body
+        assert "prototype-template.md" in body
+        assert "quickstart-template.md" in body
         assert "tasks-template.md" in body
+        assert "plan-template.md" not in body
         # Must not mutate versioned preset/extension artifacts.
         assert "Do not edit versioned preset- or extension-provided template or command files" in body
 
@@ -872,4 +923,8 @@ class TestConstitutionSyncPreset:
         # The wrapper's propagation pass is present and supersedes the guard.
         assert "## Constitution Template Sync" in content
         assert "supersedes the \"Scope Guard\" above" in content
-        assert "plan-template.md" in content
+        assert "spec-template.md" in content
+        assert "prototype-template.md" in content
+        assert "quickstart-template.md" in content
+        assert "tasks-template.md" in content
+        assert "plan-template.md" not in content

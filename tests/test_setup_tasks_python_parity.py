@@ -41,8 +41,10 @@ def test_all_variants_setup_tasks_in_bracketed_project(
 ) -> None:
     repo = _setup_repo(tmp_path / "project [v1]")
     feature = repo / "specs/001-my-feature"
-    for name in ["spec", "plan", "tasks"]:
+    for name in ["spec", "tasks"]:
         (feature / f"{name}.md").write_bytes(f"# User {name}\r\n".encode("utf-8"))
+    (feature / "prototype.html").write_bytes(b"<!doctype html>\n")
+    (feature / "quickstart.md").write_bytes(b"# UAT\n")
     before = {p: p.read_bytes() for p in feature.iterdir()}
     expected_path = repo / ".specify/templates/tasks-template.md"
     if layer == "override":
@@ -107,11 +109,12 @@ def test_installed_python_json_preserves_stock_tasks_template(
         project,
     )
     assert created.returncode == 0, created.stderr
-    plan = run(py_cmd(project, "setup-plan", "--json"), project)
-    assert plan.returncode == 0, plan.stderr
+    feature = project / json_stdout(created)["FEATURE_DIR"]
+    (feature / "prototype.html").write_text("<!doctype html>\n", encoding="utf-8")
+    (feature / "quickstart.md").write_text("# UAT\n", encoding="utf-8")
     template = project / ".specify/templates/tasks-template.md"
     expected = template.read_bytes().decode("utf-8")
-    assert "🎯" in expected
+    assert "[UAT]" in expected
     env = clean_env()
     env["PYTHONIOENCODING"] = "cp1252"
 
@@ -121,7 +124,11 @@ def test_installed_python_json_preserves_stock_tasks_template(
     payload = json_stdout(result)
     assert payload["TASKS_TEMPLATE_CONTENT"] == expected
     assert Path(payload["TASKS_TEMPLATE"]) == template
-    assert payload["AVAILABLE_DOCS"] == []
+    assert payload["AVAILABLE_DOCS"] == [
+        "spec.md",
+        "prototype.html",
+        "quickstart.md",
+    ]
 
 
 def _setup_repo(tmp_path: Path) -> Path:
@@ -130,8 +137,9 @@ def _setup_repo(tmp_path: Path) -> Path:
     write_feature_json(repo)
     feature = repo / "specs" / "001-my-feature"
     feature.mkdir(parents=True)
-    (feature / "plan.md").write_text("# plan\n", encoding="utf-8")
     (feature / "spec.md").write_text("# spec\n", encoding="utf-8")
+    (feature / "prototype.html").write_text("<!doctype html>\n", encoding="utf-8")
+    (feature / "quickstart.md").write_text("# UAT\n", encoding="utf-8")
     templates = repo / ".specify" / "templates"
     templates.mkdir(parents=True)
     (templates / "tasks-template.md").write_text("# Tasks Template\n", encoding="utf-8")
@@ -160,11 +168,6 @@ def test_powershell_json_preserves_non_ascii_template_on_legacy_stdout(repo: Pat
 @requires_bash
 def test_python_json_output_matches_bash(repo: Path) -> None:
     feature = repo / "specs" / "001-my-feature"
-    (feature / "research.md").write_text("# research\n", encoding="utf-8")
-    (feature / "data-model.md").write_text("# model\n", encoding="utf-8")
-    (feature / "quickstart.md").write_text("# quickstart\n", encoding="utf-8")
-    (feature / "contracts" / "v1").mkdir(parents=True)
-
     bash = run(bash_cmd(repo, SCRIPT, "--json"), repo)
     py = run(py_cmd(repo, SCRIPT, "--json"), repo)
 
@@ -176,9 +179,6 @@ def test_python_json_output_matches_bash(repo: Path) -> None:
 @requires_bash
 def test_python_text_output_matches_bash(repo: Path) -> None:
     feature = repo / "specs" / "001-my-feature"
-    (feature / "research.md").write_text("# research\n", encoding="utf-8")
-    (feature / "contracts").mkdir()  # present but empty -> reported missing
-
     bash = run(bash_cmd(repo, SCRIPT), repo)
     py = run(py_cmd(repo, SCRIPT), repo)
 
@@ -240,8 +240,8 @@ def test_all_variants_fail_for_broken_tasks_composition(repo: Path) -> None:
 @requires_bash
 @pytest.mark.parametrize(
     "missing",
-    ["plan.md", "spec.md", "tasks-template"],
-    ids=["missing_plan", "missing_spec", "missing_tasks_template"],
+    ["spec.md", "prototype.html", "quickstart.md", "tasks-template"],
+    ids=["missing_spec", "missing_prototype", "missing_quickstart", "missing_tasks_template"],
 )
 def test_python_error_output_matches_bash(repo: Path, missing: str) -> None:
     if missing == "tasks-template":
@@ -333,9 +333,6 @@ def test_all_variants_feature_context_error_matches(
 @pytest.mark.skipif(not HAS_POWERSHELL, reason="no PowerShell available")
 def test_python_json_output_matches_powershell(repo: Path) -> None:
     feature = repo / "specs" / "001-my-feature"
-    (feature / "research.md").write_text("# research\n", encoding="utf-8")
-    (feature / "contracts" / "v1").mkdir(parents=True)
-
     ps = run(ps_cmd(repo, SCRIPT, "-Json"), repo)
     py = run(py_cmd(repo, SCRIPT, "--json"), repo)
 
@@ -368,15 +365,12 @@ def test_python_text_output_survives_a_legacy_stdout_code_page(repo: Path) -> No
     scripts/powershell/common.ps1, and normalize_status_text).
     """
     feature = repo / "specs" / "001-my-feature"
-    (feature / "research.md").write_text("# research\n", encoding="utf-8")
-    (feature / "contracts").mkdir()
-
     env = clean_env()
     env["PYTHONIOENCODING"] = "cp1252"
     result = run(py_cmd(repo, SCRIPT), repo, env=env)
 
     assert result.returncode == 0, result.stderr
     assert "UnicodeEncodeError" not in result.stderr
-    for doc in ("research.md", "data-model.md", "contracts/", "quickstart.md"):
+    for doc in ("spec.md", "prototype.html", "quickstart.md"):
         assert doc in result.stdout, (doc, result.stdout)
-    assert "[OK] research.md" in normalize_status_text(result.stdout), result.stdout
+    assert "[OK] spec.md" in normalize_status_text(result.stdout), result.stdout

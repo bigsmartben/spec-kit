@@ -122,7 +122,7 @@ class HermesIntegration(SkillsIntegration):
             raw = src_file.read_text(encoding="utf-8")
 
             # Derive the skill name from the template stem
-            command_name = src_file.stem  # e.g. "plan"
+            command_name = src_file.stem  # e.g. "tasks"
             skill_name = f"speckit-{command_name.replace('.', '-')}"
 
             # Parse frontmatter for description. Locate the closing ``---`` on

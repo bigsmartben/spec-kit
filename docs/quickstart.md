@@ -32,22 +32,18 @@ starting either path.
 **Shorter path** — for smaller features:
 
 1. `/speckit-specify`
-2. `/speckit-plan`
-3. `/speckit-tasks`
-4. `/speckit-implement`
-5. `/speckit-converge`
+2. `/speckit-tasks`
+3. `/speckit-implement`
 
 **Full path** — for production features, adding `/speckit-clarify`, `/speckit-checklist`, and `/speckit-analyze` as quality gates:
 
 1. `/speckit-constitution` (once per project)
 2. `/speckit-specify`
 3. `/speckit-clarify`
-4. `/speckit-plan`
-5. `/speckit-checklist`
-6. `/speckit-tasks`
-7. `/speckit-analyze`
-8. `/speckit-implement`
-9. `/speckit-converge`
+4. `/speckit-checklist`
+5. `/speckit-tasks`
+6. `/speckit-analyze`
+7. `/speckit-implement`
 
 ### Install Specify
 
@@ -100,25 +96,17 @@ it does not execute or mark UAT as passed.
 
 ### Step 3: `/speckit-clarify` — resolve ambiguities
 
-Asks targeted questions about anything underspecified and folds your answers back into the spec, so you're not planning on top of ambiguity. Run it before planning, optionally with a focus area.
+Asks targeted questions about anything underspecified and folds the answers back
+into the frozen Specify contract. Run it before task generation, optionally with
+a focus area.
 
 ```text
 /speckit-clarify Focus on task card behavior — status changes, comment permissions, and user assignment.
 ```
 
-<a id="step-4-speckitplan--choose-the-tech-stack"></a>
+<a id="step-4-speckitchecklist--validate-the-spec"></a>
 
-### Step 4: `/speckit-plan` — choose the tech stack
-
-Generates the design artifacts from the spec. This is where implementation detail belongs — provide your tech stack and architecture.
-
-```text
-/speckit-plan Use .NET Aspire with Postgres. The frontend is Blazor Server with drag-and-drop boards and real-time updates. Expose REST APIs for projects, tasks, and notifications.
-```
-
-<a id="step-5-speckitchecklist--validate-the-spec"></a>
-
-### Step 5: `/speckit-checklist` — validate the spec
+### Step 4: `/speckit-checklist` — validate the spec
 
 Generates a custom quality checklist — "unit tests for your requirements" — to confirm the spec is complete, clear, and consistent before you break the work down. These custom checklists are reviewer-owned requirements-quality review artifacts: mark an item `[x]` only when the reviewer determines that requirement-quality criterion is satisfied. Checked custom items do not mean implementation work is complete.
 
@@ -126,56 +114,73 @@ Generates a custom quality checklist — "unit tests for your requirements" — 
 /speckit-checklist
 ```
 
-<a id="step-6-speckittasks--break-the-work-down"></a>
+<a id="step-5-speckittasks--break-the-work-down"></a>
 
-### Step 6: `/speckit-tasks` — break the work down
+### Step 5: `/speckit-tasks` — break the work down
 
-Generates an actionable, dependency-ordered `tasks.md` from the design artifacts.
+Reads only `spec.md`, `prototype.html`, `quickstart.md`, and the project
+constitution. It creates independently deliverable requirement-level work
+packages in `tasks.md` without choosing a stack, architecture, files, or
+implementation paths. Every `FR-*`, `SC-*`, prototype `data-spec-ref`, and
+`UAT-*` must map to at least one package.
+
+If the frozen contract is internally inconsistent or a required mapping is
+missing, Task stops and sends the issue back to Specify or Clarify. It does not
+invent requirements or technical design to fill the gap.
 
 ```text
 /speckit-tasks
 ```
 
-<a id="step-7-speckitanalyze--check-consistency"></a>
+<a id="step-6-speckitanalyze--check-consistency"></a>
 
-### Step 7: `/speckit-analyze` — check consistency
+### Step 6: `/speckit-analyze` — check consistency
 
-Reports conflicts, gaps, and ambiguities across `spec.md`, `plan.md`, and `tasks.md`. It's read-only — if it flags issues, fix them at the source and re-run before implementing.
+Reports conflicts, gaps, and ambiguities across `spec.md`, `prototype.html`,
+`quickstart.md`, and `tasks.md`. It is read-only. Return requirement, prototype,
+or UAT problems to Specify or Clarify, and return coverage or neutrality
+problems to Task before implementing.
 
 ```text
 /speckit-analyze
 ```
 
-<a id="step-8-speckitimplement--build-it"></a>
+<a id="step-7-speckitimplement--build-it"></a>
 
-### Step 8: `/speckit-implement` — build it
+### Step 7: `/speckit-implement` — build it
 
-Executes the tasks in `tasks.md` in dependency order. Before implementation, it reads checklist checkbox state as a gate and asks before proceeding if any checklist items are unchecked; it does not change any checklist files or markers. The built-in `checklists/requirements.md` checklist is maintained by `/speckit-specify` and `/speckit-clarify`, while custom checklists remain reviewer-owned. Run it once to build everything, or scope it to one phase at a time for large features.
+Owns the technical decisions: the stack, architecture, file structure, and
+implementation paths. It executes the work packages in `tasks.md` in dependency
+order and performs the mapped UAT scenarios.
+
+Before implementation, it reads checklist checkbox state as a gate and asks
+before proceeding if any checklist items are unchecked; it does not change any
+checklist files or markers. The built-in `checklists/requirements.md` checklist
+is maintained by `/speckit-specify` and `/speckit-clarify`, while custom
+checklists remain reviewer-owned.
+
+Within `quickstart.md`, Implement updates only the corresponding UAT entry's
+`Status`, `Actual Result`, `Evidence`, and `Deviation` fields. It must not change
+the frozen requirements, actions, expected results, references, or identifiers.
+Run it once to build everything, or scope it to a set of work packages at a time.
 
 ```text
 /speckit-implement
 ```
 
-<a id="step-9-speckitconverge--verify-completeness"></a>
-
-### Step 9: `/speckit-converge` — verify completeness
-
-Checks the codebase against the spec, plan, and tasks. If it finds gaps, it appends new tasks to `tasks.md`; run `/speckit-implement` and converge again until it reports **Converged**. Otherwise you're done — proceed to review or open a PR.
-
-```text
-/speckit-converge
-```
-
 > [!TIP]
-> For a full reference on each command — arguments, output, phased implementation, and how they interact — see [Agentic SDD](reference/agentic-sdd.md).
+> For a full reference on each command — arguments, outputs, work-package
+> boundaries, UAT ownership, and how the commands interact — see
+> [Agentic SDD](reference/agentic-sdd.md).
 
 ## Key Principles
 
 - **Be explicit** about what you're building and why
 - **Don't focus on tech stack** during specification phase
-- **Iterate and refine** your specifications before implementation
-- **Validate** requirements and plans before coding begins
-- **Let the coding agent handle** the implementation details
+- **Freeze** requirements, prototype behavior, and UAT expectations before task generation
+- **Keep Task technology-neutral** and route contract conflicts back to Specify
+- **Validate** full FR, SC, prototype, and UAT coverage before coding
+- **Let Implement own** architecture, files, implementation paths, and UAT evidence
 
 ## Next Steps
 

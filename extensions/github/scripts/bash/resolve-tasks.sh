@@ -6,10 +6,9 @@
 # `speckit.github.taskstoissues` keeps working when the core `taskstoissues`
 # command (and its `check-prerequisites` helper invocation) is deprecated and
 # removed. It is a trimmed twin of core `check-prerequisites.sh` — it resolves
-# the project root and the active feature directory, requires plan.md and
-# tasks.md exactly as core's `--require-tasks --include-tasks` invocation does,
-# and reports the optional design docs that sit next to them. Core does not
-# require spec.md for this command, so neither does this script.
+# the project root and the active feature directory, requires tasks.md, and
+# reports the optional design docs that sit next to it. Neither spec.md nor a
+# historical plan.md is required for this command.
 #
 # Usage: ./resolve-tasks.sh [--json]
 #
@@ -218,13 +217,6 @@ fi
 if [[ ! -d "$FEATURE_DIR" ]]; then
     echo "ERROR: Feature directory not found: $FEATURE_DIR" >&2
     echo "Run the Spec Kit specify command first to create the feature structure." >&2
-    exit 1
-fi
-
-IMPL_PLAN="$FEATURE_DIR/plan.md"
-if [[ ! -f "$IMPL_PLAN" ]]; then
-    echo "ERROR: plan.md not found in $FEATURE_DIR" >&2
-    echo "Run the Spec Kit plan command first to create the implementation plan." >&2
     exit 1
 fi
 

@@ -80,6 +80,12 @@ class TestExtensionLayout:
         assert manifest["extension"]["id"] == "agent-context"
         assert manifest["extension"]["name"] == "Coding Agent Context"
         assert manifest["extension"]["author"] == "spec-kit-core"
+        assert manifest["extension"]["version"] == "1.0.4"
+        assert set(manifest["hooks"]) == {
+            "after_specify",
+            "after_tasks",
+            "after_implement",
+        }
         # Provides at least the manual update command
         commands = {c["name"] for c in manifest["provides"]["commands"]}
         assert "speckit.agent-context.update" in commands
@@ -100,7 +106,11 @@ class TestExtensionLayout:
     def test_command_file_exists(self):
         cmd = EXT_DIR / "commands" / "speckit.agent-context.update.md"
         assert cmd.is_file()
-        assert "agent-context-config.yml" in cmd.read_text(encoding="utf-8")
+        text = cmd.read_text(encoding="utf-8")
+        assert "agent-context-config.yml" in text
+        assert "feature_directory" in text
+        for artifact in ("spec.md", "prototype.html", "quickstart.md", "tasks.md"):
+            assert artifact in text
 
     def test_command_file_documents_context_file_constraints(self):
         text = (
@@ -136,6 +146,8 @@ class TestCatalogEntry:
         assert entry["bundled"] is True
         assert entry["id"] == "agent-context"
         assert entry["author"] == "spec-kit-core"
+        manifest = yaml.safe_load((EXT_DIR / "extension.yml").read_text())
+        assert entry["version"] == manifest["extension"]["version"]
 
 
 
@@ -423,8 +435,8 @@ class TestBundledUpdaterPathValidation:
         assert "agent-context: updated agents.md" not in output
 
     @requires_bash
-    def test_bash_script_discovers_nested_plan(self, tmp_path):
-        """Plan discovery recurses into scoped layouts (#3024)."""
+    def test_bash_script_discovers_nested_feature_contract(self, tmp_path):
+        """Contract discovery recurses into scoped feature layouts."""
         project = tmp_path / "project"
         project.mkdir()
         _install_agent_context_config(
@@ -432,18 +444,21 @@ class TestBundledUpdaterPathValidation:
             context_file="AGENTS.md",
             context_files=[],
         )
-        plan = project / "specs" / "scope" / "001-feature" / "plan.md"
-        plan.parent.mkdir(parents=True)
-        plan.write_text("# Plan\n", encoding="utf-8")
+        feature = project / "specs" / "scope" / "001-feature"
+        feature.mkdir(parents=True)
+        (feature / "spec.md").write_text("# Spec\n", encoding="utf-8")
+        (feature / "prototype.html").write_text("<!doctype html>\n", encoding="utf-8")
+        (feature / "quickstart.md").write_text("# UAT\n", encoding="utf-8")
+        (feature / "tasks.md").write_text("- [ ] WP001\n", encoding="utf-8")
 
         result = _run_bash_agent_context_script(project)
 
         assert result.returncode == 0, result.stderr + result.stdout
         text = (project / "AGENTS.md").read_text(encoding="utf-8")
-        # The old one-level glob (specs/*/plan.md) would find nothing here, so no
-        # "at" line would be emitted. Normalize separators before matching: on
-        # MSYS bash the emitted path may be absolute with backslashes.
-        assert "specs/scope/001-feature/plan.md" in text.replace("\\", "/")
+        normalized = text.replace("\\", "/")
+        for artifact in ("spec.md", "prototype.html", "quickstart.md", "tasks.md"):
+            assert f"specs/scope/001-feature/{artifact}" in normalized
+        assert "plan.md" not in normalized
 
     @requires_bash
     def test_bash_script_falls_back_from_invalid_speckit_python(self, tmp_path):
@@ -518,8 +533,8 @@ class TestBundledUpdaterPathValidation:
         assert "agent-context: updated agents.md" not in output
 
     @pytest.mark.skipif(WINDOWS_POWERSHELL is None, reason="PowerShell not available")
-    def test_powershell_script_discovers_nested_plan(self, tmp_path):
-        """Plan discovery recurses into scoped layouts (#3024).
+    def test_powershell_script_discovers_nested_feature_contract(self, tmp_path):
+        """Contract discovery recurses into scoped layouts.
 
         The relative-path fix this covers is specific to Windows PowerShell 5.1
         (.NET Framework), so prefer ``powershell.exe`` over ``pwsh`` here to
@@ -532,9 +547,12 @@ class TestBundledUpdaterPathValidation:
             context_file="AGENTS.md",
             context_files=[],
         )
-        plan = project / "specs" / "scope" / "001-feature" / "plan.md"
-        plan.parent.mkdir(parents=True)
-        plan.write_text("# Plan\n", encoding="utf-8")
+        feature = project / "specs" / "scope" / "001-feature"
+        feature.mkdir(parents=True)
+        (feature / "spec.md").write_text("# Spec\n", encoding="utf-8")
+        (feature / "prototype.html").write_text("<!doctype html>\n", encoding="utf-8")
+        (feature / "quickstart.md").write_text("# UAT\n", encoding="utf-8")
+        (feature / "tasks.md").write_text("- [ ] WP001\n", encoding="utf-8")
 
         result = _run_powershell_agent_context_script(
             project, powershell=WINDOWS_POWERSHELL
@@ -542,7 +560,8 @@ class TestBundledUpdaterPathValidation:
 
         assert result.returncode == 0, result.stderr + result.stdout
         text = (project / "AGENTS.md").read_text(encoding="utf-8")
-        assert "at specs/scope/001-feature/plan.md" in text
+        for artifact in ("spec.md", "prototype.html", "quickstart.md", "tasks.md"):
+            assert f"specs/scope/001-feature/{artifact}" in text.replace("\\", "/")
 
     @pytest.mark.skipif(POWERSHELL is None, reason="PowerShell not available")
     def test_powershell_script_falls_back_from_invalid_speckit_python(self, tmp_path):
@@ -748,29 +767,28 @@ class TestExtensionSelfSeed:
 _MDC_CONTEXT_FILE = ".cursor/rules/specify-rules.mdc"
 
 
-class TestPlanDiscovery:
-    """Mtime fallback must find plans in nested spec layouts (#3024).
-
-    Repos using SPECIFY_FEATURE_DIRECTORY place plans at
-    ``specs/<scope>/<feature>/plan.md``; a one-level ``specs/*/plan.md``
-    glob never matches those.
-    """
+class TestFeatureDiscovery:
+    """Fallback discovery finds complete contracts in scoped layouts."""
 
     @staticmethod
-    def _make_plans(project: Path) -> Path:
-        # Older flat plan plus a newer nested plan: recursive discovery
-        # must pick the nested one by mtime.
-        flat = project / "specs" / "old-feature" / "plan.md"
+    def _make_features(project: Path) -> Path:
+        flat = project / "specs" / "old-feature" / "spec.md"
         flat.parent.mkdir(parents=True)
-        flat.write_text("flat plan\n", encoding="utf-8")
+        flat.write_text("flat spec\n", encoding="utf-8")
         os.utime(flat, (1_000_000_000, 1_000_000_000))
-        nested = project / "specs" / "scope" / "new-feature" / "plan.md"
+        nested = project / "specs" / "scope" / "new-feature" / "spec.md"
         nested.parent.mkdir(parents=True)
-        nested.write_text("nested plan\n", encoding="utf-8")
+        nested.write_text("nested spec\n", encoding="utf-8")
+        for name, content in (
+            ("prototype.html", "<!doctype html>\n"),
+            ("quickstart.md", "# UAT\n"),
+            ("tasks.md", "- [ ] WP001\n"),
+        ):
+            (nested.parent / name).write_text(content, encoding="utf-8")
         return nested
 
     @requires_bash
-    def test_bash_script_finds_nested_plan(self, tmp_path):
+    def test_bash_script_finds_nested_feature(self, tmp_path):
         project = tmp_path / "project"
         project.mkdir()
         _install_agent_context_config(
@@ -778,16 +796,17 @@ class TestPlanDiscovery:
             context_file="AGENTS.md",
             context_files=["AGENTS.md"],
         )
-        self._make_plans(project)
+        self._make_features(project)
 
         result = _run_bash_agent_context_script(project)
 
         assert result.returncode == 0, result.stderr + result.stdout
         content = (project / "AGENTS.md").read_text(encoding="utf-8")
-        assert "specs/scope/new-feature/plan.md" in content
+        assert "specs/scope/new-feature/spec.md" in content
+        assert "plan.md" not in content
 
     @pytest.mark.skipif(POWERSHELL is None, reason="PowerShell not available")
-    def test_powershell_script_finds_nested_plan(self, tmp_path):
+    def test_powershell_script_finds_nested_feature(self, tmp_path):
         project = tmp_path / "project"
         project.mkdir()
         _install_agent_context_config(
@@ -795,13 +814,14 @@ class TestPlanDiscovery:
             context_file="AGENTS.md",
             context_files=["AGENTS.md"],
         )
-        self._make_plans(project)
+        self._make_features(project)
 
         result = _run_powershell_agent_context_script(project)
 
         assert result.returncode == 0, result.stderr + result.stdout
         content = (project / "AGENTS.md").read_text(encoding="utf-8")
-        assert "specs/scope/new-feature/plan.md" in content
+        assert "specs/scope/new-feature/spec.md" in content
+        assert "plan.md" not in content
 
 
 class TestMdcFrontmatter:

@@ -129,12 +129,9 @@ class FeaturePaths:
     current_branch: str
     feature_dir: Path
     feature_spec: Path
-    impl_plan: Path
+    prototype: Path
     tasks: Path
-    research: Path
-    data_model: Path
     quickstart: Path
-    contracts_dir: Path
 
 
 def get_feature_paths(
@@ -184,12 +181,9 @@ def get_feature_paths(
         current_branch=current_branch,
         feature_dir=feature_dir,
         feature_spec=feature_dir / "spec.md",
-        impl_plan=feature_dir / "plan.md",
+        prototype=feature_dir / "prototype.html",
         tasks=feature_dir / "tasks.md",
-        research=feature_dir / "research.md",
-        data_model=feature_dir / "data-model.md",
         quickstart=feature_dir / "quickstart.md",
-        contracts_dir=feature_dir / "contracts",
     )
 
 

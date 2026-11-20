@@ -26,7 +26,7 @@ process, customize it, or bring your own.
 
 | What you need | Process | Outcome |
 | --- | --- | --- |
-| Build a feature or application | [Spec-Driven Development](#spec-driven-development) | A specification carried through planning, implementation, and convergence |
+| Build a feature or application | [Spec-Driven Development](#spec-driven-development) | A frozen product contract carried into work packages, implementation, and UAT evidence |
 | Diagnose and repair broken behavior | [Bug fixing](#bug-fixing) | An assessed cause, scoped fix, and recorded verification |
 | Decide whether an idea deserves investment | [Idea assessment](#idea-assessment) | An evidence-backed go, clarify, or stop decision |
 | Adopt or create a different process | [Your own process](#capabilities) | A process adapted or assembled from reusable primitives |
@@ -99,8 +99,8 @@ For other setups:
 
 ## Spec-Driven Development
 
-Define what to build and why, then turn the specification into a plan, tasks,
-and working code.
+Define what to build and why, freeze the observable contract, and carry it into
+independently deliverable work packages and working code.
 
 The minimal flow is shown below. Create a constitution once per project and
 repeat the remaining steps for each feature. Run these skills in your agent's
@@ -112,14 +112,20 @@ use its [equivalent invocation syntax](https://github.github.io/spec-kit/integra
 ```text
 /speckit-constitution Create principles focused on code quality, testing, and maintainability.
 /speckit-specify Build a photo organizer with albums grouped by date and a tile preview of each album.
-/speckit-plan Use Vite with vanilla JavaScript. Keep images local and store metadata in SQLite.
 /speckit-tasks
 /speckit-implement
-/speckit-converge
 ```
 
-Repeat implement and converge until convergence reports `Converged`.
-For clarification, checklists, and consistency analysis, see the SDD walkthrough.
+Specify freezes `spec.md`, `prototype.html`, and the pending UAT baseline in
+`quickstart.md`. Task reads only that contract and the constitution, produces
+technology-neutral work packages with complete requirement and UAT coverage,
+and sends conflicts or missing mappings back to Specify. Implement owns the
+technical decisions, executes those packages and their UAT cases, and records
+only `Status`, `Actual Result`, `Evidence`, and `Deviation` in the matching UAT
+entries.
+
+For clarification, checklists, and consistency analysis, see the SDD
+walkthrough.
 
 [SDD walkthrough](https://github.github.io/spec-kit/quickstart.html) ·
 [Command reference](https://github.github.io/spec-kit/reference/agentic-sdd.html)

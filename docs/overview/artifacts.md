@@ -42,13 +42,13 @@ Prints the full inventory of every visible artifact — one row per `(kind, name
     ]
   },
   {
-    "id": "script:setup-plan",
-    "name": "setup-plan",
+    "id": "script:setup-tasks",
+    "name": "setup-tasks",
     "kind": "script",
-    "description": "Setup implementation plan for a feature.",
+    "description": "Set up task generation for a feature.",
     "stack": [
       {
-        "id": "script:setup-plan",
+        "id": "script:setup-tasks",
         "layer": null,
         "sourceId": null,
         "presetId": null,

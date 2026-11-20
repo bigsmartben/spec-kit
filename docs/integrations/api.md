@@ -52,10 +52,10 @@ Import these classes from `specify_cli.integrations.base`:
 
 | Base | Installed format | Typical command path |
 | --- | --- | --- |
-| `MarkdownIntegration` | Markdown commands | `commands/speckit.plan.md` |
-| `TomlIntegration` | TOML commands | `commands/speckit.plan.toml` |
-| `YamlIntegration` | YAML recipes | `recipes/speckit.plan.yaml` |
-| `SkillsIntegration` | Agent skills | `skills/speckit-plan/SKILL.md` |
+| `MarkdownIntegration` | Markdown commands | `commands/speckit.tasks.md` |
+| `TomlIntegration` | TOML commands | `commands/speckit.tasks.toml` |
+| `YamlIntegration` | YAML recipes | `recipes/speckit.tasks.yaml` |
+| `SkillsIntegration` | Agent skills | `skills/speckit-tasks/SKILL.md` |
 | `IntegrationBase` | Custom layout | Defined by the adapter |
 
 Paths in the table are examples beneath the configured agent folder. Format

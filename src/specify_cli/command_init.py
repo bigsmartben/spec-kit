@@ -1230,16 +1230,13 @@ def register(app: typer.Typer) -> None:
             f"   {step_num}.2 [cyan]{_display_cmd('specify')}[/] - Create baseline specification"
         )
         steps_lines.append(
-            f"   {step_num}.3 [cyan]{_display_cmd('plan')}[/] - Create implementation plan"
+            f"   {step_num}.3 [cyan]{_display_cmd('tasks')}[/] - Generate traceable work packages"
         )
         steps_lines.append(
-            f"   {step_num}.4 [cyan]{_display_cmd('tasks')}[/] - Generate actionable tasks"
+            f"   {step_num}.4 [cyan]{_display_cmd('implement')}[/] - Choose the technical approach and execute implementation"
         )
         steps_lines.append(
-            f"   {step_num}.5 [cyan]{_display_cmd('implement')}[/] - Execute implementation"
-        )
-        steps_lines.append(
-            f"   {step_num}.6 [cyan]{_display_cmd('converge')}[/] - Assess the codebase and append remaining work as tasks"
+            f"   {step_num}.5 [cyan]{_display_cmd('converge')}[/] - Assess the codebase and append remaining work as tasks"
         )
 
         steps_panel = Panel(
@@ -1259,9 +1256,9 @@ def register(app: typer.Typer) -> None:
         enhancement_lines = [
             enhancement_intro,
             "",
-            f"○ [cyan]{_display_cmd('clarify')}[/] [bright_black](optional)[/bright_black] - Ask structured questions to de-risk ambiguous areas before planning (run before [cyan]{_display_cmd('plan')}[/] if used)",
+            f"○ [cyan]{_display_cmd('clarify')}[/] [bright_black](optional)[/bright_black] - Ask structured questions to de-risk ambiguous areas (run before [cyan]{_display_cmd('tasks')}[/] if used)",
             f"○ [cyan]{_display_cmd('analyze')}[/] [bright_black](optional)[/bright_black] - Cross-artifact consistency & alignment report (after [cyan]{_display_cmd('tasks')}[/], before [cyan]{_display_cmd('implement')}[/])",
-            f"○ [cyan]{_display_cmd('checklist')}[/] [bright_black](optional)[/bright_black] - Generate quality checklists to validate requirements completeness, clarity, and consistency (after [cyan]{_display_cmd('plan')}[/])",
+            f"○ [cyan]{_display_cmd('checklist')}[/] [bright_black](optional)[/bright_black] - Generate quality checklists to validate requirements completeness, clarity, and consistency (after [cyan]{_display_cmd('specify')}[/])",
         ]
         enhancements_title = (
             "Enhancement Skills" if native_skill_mode else "Enhancement Commands"

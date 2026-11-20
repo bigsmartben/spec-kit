@@ -28,7 +28,7 @@
   </style>
 </head>
 <body>
-  <main data-spec-ref="US-001:self-test">
+  <main data-spec-ref="US1:self-test">
     <h1>[PAGE TITLE]</h1>
     <p>[USER-VISIBLE BEHAVIOR]</p>
   </main>

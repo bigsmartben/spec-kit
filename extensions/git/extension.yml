@@ -3,7 +3,7 @@ schema_version: "1.0"
 extension:
   id: git
   name: "Git Branching Workflow"
-  version: "1.0.8"
+  version: "1.0.9"
   description: "Feature branch creation, numbering (sequential/timestamp), templating, validation, and Git remote detection"
   author: spec-kit-core
   repository: https://github.com/github/spec-kit
@@ -53,11 +53,6 @@ hooks:
     optional: true
     prompt: "Commit outstanding changes before clarification?"
     description: "Auto-commit before spec clarification"
-  before_plan:
-    command: speckit.git.commit
-    optional: true
-    prompt: "Commit outstanding changes before planning?"
-    description: "Auto-commit before implementation planning"
   before_tasks:
     command: speckit.git.commit
     optional: true
@@ -98,11 +93,6 @@ hooks:
     optional: true
     prompt: "Commit clarification changes?"
     description: "Auto-commit after spec clarification"
-  after_plan:
-    command: speckit.git.commit
-    optional: true
-    prompt: "Commit plan changes?"
-    description: "Auto-commit after implementation planning"
   after_tasks:
     command: speckit.git.commit
     optional: true

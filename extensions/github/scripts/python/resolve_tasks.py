@@ -5,10 +5,9 @@ Deliberately self-contained: the github extension owns this script so that
 ``speckit.github.taskstoissues`` keeps working when the core ``taskstoissues``
 command (and its ``check_prerequisites`` helper invocation) is deprecated and
 removed. It is a trimmed twin of core ``check_prerequisites.py`` -- it resolves
-the project root and the active feature directory, requires ``plan.md`` and
-``tasks.md`` exactly as core's ``--require-tasks --include-tasks`` invocation
-does, and reports the optional design docs that sit next to them. Core does not
-require ``spec.md`` for this command, so neither does this script.
+the project root and the active feature directory, requires ``tasks.md``, and
+reports the optional design docs that sit next to it. Neither ``spec.md`` nor a
+historical ``plan.md`` is required for this command.
 """
 
 from __future__ import annotations
@@ -208,14 +207,6 @@ def main(argv: list[str]) -> int:
             f"ERROR: Feature directory not found: {feature_dir}",
             "Run the Spec Kit specify command first to "
             "create the feature structure.",
-        )
-
-    impl_plan = feature_dir / "plan.md"
-    if not impl_plan.is_file():
-        _die(
-            f"ERROR: plan.md not found in {feature_dir}",
-            "Run the Spec Kit plan command first to "
-            "create the implementation plan.",
         )
 
     tasks = feature_dir / "tasks.md"

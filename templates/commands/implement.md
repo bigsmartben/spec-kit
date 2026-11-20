@@ -1,9 +1,9 @@
 ---
-description: Execute the implementation plan by processing and executing all tasks defined in tasks.md
+description: Implement the task work package, own the technical approach, and execute UAT
 scripts:
-  sh: scripts/bash/check-prerequisites.sh --json --require-tasks --include-tasks
-  ps: scripts/powershell/check-prerequisites.ps1 -Json -RequireTasks -IncludeTasks
-  py: scripts/python/check_prerequisites.py --json --require-tasks --include-tasks
+  sh: scripts/bash/check-prerequisites.sh --json --require-contract --require-tasks --include-tasks
+  ps: scripts/powershell/check-prerequisites.ps1 -Json -RequireContract -RequireTasks -IncludeTasks
+  py: scripts/python/check_prerequisites.py --json --require-contract --require-tasks --include-tasks
 ---
 
 ## User Input
@@ -89,12 +89,13 @@ You **MUST** consider the user input before proceeding (if not empty).
 
 3. Load and analyze the implementation context:
    - **REQUIRED**: Read tasks.md for the complete task list and execution plan
-   - **REQUIRED**: Read plan.md for tech stack, architecture, and file structure
-   - **IF EXISTS**: Read data-model.md for entities and relationships
-   - **IF EXISTS**: Read contracts/ for API specifications and test requirements
-   - **IF EXISTS**: Read research.md for technical decisions and constraints
+   - **REQUIRED**: Read spec.md for requirements, stories, and success criteria
+   - **REQUIRED**: Read prototype.html for visible behavior and state contracts
+   - **REQUIRED**: Read quickstart.md for UAT scenarios and expected results
    - **IF EXISTS**: Read /memory/constitution.md for governance constraints
-   - **IF EXISTS**: Read quickstart.md for integration scenarios
+   - Do not use `plan.md`, data-model, research, or API-contract artifacts as
+     authority. Task owns work decomposition; Implement owns the technical
+     design and may choose the repository structures required by the task.
 
 4. **Project Setup Verification**:
    - **REQUIRED**: Create/verify ignore files based on actual project setup:
@@ -106,7 +107,7 @@ You **MUST** consider the user input before proceeding (if not empty).
      git rev-parse --git-dir 2>/dev/null
      ```
 
-   - Check if Dockerfile* exists or Docker in plan.md → create/verify .dockerignore
+   - Check if Dockerfile* exists or the chosen implementation uses Docker -> create/verify .dockerignore
    - Check if .eslintrc* exists → create/verify .eslintignore
    - Check if eslint.config.* exists → ensure the config's `ignores` entries cover required patterns
    - Check if .prettierrc* exists → create/verify .prettierignore
@@ -117,7 +118,8 @@ You **MUST** consider the user input before proceeding (if not empty).
    **If ignore file already exists**: Verify it contains essential patterns, append missing critical patterns only
    **If ignore file missing**: Create with full pattern set for detected technology
 
-   **Common Patterns by Technology** (from plan.md tech stack):
+   **Common Patterns by Technology** (selected by Implement and detected in the
+   repository):
    - **Node.js/JavaScript/TypeScript**: `node_modules/`, `dist/`, `build/`, `*.log`, `.env*`
    - **Python**: `__pycache__/`, `*.pyc`, `.venv/`, `venv/`, `dist/`, `*.egg-info/`
    - **Java**: `target/`, `*.class`, `*.jar`, `.gradle/`, `build/`
@@ -141,24 +143,43 @@ You **MUST** consider the user input before proceeding (if not empty).
    - **Kubernetes/k8s**: `*.secret.yaml`, `secrets/`, `.kube/`, `kubeconfig*`, `*.key`, `*.crt`
 
 5. Parse tasks.md structure and extract:
-   - **Task phases**: Setup, Tests, Core, Integration, Polish
-   - **Task dependencies**: Sequential vs parallel execution rules
-   - **Task details**: ID, description, file paths, parallel markers [P]
+   - **Task phases**: user-story delivery, cross-story obligations, and UAT
+   - **Task dependencies**: Sequential vs parallel execution rules by task ID
+   - **Task details**: ID, type (`[BUILD]` or `[UAT]`), story, exact source
+     references, completion condition, and parallel markers `[P]`
    - **Execution flow**: Order and dependency requirements
+   - Optional file paths in legacy/custom tasks are hints only; generate and
+     own file paths for the core work packages during implementation.
 
 6. Execute implementation following the task plan:
    - **Phase-by-phase execution**: Complete each phase before moving to the next
    - **Respect dependencies**: Run sequential tasks in order, parallel tasks [P] can run together
    - **Follow TDD approach**: Execute test tasks before their corresponding implementation tasks
-   - **File-based coordination**: Tasks affecting the same files must run sequentially
+   - **File-based coordination**: After choosing implementation paths, run
+     tasks affecting the same files sequentially even if the requirement-level
+     work packages were otherwise independent
    - **Validation checkpoints**: Verify each phase completion before proceeding
 
 7. Implementation execution rules:
-   - **Setup first**: Initialize project structure, dependencies, configuration
-   - **Tests before code**: If you need to write tests for contracts, entities, and integration scenarios
-   - **Core development**: Implement models, services, CLI commands, endpoints
-   - **Integration work**: Database connections, middleware, logging, external services
-   - **Polish and validation**: Unit tests, performance optimization, documentation
+   - **Choose the technical approach**: Select the architecture, language
+     libraries, component boundaries, and file paths that best satisfy the
+     frozen outcomes and constitution.
+   - **Tests before code**: When the task requests deterministic evidence or
+     the selected approach requires it, create the test first and observe the
+     expected failure.
+   - **Deliver `[BUILD]` tasks**: Implement the exact requirement/prototype/SC
+     contract and preserve source identifiers in progress/evidence.
+   - **Execute `[UAT]` tasks**:
+     - Locate the exact `UAT-*` in `quickstart.md`.
+     - Execute its preconditions, ordered actions, and observable checks
+       against the implemented feature.
+     - Set `Status` to `PASS`, `FAIL`, or `BLOCKED` only after execution.
+     - Record `Actual Result`, `Evidence`, and `Deviation`.
+     - Preserve all baseline fields verbatim: user/role, preconditions, actions,
+       expected result, requirement refs, and prototype refs.
+     - Never change a frozen expectation to make a failing implementation pass.
+     - Mark the `[UAT]` task complete only for a conclusive `PASS`; leave
+       failed/blocked work unchecked and report the exact blocker.
 
 8. Progress tracking and error handling:
    - Report progress after each completed task
@@ -170,9 +191,11 @@ You **MUST** consider the user input before proceeding (if not empty).
 
 9. Completion validation:
    - Verify all required tasks are completed
-   - Check that implemented features match the original specification
+   - Check that implemented features match `spec.md`, `prototype.html`, and
+     the frozen UAT expectations in `quickstart.md`
    - Validate that tests pass and coverage meets requirements
-   - Confirm the implementation follows the technical plan
+   - Confirm every UAT task is resolved and every modified quickstart entry
+     preserves its expected result and references
 
 Note: This command assumes a complete task breakdown exists in tasks.md. If tasks are incomplete or missing, suggest running `__SPECKIT_COMMAND_TASKS__` first to regenerate the task list.
 
@@ -217,6 +240,7 @@ Report final status with summary of completed work.
 ## Done When
 
 - [ ] All tasks in tasks.md completed and marked `[X]`
-- [ ] Implementation validated against specification, plan, and test coverage
+- [ ] Implementation validated against the frozen Specify contract and task completion conditions
+- [ ] Every UAT has a recorded execution result and all passing UAT tasks are marked complete
 - [ ] Extension hooks dispatched or skipped according to the rules in Mandatory Post-Execution Hooks above
 - [ ] Completion reported to user with summary of completed work

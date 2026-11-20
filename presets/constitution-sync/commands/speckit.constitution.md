@@ -22,15 +22,14 @@ handoffs:
 After you have written the updated constitution above, perform a consistency propagation pass
 so the dependent artifacts reflect the amended principles:
 
-1. Read `.specify/templates/plan-template.md` and ensure any "Constitution Check" or rules align
-   with the updated principles. Only materialize concrete gate text here if your team intends to
-   review it as committed content; otherwise leave the runtime pointer
-   `[Gates determined based on constitution file]` in place so `/plan` fills it from the live
-   constitution.
-2. Read `.specify/templates/spec-template.md` for scope/requirements alignment — update if the
+1. Read `.specify/templates/spec-template.md` for scope/requirements alignment — update if the
    constitution adds/removes mandatory sections or constraints.
-3. Read `.specify/templates/tasks-template.md` and ensure task categorization reflects new or
-   removed principle-driven task types (e.g., observability, versioning, testing discipline).
+2. Read `.specify/templates/prototype-template.md` and
+   `.specify/templates/quickstart-template.md` for constitution-driven interaction, accessibility,
+   and acceptance evidence requirements.
+3. Read `.specify/templates/tasks-template.md` and ensure traceability and work-package
+   categorization reflect new or removed principles (for example observability, versioning, or
+   testing discipline) without introducing technical or file-path lock-in.
 4. Read each installed Spec Kit command file for your agent (including this one) — named
    `speckit.*` or `speckit-*` (dot or hyphen depending on the agent), or laid out as
    `speckit-<name>/SKILL.md` for skills-based integrations, e.g. in `.github/agents/`,

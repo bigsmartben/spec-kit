@@ -113,10 +113,15 @@ def make_project(root: Path, **config: object) -> Path:
     return root
 
 
-def add_plan(project_root: Path, feature_dir: str = "specs/001-demo") -> None:
-    plan = project_root / feature_dir / "plan.md"
-    plan.parent.mkdir(parents=True, exist_ok=True)
-    plan.write_text("# plan\n", encoding="utf-8")
+def add_feature_artifacts(
+    project_root: Path, feature_dir: str = "specs/001-demo"
+) -> None:
+    feature = project_root / feature_dir
+    feature.mkdir(parents=True, exist_ok=True)
+    (feature / "spec.md").write_text("# Specification\n", encoding="utf-8")
+    (feature / "prototype.html").write_text("<!doctype html>\n", encoding="utf-8")
+    (feature / "quickstart.md").write_text("# UAT\n", encoding="utf-8")
+    (feature / "tasks.md").write_text("- [ ] WP001\n", encoding="utf-8")
     (project_root / ".specify").mkdir(parents=True, exist_ok=True)
     (project_root / ".specify" / "feature.json").write_text(
         json.dumps({"feature_directory": feature_dir}), encoding="utf-8"
@@ -147,8 +152,8 @@ def assert_parity(
 @requires_posix_bash
 def test_python_creates_fresh_context_file_matching_bash(tmp_path: Path) -> None:
     repo_a, repo_b = twin_projects(tmp_path, context_file="AGENTS.md")
-    add_plan(repo_a)
-    add_plan(repo_b)
+    add_feature_artifacts(repo_a)
+    add_feature_artifacts(repo_b)
 
     bash = run_bash(repo_a)
     py = run_python(repo_b)
@@ -157,7 +162,8 @@ def test_python_creates_fresh_context_file_matching_bash(tmp_path: Path) -> None
     content_a = (repo_a / "AGENTS.md").read_bytes()
     content_b = (repo_b / "AGENTS.md").read_bytes()
     assert content_a == content_b
-    assert b"at specs/001-demo/plan.md" in content_b
+    for artifact in ("spec.md", "prototype.html", "quickstart.md", "tasks.md"):
+        assert f"specs/001-demo/{artifact}".encode() in content_b
 
 
 @requires_posix_bash
@@ -169,7 +175,7 @@ def test_python_replaces_existing_section_matching_bash(tmp_path: Path) -> None:
         "\nTrailing prose stays.\n"
     )
     for repo in (repo_a, repo_b):
-        add_plan(repo)
+        add_feature_artifacts(repo)
         (repo / "AGENTS.md").write_text(existing, encoding="utf-8")
 
     bash = run_bash(repo_a)
@@ -198,7 +204,7 @@ def test_python_handles_partial_markers_matching_bash(
 ) -> None:
     repo_a, repo_b = twin_projects(tmp_path, context_file="AGENTS.md")
     for repo in (repo_a, repo_b):
-        add_plan(repo)
+        add_feature_artifacts(repo)
         (repo / "AGENTS.md").write_text(existing, encoding="utf-8")
 
     bash = run_bash(repo_a)
@@ -216,7 +222,7 @@ def test_python_custom_markers_matching_bash(tmp_path: Path) -> None:
     )
     existing = "intro\n<!-- CTX BEGIN -->\nold\n<!-- CTX FINISH -->\noutro\n"
     for repo in (repo_a, repo_b):
-        add_plan(repo)
+        add_feature_artifacts(repo)
         (repo / "AGENTS.md").write_text(existing, encoding="utf-8")
 
     bash = run_bash(repo_a)
@@ -233,8 +239,8 @@ def test_python_custom_markers_matching_bash(tmp_path: Path) -> None:
 def test_python_multiple_context_files_dedup_matching_bash(tmp_path: Path) -> None:
     files = ["AGENTS.md", "docs/CONTEXT.md", "AGENTS.md"]
     repo_a, repo_b = twin_projects(tmp_path, context_files=files)
-    add_plan(repo_a)
-    add_plan(repo_b)
+    add_feature_artifacts(repo_a)
+    add_feature_artifacts(repo_b)
 
     bash = run_bash(repo_a)
     py = run_python(repo_b)
@@ -250,7 +256,7 @@ def test_python_normalizes_crlf_matching_bash(tmp_path: Path) -> None:
     repo_a, repo_b = twin_projects(tmp_path, context_file="AGENTS.md")
     existing = b"# Doc\r\n\r\n<!-- SPECKIT START -->\r\nold\r\n<!-- SPECKIT END -->\r\ntail\r\n"
     for repo in (repo_a, repo_b):
-        add_plan(repo)
+        add_feature_artifacts(repo)
         (repo / "AGENTS.md").write_bytes(existing)
 
     bash = run_bash(repo_a)
@@ -274,7 +280,7 @@ def test_python_mdc_frontmatter_repair_matching_bash(tmp_path: Path) -> None:
         repo_a = make_project(tmp_path / f"a-{name}", context_file=mdc)
         repo_b = make_project(tmp_path / f"b-{name}", context_file=mdc)
         for repo in (repo_a, repo_b):
-            add_plan(repo)
+            add_feature_artifacts(repo)
             target = repo / mdc
             target.parent.mkdir(parents=True, exist_ok=True)
             target.write_text(existing, encoding="utf-8")
@@ -288,20 +294,23 @@ def test_python_mdc_frontmatter_repair_matching_bash(tmp_path: Path) -> None:
         assert "alwaysApply: true" in content, name
 
 
-# ── Plan-path resolution ─────────────────────────────────────────────────────
+# ── Active feature artifact resolution ───────────────────────────────────────
 
 
 @requires_posix_bash
-def test_python_explicit_plan_argument_matching_bash(tmp_path: Path) -> None:
+def test_python_explicit_feature_argument_matching_bash(tmp_path: Path) -> None:
     repo_a, repo_b = twin_projects(tmp_path, context_file="AGENTS.md")
+    for repo in (repo_a, repo_b):
+        add_feature_artifacts(repo, "specs/009-explicit")
 
-    bash = run_bash(repo_a, "specs/009-explicit/plan.md")
-    py = run_python(repo_b, "specs/009-explicit/plan.md")
+    bash = run_bash(repo_a, "specs/009-explicit")
+    py = run_python(repo_b, "specs/009-explicit")
 
     assert_parity(bash, py, repo_a, repo_b)
     content = (repo_b / "AGENTS.md").read_bytes()
     assert content == (repo_a / "AGENTS.md").read_bytes()
-    assert b"at specs/009-explicit/plan.md" in content
+    for artifact in ("spec.md", "prototype.html", "quickstart.md", "tasks.md"):
+        assert f"specs/009-explicit/{artifact}".encode() in content
 
 
 @requires_posix_bash
@@ -310,10 +319,10 @@ def test_python_mtime_fallback_matching_bash(tmp_path: Path) -> None:
     now = time.time()
     for repo in (repo_a, repo_b):
         for feature, age in (("specs/000-old", 10), ("specs/001-new", 0)):
-            plan = repo / feature / "plan.md"
-            plan.parent.mkdir(parents=True, exist_ok=True)
-            plan.write_text("# plan\n", encoding="utf-8")
-            os.utime(plan, (now - age, now - age))
+            spec = repo / feature / "spec.md"
+            spec.parent.mkdir(parents=True, exist_ok=True)
+            spec.write_text("# specification\n", encoding="utf-8")
+            os.utime(spec, (now - age, now - age))
 
     bash = run_bash(repo_a)
     py = run_python(repo_b)
@@ -321,25 +330,20 @@ def test_python_mtime_fallback_matching_bash(tmp_path: Path) -> None:
     assert_parity(bash, py, repo_a, repo_b)
     content = (repo_b / "AGENTS.md").read_bytes()
     assert content == (repo_a / "AGENTS.md").read_bytes()
-    assert b"at specs/001-new/plan.md" in content
+    assert b"- `specs/001-new/spec.md`" in content
+    assert b"specs/000-old/spec.md" not in content
 
 
 @requires_posix_bash
-def test_python_mtime_fallback_finds_nested_plan_matching_bash(
+def test_python_mtime_fallback_finds_nested_spec_matching_bash(
     tmp_path: Path,
 ) -> None:
-    """The mtime fallback must recurse into scoped layouts.
-
-    A plan created under specs/<scope>/<feature>/plan.md (as produced via
-    SPECIFY_FEATURE_DIRECTORY) is more than one level below specs/. The old
-    Python port used a one-level specs/*/plan.md glob and missed it, while the
-    bash/PowerShell twins recurse (#3024). This locks in the parity.
-    """
+    """The fallback recurses into scoped feature layouts."""
     repo_a, repo_b = twin_projects(tmp_path, context_file="AGENTS.md")
     for repo in (repo_a, repo_b):
-        plan = repo / "specs" / "backend" / "001-nested" / "plan.md"
-        plan.parent.mkdir(parents=True, exist_ok=True)
-        plan.write_text("# plan\n", encoding="utf-8")
+        spec = repo / "specs" / "backend" / "001-nested" / "spec.md"
+        spec.parent.mkdir(parents=True, exist_ok=True)
+        spec.write_text("# specification\n", encoding="utf-8")
 
     bash = run_bash(repo_a)
     py = run_python(repo_b)
@@ -347,7 +351,7 @@ def test_python_mtime_fallback_finds_nested_plan_matching_bash(
     assert_parity(bash, py, repo_a, repo_b)
     content = (repo_b / "AGENTS.md").read_bytes()
     assert content == (repo_a / "AGENTS.md").read_bytes()
-    assert b"at specs/backend/001-nested/plan.md" in content
+    assert b"- `specs/backend/001-nested/spec.md`" in content
 
 
 @pytest.mark.parametrize(
@@ -357,7 +361,7 @@ def test_python_mtime_fallback_finds_nested_plan_matching_bash(
         pytest.param(run_bash, id="bash", marks=requires_bash),
     ],
 )
-@pytest.mark.parametrize("has_regular_plan", [False, True], ids=["alone", "with-plan"])
+@pytest.mark.parametrize("has_regular_spec", [False, True], ids=["alone", "with-spec"])
 @pytest.mark.parametrize(
     "candidate_kind",
     [
@@ -371,28 +375,28 @@ def test_python_mtime_fallback_finds_nested_plan_matching_bash(
     ],
 )
 def test_mtime_fallback_selects_only_in_project_files(
-    tmp_path: Path, run_script, has_regular_plan: bool, candidate_kind: str
+    tmp_path: Path, run_script, has_regular_spec: bool, candidate_kind: str
 ) -> None:
     repo = make_project(tmp_path / "project", context_file="AGENTS.md")
-    expected_plan = ""
-    if has_regular_plan:
-        expected_plan = "specs/backend/001-valid/plan.md"
-        plan = repo / expected_plan
-        plan.parent.mkdir(parents=True)
-        plan.write_text("# older plan\n", encoding="utf-8")
-        os.utime(plan, (1_600_000_000, 1_600_000_000))
+    expected_spec = ""
+    if has_regular_spec:
+        expected_spec = "specs/backend/001-valid/spec.md"
+        spec = repo / expected_spec
+        spec.parent.mkdir(parents=True)
+        spec.write_text("# older specification\n", encoding="utf-8")
+        os.utime(spec, (1_600_000_000, 1_600_000_000))
 
-    candidate = repo / "specs/999-candidate/plan.md"
+    candidate = repo / "specs/999-candidate/spec.md"
     candidate.parent.mkdir(parents=True)
     if candidate_kind == "regular-file":
-        candidate.write_text("# newer plan\n", encoding="utf-8")
+        candidate.write_text("# newer specification\n", encoding="utf-8")
         os.utime(candidate, (1_700_000_000, 1_700_000_000))
-        expected_plan = "specs/999-candidate/plan.md"
+        expected_spec = "specs/999-candidate/spec.md"
     elif candidate_kind == "directory":
         candidate.mkdir()
         os.utime(candidate, (1_700_000_000, 1_700_000_000))
     else:
-        target = repo / "plans/current.md"
+        target = repo / "contracts/current.md"
         if candidate_kind == "escaping-link":
             target = tmp_path / "outside.md"
         if candidate_kind == "non-directory-link":
@@ -402,7 +406,7 @@ def test_mtime_fallback_selects_only_in_project_files(
             target.mkdir(parents=True)
         elif candidate_kind != "dangling-link":
             target.parent.mkdir(parents=True, exist_ok=True)
-            target.write_text("# linked plan\n", encoding="utf-8")
+            target.write_text("# linked specification\n", encoding="utf-8")
         try:
             candidate.symlink_to(
                 target, target_is_directory=candidate_kind == "directory-link"
@@ -414,7 +418,7 @@ def test_mtime_fallback_selects_only_in_project_files(
         if candidate_kind == "file-link":
             # Valid file links retain target mtime ordering and resolved paths,
             # including targets outside specs/ that are still in the project.
-            expected_plan = "plans/current.md"
+            expected_spec = "contracts/current.md"
 
     result = run_script(repo)
 
@@ -423,11 +427,10 @@ def test_mtime_fallback_selects_only_in_project_files(
     assert result.stdout == "agent-context: updated AGENTS.md\n"
     expected = (
         "<!-- SPECKIT START -->\n"
-        "For additional context about technologies to be used, project structure,\n"
-        "shell commands, and other important information, read the current plan\n"
+        "Use the active Spec Kit feature artifacts as the product contract:\n"
     )
-    if expected_plan:
-        expected += f"at {expected_plan}\n"
+    if expected_spec:
+        expected += f"- `{expected_spec}`\n"
     expected += "<!-- SPECKIT END -->\n"
     assert (repo / "AGENTS.md").read_bytes() == expected.encode("utf-8")
 
@@ -436,40 +439,40 @@ def test_mtime_fallback_selects_only_in_project_files(
 def mtime_resolver(request, monkeypatch):
     """Run actual resolver code; the Bash heredoc needs no shell for IO injection."""
     if request.param == "python":
-        return runpy.run_path(str(PY_SCRIPT))["_resolve_plan_path"]
+        return runpy.run_path(str(PY_SCRIPT))["_resolve_artifact_paths"]
 
     matches = re.findall(
-        r"_plan_rel=\"\$\(\"\$_python\" - \"\$PROJECT_ROOT\" <<'PY'\n(.*?)\nPY\n\)\"",
+        r"ARTIFACT_PATHS_JSON=\"\$\(\"\"\$_python\" - \"\$PROJECT_ROOT\" \"\$FEATURE_DIRECTORY\" <<'PY'\n(.*?)\nPY\n\)\"",
         BASH_SCRIPT.read_text(encoding="utf-8"),
         re.DOTALL,
     )
-    assert len(matches) == 1, "expected exactly one mtime fallback heredoc"
+    assert len(matches) == 1, "expected exactly one artifact resolver heredoc"
     code = compile(matches[0], str(BASH_SCRIPT), "exec")
 
     def resolve(project_root):
         output = io.StringIO()
         with monkeypatch.context() as patch, redirect_stdout(output):
-            patch.setattr(sys, "argv", ["-", str(project_root)])
+            patch.setattr(sys, "argv", ["-", str(project_root), ""])
             exec(code, {})
-        return output.getvalue().strip()
+        return json.loads(output.getvalue())
 
     return resolve
 
 
-@pytest.fixture(params=[False, True], ids=["alone", "with-plan"])
+@pytest.fixture(params=[False, True], ids=["alone", "with-spec"])
 def mtime_candidate(tmp_path, request):
     repo = make_project(tmp_path.resolve() / "project", context_file="AGENTS.md")
-    expected_plan = ""
+    expected_spec = ""
     if request.param:
-        expected_plan = "specs/backend/001-valid/plan.md"
-        plan = repo / expected_plan
-        plan.parent.mkdir(parents=True)
-        plan.write_text("# older plan\n", encoding="utf-8")
-        os.utime(plan, (1_600_000_000, 1_600_000_000))
-    candidate = repo / "specs/999-candidate/plan.md"
+        expected_spec = "specs/backend/001-valid/spec.md"
+        spec = repo / expected_spec
+        spec.parent.mkdir(parents=True)
+        spec.write_text("# older specification\n", encoding="utf-8")
+        os.utime(spec, (1_600_000_000, 1_600_000_000))
+    candidate = repo / "specs/999-candidate/spec.md"
     candidate.parent.mkdir(parents=True)
     candidate.write_text("# candidate\n", encoding="utf-8")
-    return repo, candidate, expected_plan
+    return repo, candidate, [expected_spec] if expected_spec else []
 
 
 def _patch_candidate_io(
@@ -485,12 +488,12 @@ def _patch_candidate_io(
     original_resolve = Path.resolve
     # Literal-name globbing can stat candidates before yielding them. Capture
     # real enumeration first so injected errors reach only resolver operations.
-    candidates = tuple(original_rglob(specs_root, "plan.md"))
+    candidates = tuple(original_rglob(specs_root, "spec.md"))
     assert candidate in candidates, "expected the candidate in real specs enumeration"
     calls = []
 
     def rglob(path, pattern, *args, **kwargs):
-        if path == specs_root and pattern == "plan.md":
+        if path == specs_root and pattern == "spec.md":
             return iter(candidates)
         return original_rglob(path, pattern, *args, **kwargs)
 
@@ -519,16 +522,16 @@ def _patch_candidate_io(
 def test_mtime_fallback_ignores_excluded_candidate_errors(
     monkeypatch, mtime_resolver, mtime_candidate, resolve_fails
 ):
-    repo, candidate, expected_plan = mtime_candidate
+    repo, candidate, expected_paths = mtime_candidate
     calls = _patch_candidate_io(
         monkeypatch,
         repo / "specs",
         candidate,
         {1: errno.EACCES},
-        resolved=repo.parent / "private/plan.md",
+        resolved=repo.parent / "private/spec.md",
         resolve_error=errno.EACCES if resolve_fails else None,
     )
-    assert mtime_resolver(str(repo)) == expected_plan
+    assert mtime_resolver(str(repo)) == expected_paths
     assert calls == [], "excluded candidates must not reach the stat precheck"
 
 
@@ -549,9 +552,9 @@ def test_mtime_fallback_preserves_contained_stat_errors(
 def test_mtime_fallback_skips_missing_candidate_at_precheck(
     monkeypatch, mtime_resolver, mtime_candidate, error
 ):
-    repo, candidate, expected_plan = mtime_candidate
+    repo, candidate, expected_paths = mtime_candidate
     calls = _patch_candidate_io(monkeypatch, repo / "specs", candidate, {1: error})
-    assert mtime_resolver(str(repo)) == expected_plan
+    assert mtime_resolver(str(repo)) == expected_paths
     assert len(calls) == 1
 
 

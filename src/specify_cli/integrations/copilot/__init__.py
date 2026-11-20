@@ -46,7 +46,6 @@ _COPILOT_CORE_COMMANDS = {
     "constitution",
     "converge",
     "implement",
-    "plan",
     "specify",
     "tasks",
 }

@@ -16,10 +16,10 @@ Distinguish a defect against agreed intent from a proposed change to that intent
 The implementation is evidence for the discussion, not a replacement source of
 requirements.
 
-Decide whether the discovery changes intended behavior, implementation strategy,
-task breakdown, or only code. A discovery may originate in a spec, plan, task
-list, or the implementation, including during delivery. Its origin does not
-determine which artifact is authoritative.
+Decide whether the discovery changes intended behavior, a technical choice, the
+task package, or only code. A discovery may originate in the frozen contract, a
+work package, or the implementation, including during delivery. Its origin does
+not determine which artifact is authoritative.
 
 ## Make the Revised Intent Explicit
 
@@ -30,18 +30,19 @@ If previous feature artifacts were retired, use the maintained requirements and
 decision records to establish context rather than assuming the constitution
 alone specifies the feature.
 
-1. Write the intended contract in `spec.md`. Use `/speckit.specify` to create a
-   new feature directory under `specs/`, or revise an existing spec.
-2. Run `/speckit.plan` or revise `plan.md` to define the implementation approach.
-3. Run `/speckit.tasks` or revise `tasks.md` to derive the work breakdown.
-4. Run `/speckit.analyze` to report cross-artifact inconsistencies before
+1. Use `/speckit.specify` to create a new feature directory under `specs/`, or
+   revise the frozen `spec.md`, `prototype.html`, and `quickstart.md` together.
+2. Run `/speckit.tasks` to regenerate the independently deliverable
+   requirement-level work packages from that contract.
+3. Run `/speckit.analyze` to report cross-artifact inconsistencies before
    implementation.
 
 Core has no dedicated command that automatically reconciles differences among
-`spec.md`, `plan.md`, and `tasks.md`. Analyze reports inconsistencies without
-editing artifacts. Reconcile them directly, or use an extension according to
-its documented behavior. Preserve important implementation rationale before
-replacing derived artifacts.
+`spec.md`, `prototype.html`, `quickstart.md`, and `tasks.md`. Analyze reports
+inconsistencies without editing artifacts. Reconcile the owning stage directly,
+or use an extension according to its documented behavior. Historical or
+user-owned `plan.md` files can be preserved as technical records, but the core
+Task stage does not read or update them.
 
 If the team accepts a discovery that changes intent, reflect that agreement in
 the affected artifacts. Do not leave a lower-level change in tasks or code
@@ -49,19 +50,17 @@ contradicting a spec that is meant to remain trustworthy.
 
 ## Deliver and Assess the Change
 
-All persistence models use the same delivery/completeness process:
-specify -> plan -> tasks -> implement -> converge.
+All persistence models use the same delivery process:
+specify -> tasks -> implement.
 
 1. Run `/speckit.implement` against the explicit intended artifacts.
-2. Review the resulting implementation and artifact diffs.
-3. Run `/speckit.converge` to assess implementation against the spec, plan, and
-   tasks, governed by the constitution.
-4. If converge appends tasks for remaining gaps, repeat implementation and
-   convergence until the agreed feature is complete.
+2. Execute the mapped UAT scenarios and review the resulting implementation.
+3. Confirm Implement changed only `Status`, `Actual Result`, `Evidence`, and
+   `Deviation` in each completed `quickstart.md` UAT entry.
 
-Converge is append-only: its only possible write is adding remaining work to
-`tasks.md`. It does not rewrite artifacts to accept code as a replacement for
-documented intent. Neither analyze nor converge selects a persistence strategy,
+If execution reveals a requirement conflict or missing mapping, return to
+Specify, correct the frozen contract, regenerate Task packages, and then resume
+implementation. Analyze and Implement do not select a persistence strategy,
 and extension-provided reconciliation does not change these core command
 responsibilities.
 

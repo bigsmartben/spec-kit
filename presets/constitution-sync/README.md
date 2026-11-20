@@ -3,8 +3,9 @@
 An **opt-in** preset that restores materialized constitution workflows. It refreshes an unchanged
 generated `.specify/memory/constitution.md` when constitution-providing presets are installed,
 removed, enabled, disabled, or reprioritized. After `/constitution` updates the live file, it also
-aligns `plan-template.md`, `spec-template.md`, `tasks-template.md`, project-local command files, and
-guidance docs so they reflect the current principles.
+aligns `spec-template.md`, `prototype-template.md`, `quickstart-template.md`,
+`tasks-template.md`, project-local command files, and guidance docs so they
+reflect the current principles.
 
 This propagation used to be built into `/constitution`; it was dropped when the command moved to the
 preset model. Installing this preset opts you back into materialization: preset stack changes refresh
@@ -39,7 +40,8 @@ It also ships a single `wrap`-strategy override of `speckit.constitution`. It co
 current core command (via `{CORE_TEMPLATE}`), so it stays forward-compatible with core changes, and
 appends a propagation pass that, after the constitution is written:
 
-- Aligns `plan/spec/tasks-template.md` in `.specify/templates/` with the updated principles.
+- Aligns `spec/prototype/quickstart/tasks-template.md` in `.specify/templates/` with the updated
+  principles.
 - Updates **project-local** command files and guidance docs to correct stale references.
 - Extends the Sync Impact Report in `.specify/memory/constitution.md` with the files it touched.
 
@@ -47,7 +49,7 @@ appends a propagation pass that, after the constitution is written:
 
 - It does **not** change behavior for anyone who does not install it — the default runtime
   resolution model is untouched.
-- It does **not** disable runtime resolution. `plan`, `tasks`, and `analyze` still read the live
+- It does **not** disable runtime resolution. `specify`, `tasks`, and `analyze` still read the live
   constitution every run; this preset adds materialized copies on top — it does not replace the
   source of truth.
 - It does **not** overwrite an authored or edited constitution. Install-time reconciliation only
@@ -60,8 +62,8 @@ appends a propagation pass that, after the constitution is written:
 ## When to use it
 
 Install it **only** if your team treats the materialized templates and commands as
-**reviewed, committed artifacts** — for example, if `plan-template.md`'s Constitution Check is
-read in PRs as "here are our current gates" and is expected to track the constitution.
+**reviewed, committed artifacts** — for example, if committed requirement or UAT scaffolds are
+reviewed in PRs and expected to track the constitution.
 
 If you rely on the default runtime-resolution model, you do **not** need this preset: the live
 constitution is already the single source of truth and there is nothing to sync.
@@ -78,21 +80,17 @@ tension is the main thing to understand before installing:
   model has no drift because it reads the live constitution every run.
 
 - **Edits to composed files do not survive reconciliation.** If the rest of your SDD flow is
-  preset/extension-managed, the commands it materializes (`speckit.plan`, `speckit.specify`,
-  `speckit.tasks`, `speckit.analyze`, `speckit.implement`, …) are recomputed from the stack. Any
+  preset/extension-managed, the commands it materializes (`speckit.specify`, `speckit.tasks`,
+  `speckit.analyze`, `speckit.implement`, …) are recomputed from the stack. Any
   guidance propagated into them is clobbered the next time the stack reconciles — on
   `specify integration use <key>` / `switch`, `specify integration upgrade`, or any preset/extension
   install or remove. The same applies to templates owned by another preset/extension. This is why
   the preset restricts itself to project-local files; propagation is reliable **only** for
   artifacts you own outright.
 
-- **A pre-filled Constitution Check can bias `/plan`.** Materializing concrete gates into
-  `plan-template.md` replaces the runtime pointer, so the first `/plan` pass may anchor on the
-  frozen text. Keep the pointer unless you specifically want committed gates.
-
 **Bottom line:** this preset fits projects whose governed templates and commands are project-local
 artifacts they review, with the rest of the SDD flow on the plain bundled core. If your
-`plan`/`specify`/`tasks`/`analyze` commands or templates come from other presets or extensions,
+`specify`/`tasks`/`analyze` commands or templates come from other presets or extensions,
 prefer the default runtime-resolution model.
 
 ## Installation
@@ -117,18 +115,9 @@ specify preset remove constitution-sync
 
 ## Migrating back to the default
 
-To move back to runtime resolution, reset each materialized `## Constitution Check` section in
-`.specify/templates/plan-template.md` to the pointer:
-
-```text
-## Constitution Check
-
-*GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
-
-[Gates determined based on constitution file]
-```
-
-Then remove this preset. See `docs/upgrade.md` for details.
+To move back to runtime resolution, review and restore any project-owned materialized templates or
+commands to the desired runtime pointers or bundled versions, then remove this preset. See
+`docs/upgrade.md` for details.
 
 ## License
 

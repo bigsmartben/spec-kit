@@ -150,14 +150,12 @@ After initialization with GitHub Copilot's default skills mode, the following
 skills should be available. Invoke them in your agent's chat, not in the terminal:
 
 - `/speckit-specify` - Create specifications
-- `/speckit-plan` - Generate implementation plans
-- `/speckit-tasks` - Break down into actionable tasks
-- `/speckit-implement` - Execute implementation tasks
+- `/speckit-tasks` - Create independently deliverable, requirement-level work packages
+- `/speckit-implement` - Choose the technical approach, execute the work, and record UAT results
 - `/speckit-analyze` - Validate cross-artifact consistency
 - `/speckit-clarify` - Identify and resolve ambiguities
 - `/speckit-checklist` - Generate quality checklists
 - `/speckit-constitution` - Create or update project principles
-- `/speckit-converge` - Assess codebase against artifacts and append remaining tasks
 
 Scripts are installed into a variant subdirectory matching the chosen script type:
 

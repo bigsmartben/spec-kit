@@ -1,5 +1,5 @@
 ---
-description: Assess the codebase against the frozen Specify contract, Constitution architecture SSOT, and tasks, then append only uncovered corrective work for Implement.
+description: Assess the codebase against the frozen Specify contract, Constitution principles and system boundaries, and tasks, then append only uncovered corrective work for Implement.
 scripts:
   sh: scripts/bash/check-prerequisites.sh --json --require-contract --require-tasks --include-tasks
   ps: scripts/powershell/check-prerequisites.ps1 -Json -RequireContract -RequireTasks -IncludeTasks
@@ -57,13 +57,13 @@ You **MUST** consider the user input before proceeding (if not empty).
 ## Goal
 
 Close the gap between the frozen `spec.md`, `prototype.html`, and
-`quickstart.md` contract, the Constitution (including its embedded architecture
-SSOT), plus `tasks.md` and what the codebase currently implements. Assess the
-current state, determine which requirements, success criteria, prototype
-anchors, UAT outcomes, architecture responsibilities, component contracts,
-sequences, invariants, and existing tasks are unmet, incomplete, or partially
-satisfied, and **append only work that is not already represented by an
-existing task** at the bottom of `tasks.md` so that
+`quickstart.md` contract, the Constitution principles and system boundaries,
+plus `tasks.md` and what the codebase currently implements. Assess the current
+state, determine which requirements, success criteria, prototype anchors, UAT
+outcomes, Constitution obligations, system/subsystem/component boundaries, and
+existing tasks are unmet, incomplete, or partially satisfied, and **append only
+work that is not already represented by an existing task** at the bottom of
+`tasks.md` so that
 `__SPECKIT_COMMAND_IMPLEMENT__` can complete it. This command MUST run only after
 `__SPECKIT_COMMAND_IMPLEMENT__` has run on the current `tasks.md`, and after `__SPECKIT_COMMAND_TASKS__` has produced a complete `tasks.md`.
 
@@ -89,13 +89,14 @@ When the codebase already satisfies everything, the command MUST leave `tasks.md
 **byte-for-byte unchanged** (no empty Convergence header) and report a clean result.
 
 **Constitution Authority**: The project constitution (`/memory/constitution.md`)
-is **non-negotiable**, including the embedded `Repository Blueprint (Architecture
-SSOT)` when present. Treat its stable architecture IDs as repository authority
-for capabilities, acceptance paths, system/subsystem/component boundaries,
-dependencies, sequences, public contracts, and invariants. Code that violates a
-MUST principle or a binding architecture obligation produces a corresponding
-remediation task. Feature artifacts may refine that authority but MUST NOT
-redefine responsibility boundaries, public contracts, or invariants.
+is **non-negotiable** for its governance principles and, when present, its
+`Repository Architecture` boundary map. Treat only `SYS-*`, `SUB-*`, and
+`CMP-*` responsibility boundaries as architecture authority. Product and
+technical contracts remain owned by the frozen feature artifacts and any
+explicit design artifact; do not infer them from the constitution. Code that
+violates a MUST principle or a binding boundary produces a corresponding
+remediation task. Feature artifacts may reference boundaries but MUST NOT
+redefine system, subsystem, or component responsibility.
 
 If the frozen product contract and Constitution conflict, STOP the affected
 assessment path, report the authority conflict, and return the issue to
@@ -103,7 +104,7 @@ assessment path, report the authority conflict, and return the issue to
 `__SPECKIT_COMMAND_CLARIFY__` as appropriate. Do not invent a task that lets code
 silently satisfy only one side. If the constitution is an unfilled template,
 skip constitution checks gracefully rather than failing. Do not treat an open
-architecture decision as an approved rule.
+boundary decision as an approved rule.
 
 ## Execution Steps
 
@@ -151,20 +152,14 @@ Load only the minimal necessary context from each artifact:
 **From constitution (if not an unfilled template):**
 
 - Principle names and MUST/SHOULD normative statements
-- If `## Repository Blueprint (Architecture SSOT)` exists, build a stable-ID
-  inventory from:
-  - `CAP-*` capabilities and `ACCEPT-*` acceptance paths
-  - `SYS-*`, `SUB-*`, and `CMP-*` responsibility boundaries, owned state,
-    dependency direction, accepted/produced behavior, collaborators, and
-    exclusions
-  - `SEQ-*` cross-component sequences, participants, successful owner, and
-    contracts used
-  - `CON-*` public-contract owners, consumers, semantics, validation and trust
-    boundaries, results, failures, ordering, compatibility, and evidence
-  - `INV-*` architectural invariants, affected elements, evidence, and
-    violation consequences
+- If `## Repository Architecture` exists, build a boundary inventory from:
+  - `SYS-*` system purpose and boundary
+  - `SUB-*` subsystem responsibility and boundary
+  - `CMP-*` component responsibility and boundary
 - Do not interpret placeholders, template comments, or unresolved open
-  architecture decisions as approved implementation obligations
+  boundary decisions as approved implementation obligations. Do not promote
+  contract, interface, sequence, dependency, or invariant prose accidentally
+  present in a legacy constitution into current architecture authority.
 
 ### 3. Build the Intent Inventory
 
@@ -173,7 +168,7 @@ Create an internal model (do not echo raw artifacts):
 - **Requirements inventory**: one stable key per FR-### / SC-### / user-story
   acceptance scenario (for example, `US1/AC2`), every prototype anchor, every
   UAT, constitution principle that imposes a buildable obligation, and every
-  resolved architecture SSOT item.
+  resolved system boundary item.
 - **Existing task map**: record every task ID, checkbox state, task type,
   exact source references, dependencies, phase, and observable `Done when`
   condition. Preserve each task's existing ownership; do not merge tasks solely
@@ -182,7 +177,7 @@ Create an internal model (do not echo raw artifacts):
   `[UAT]` task. Never infer that a new UAT execution task is needed merely
   because the existing task is unchecked, failed, blocked, or stale.
 - **Code-scope map**: from task references, source identifiers, the implemented
-  technology actually present in the repository, architecture evidence, and
+  technology actually present in the repository, boundary evidence, and
   targeted source search, derive the files/components in scope. Do not infer
   technical obligations beyond the frozen product contract, Constitution
   authority, and existing tasks.
@@ -194,19 +189,20 @@ Convergence phase: completion claims are not evidence. Verify current behavior a
 for corrective task chains, assess the resulting
 behavior, not superseded implementation details. Check both unmet obligations and
 implementation that contradicts, exceeds, or falls outside the stated intent.
-Assess architecture SSOT items against the code's actual responsibility
-ownership, state ownership, dependency direction, interaction order, public
-contracts, and invariant evidence.
+Assess Constitution boundary items only against the code's actual system,
+subsystem, and component responsibility placement and boundary behavior. Assess
+contract semantics, interface compatibility, interaction order, failure
+behavior, and invariants from the frozen feature artifacts or an explicit
+technical design artifact, not from the constitution.
 
 For each item in the intent inventory, inspect the current code in scope and produce a
 `Finding` only where there is a gap. Classify every finding by **gap type**:
 
 - **`missing`**: the required work is absent from the code entirely.
 - **`partial`**: the work exists but does not yet fully satisfy the requirement,
-  acceptance criterion, prototype anchor, UAT outcome, architecture boundary,
-  sequence, public contract, invariant, or task.
+  acceptance criterion, prototype anchor, UAT outcome, system boundary, or task.
 - **`contradicts`**: the code does something that conflicts with stated intent or a
-  Constitution MUST principle or binding architecture obligation.
+  Constitution MUST principle or binding boundary obligation.
 - **`unrequested`**: the code contains work not called for by the frozen
   contract, Constitution authority, or tasks
   (surfaced for awareness — converge does **not** delete code, it only appends a task to
@@ -248,11 +244,11 @@ new corrective `[BUILD]` task rather than changing the old task.
 ### 5. Assign Severity
 
 - **CRITICAL**: violates a Constitution MUST principle, explicitly binding
-  public-contract or invariant rule, or a `missing`/`contradicts` gap that
+  system boundary rule, or a `missing`/`contradicts` gap that
   blocks baseline functionality of a P1 user story.
 - **HIGH**: a `missing` or `partial` gap on a core functional requirement or acceptance
-  criterion, or a material responsibility, dependency-direction, sequence, or
-  contract-semantics gap in the architecture SSOT.
+  criterion, or a material system/subsystem/component responsibility or
+  boundary gap.
 - **MEDIUM**: a `partial` gap on a secondary requirement, or an `unrequested` addition with
   unclear justification.
 - **LOW**: minor partial gaps, polish, or low-risk `unrequested` additions.
@@ -265,16 +261,15 @@ Before appending anything, output a compact, severity-graded summary (no file wr
 
 | ID | Gap Type | Severity | Source | Evidence | Disposition | Remaining Work |
 |----|----------|----------|--------|----------|-------------|----------------|
-| F1 | missing  | HIGH     | Constitution CMP-007 | Example: component owns state excluded by its boundary | append_build | Restore the component ownership boundary |
+| F1 | missing  | HIGH     | Constitution CMP-007 | Example: component responsibility overlaps another boundary | append_build | Restore the declared component boundary |
 | F2 | partial  | HIGH     | UAT-001 | Existing scenario is still unchecked | reuse_task | Execute T042 |
 
 **Summary metrics:**
 
 - Requirements / acceptance criteria checked
 - Prototype anchors and UAT outcomes checked
-- Constitution principles and architecture IDs checked, by ID class
-  (`CAP`, `ACCEPT`, `SYS`, `SUB`, `CMP`, `SEQ`, `CON`, `INV`), or "skipped —
-  template/no architecture SSOT"
+- Constitution principles and boundary IDs checked, by ID class
+  (`SYS`, `SUB`, `CMP`), or "skipped — template/no repository architecture"
 - Findings by gap type (missing / partial / contradicts / unrequested)
 - Findings by severity
 - Findings by disposition (append_build / reuse_task)
@@ -314,7 +309,7 @@ Append to the **end** of `tasks.md`, per the append contract:
 
    `<source-ref>` traces the task to its origin: e.g. `FR-003`, `SC-002`,
    `US1/AC2`, `proto:account-form`, `UAT-001`, `Constitution II`,
-   `Constitution CMP-007`, `Constitution CON-003`, or `Constitution INV-002`.
+   or `Constitution CMP-007`.
 
    `<gap-type>` is one of `missing`, `partial`, `contradicts`, `unrequested`.
 
@@ -353,7 +348,7 @@ Append to the **end** of `tasks.md`, per the append contract:
   `__SPECKIT_COMMAND_IMPLEMENT__` only for the exact existing task IDs listed;
   do not ask the user to run a duplicate Convergence task.
 - On `converged`: recommend proceeding to review / opening a PR. No further implement pass
-  is needed for this feature's specified scope and Constitution architecture.
+  is needed for this feature's specified scope and Constitution principles and boundaries.
 
 ### 9. Check for extension hooks
 

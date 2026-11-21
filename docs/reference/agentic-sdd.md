@@ -7,8 +7,8 @@ product contract, `/speckit.tasks` packages that contract without making
 technical decisions, and `/speckit.implement` owns and delivers the
 implementation. `/speckit.converge` then closes the loop by checking the
 implementation against that contract, the existing tasks, and the Constitution
-architecture SSOT. The clarify, checklist, and analyze commands are optional
-quality gates around those stages.
+principles and system boundary map. The clarify, checklist, and analyze
+commands are optional quality gates around those stages.
 
 For evaluating an idea before committing to a specification, see
 [Agentic Idea Assessment](agentic-assessment.md). Assessment is optional and
@@ -39,7 +39,7 @@ skills by default.
 
 | Command | Agent skill | Purpose |
 | --- | --- | --- |
-| `/speckit.constitution` | `speckit-constitution` | Establish or update project principles and the embedded architecture SSOT |
+| `/speckit.constitution` | `speckit-constitution` | Establish or update project principles and the system boundary map |
 | `/speckit.specify` | `speckit-specify` | Define requirements, construction prototype, and pending UAT baseline |
 | `/speckit.tasks` | `speckit-tasks` | Turn the frozen contract into independently deliverable, requirement-level work packages |
 | `/speckit.implement` | `speckit-implement` | Make technical decisions, execute the work, and persist UAT results |
@@ -51,11 +51,13 @@ skills by default.
 ## `/speckit.constitution`
 
 Creates or updates the project **constitution** — the guiding principles and
-single repository architecture SSOT that every later phase is evaluated
-against. Its architecture section defines stable
-`CAP/ACCEPT/SYS/SUB/CMP/SEQ/CON/INV` authority for capabilities, component
-boundaries, sequences, public contracts, and invariants. Run it once up front
-and amend it through Constitution when repository authority changes.
+optional repository-wide architecture boundary map that later phases honor. Its
+architecture section is intentionally limited to stable `SYS-*`, `SUB-*`, and
+`CMP-*` system/subsystem/component responsibilities and boundaries. Product
+behavior, interface contracts, compatibility, failures, interaction sequences,
+and invariants remain in feature specifications or explicit design artifacts.
+Run it once up front and amend it through Constitution when principles or
+system boundaries change.
 
 ```text
 /speckit.constitution This project follows a "Library-First" approach. All features must be implemented as standalone libraries first. We use TDD strictly. We prefer functional programming patterns.
@@ -211,15 +213,16 @@ Specify or Clarify and then regenerate the dependent tasks.
 
 Runs after Implement to compare the present codebase with the frozen product
 contract, the existing work packages, and the Constitution's governance and
-architecture SSOT. It can assess feature behavior, UAT evidence, responsibility
-ownership, dependency direction, component sequences, cross-component public
-contracts, and architectural invariants.
+system boundary map. It can assess feature behavior, UAT evidence, and
+responsibility or boundary placement. Contract semantics, interface
+compatibility, interaction order, and invariants remain owned by the frozen
+feature artifacts or explicit design artifacts, not by the Constitution.
 
 Converge is append-only. It never changes application code, the frozen Specify
 artifacts, or the Constitution. It creates only corrective `[BUILD]` tasks that
 are not already represented by an existing task. Architecture drift can
 therefore become a traceable refactoring work package without requiring a
-separate blueprint argument.
+separate architecture authority.
 
 Before appending a task, Converge checks the existing task IDs, source
 references, checkbox state, dependencies, and observable completion conditions.

@@ -720,13 +720,14 @@ def _reconcile_presets_for_active_agent(
     integration manifest is refreshed only after that final projection.
     """
     try:
+        from .._init_options import resolve_active_agent_for_registration
         from ..presets import PresetManager
 
-        result = PresetManager(
-            project_root
-        ).reconcile_enabled_presets_for_active_agent()
-        if result:
-            _refresh_active_integration_manifest(project_root)
+        active_agent = resolve_active_agent_for_registration(project_root)
+        if not isinstance(active_agent, str):
+            return
+        PresetManager(project_root).register_enabled_presets_for_agent(active_agent)
+        _refresh_active_integration_manifest(project_root)
     except Exception as preset_err:
         from .. import _print_cli_warning
 

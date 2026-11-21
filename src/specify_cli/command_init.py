@@ -22,6 +22,7 @@ from ._agent_config import (
     resolve_default_init_integration,
 )
 from ._assets import (
+    _locate_bundled_extension,
     _locate_bundled_preset,
     _locate_bundled_workflow,
     get_speckit_version,
@@ -114,7 +115,6 @@ def _install_extension_during_init(project_path: Path, ext_spec: str, speckit_ve
     """
     from urllib.parse import urlparse
 
-    from ._assets import _locate_bundled_extension
     from .extensions import ExtensionCatalog, ExtensionError, ExtensionManager
     from .extensions._commands import (
         _resolve_catalog_extension,
@@ -906,7 +906,7 @@ def register(app: typer.Typer) -> None:
                 save_init_options(project_path, init_opts)
 
                 try:
-                    from ..extensions import ExtensionManager as _ExtMgr
+                    from .extensions import ExtensionManager as _ExtMgr
 
                     tracker.start("default-extensions")
                     ext_mgr = _ExtMgr(project_path)
@@ -968,7 +968,7 @@ def register(app: typer.Typer) -> None:
                     )
 
                 try:
-                    from ..presets import PresetManager
+                    from .presets import PresetManager
 
                     tracker.start("default-presets")
                     preset_manager = PresetManager(project_path)
@@ -1151,7 +1151,7 @@ def register(app: typer.Typer) -> None:
                 # priority stack) wins over the core template.
                 ensure_constitution_from_template(project_path, tracker=tracker)
 
-                from ..integrations._helpers import (
+                from .integrations._helpers import (
                     _reconcile_presets_for_active_agent,
                 )
 

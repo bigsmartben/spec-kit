@@ -2337,10 +2337,6 @@ class SkillsIntegration(IntegrationBase):
                 f"---\n"
                 f"{processed_body}"
             )
-            frontmatter_text = yaml.safe_dump(
-                skill_frontmatter, sort_keys=False, width=1000
-            ).strip()
-            skill_content = f"---\n{frontmatter_text}\n---\n{processed_body}"
 
             skill_content = self.post_process_skill_content(skill_content)
 

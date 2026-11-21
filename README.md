@@ -124,6 +124,24 @@ technical decisions, executes those packages and their UAT cases, and records
 only `Status`, `Actual Result`, `Evidence`, and `Deviation` in the matching UAT
 entries.
 
+To automate the current core delivery path, install and run the bundled
+`speckit` workflow from an initialized project:
+
+```bash
+specify workflow add speckit
+specify workflow run speckit --input spec="Build a photo organizer with drag-and-drop albums"
+```
+
+The workflow runs **Specify → Task → Implement** and pauses after Specify for a
+human review. After reviewing the frozen contract, resume it explicitly:
+
+```bash
+specify workflow resume <run_id> --input speckit_review_spec_verdict=approve
+```
+
+Constitution setup, Clarify, Checklist, Analyze, and Converge remain explicit
+steps; the bundled workflow does not run them automatically.
+
 For clarification, checklists, and consistency analysis, see the SDD
 walkthrough.
 

@@ -27,6 +27,13 @@ These are independent entry points, not mandatory phases. SDD ships in core.
 Bug fixing and assessment are bundled, opt-in extensions. Assessment can stand
 alone; a decision to proceed does not automatically start implementation.
 
+For SDD, run the current **Specify → Task → Implement** path interactively or
+automate that same path with the bundled
+[`speckit` workflow](workflows/overview.md#run-review-and-resume). The workflow
+pauses after Specify for a human review of the frozen contract. Constitution
+setup and the optional Clarify, Checklist, Analyze, and Converge commands remain
+explicit steps.
+
 See [how the Spec Kit project runs its agentic SDLC](guides/agentic-sdlc.md)
 and where it uses Spec Kit itself.
 
@@ -45,6 +52,7 @@ gates.
 | Shared capability | Reference |
 | --- | --- |
 | Initialize projects, check installed tools, and inspect version and system information | [Core Commands](overview/core.md) |
+| Automate the core delivery path or a custom YAML process with persisted, resumable runs | [Workflows](workflows/overview.md) |
 | Expose supported Specify operations to MCP clients through an experimental local stdio server | [MCP Server](overview/mcp.md) |
 | Inspect visible commands, templates, scripts, and hooks, including winning and hidden composition layers | [Artifacts](overview/artifacts.md) |
 | Discover components through built-in, community, or private catalogs and understand source priority and trust | [Catalogs](overview/catalogs.md) |
@@ -247,4 +255,4 @@ For private catalogs, downloads, and release checks, see
 building blocks fit your needs, see
 [Adapt Spec Kit to your process](how-to/customization.md).
 
-<p class="text-end small text-body-secondary">Last updated: November 4, 2026</p>
+<p class="text-end small text-body-secondary">Last updated: November 21, 2026</p>

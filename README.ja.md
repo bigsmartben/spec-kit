@@ -72,6 +72,24 @@ cd my-project
 
 Specifyは `spec.md`、`prototype.html`、`quickstart.md` の保留中UAT基準を凍結します。Taskはその契約とconstitutionだけを読み、完全なトレーサビリティを持つ技術中立な作業パッケージを生成します。矛盾や対応漏れがあればSpecifyへ戻します。Implementが技術選定と実行を担い、対応するUATで `Status`、`Actual Result`、`Evidence`、`Deviation` だけを更新します。必要に応じて明確化、チェックリスト、一貫性分析を追加してください。
 
+現在のコアな提供パスを自動化するには、初期化済みプロジェクトで同梱の
+`speckit` ワークフローをインストールして実行します:
+
+```bash
+specify workflow add speckit
+specify workflow run speckit --input spec="Build a photo organizer with drag-and-drop albums"
+```
+
+このワークフローは **Specify → Task → Implement** を実行し、Specify の後で
+人によるレビューのため一時停止します。凍結された契約を確認後、明示的に再開します:
+
+```bash
+specify workflow resume <run_id> --input speckit_review_spec_verdict=approve
+```
+
+Constitution、Clarify、Checklist、Analyze、Converge は明示的に実行する必要があり、
+同梱ワークフローには自動実行されません。
+
 [SDD実践ガイド](https://github.github.io/spec-kit/quickstart.html) ·
 [コマンドリファレンス](https://github.github.io/spec-kit/reference/agentic-sdd.html)
 

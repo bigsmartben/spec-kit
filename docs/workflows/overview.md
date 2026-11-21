@@ -24,9 +24,14 @@ specify workflow add speckit
 specify workflow run speckit --input spec="Build a kanban board"
 ```
 
-The bundled SDD workflow runs Specify → Task → Implement, with one review gate
-after specification. On an interactive terminal the gate asks for a verdict;
-otherwise it pauses. Review the frozen contract and resume the same run:
+The bundled `speckit` workflow automates the current core SDD delivery path:
+Specify → Task → Implement. It has one review gate after specification. On an
+interactive terminal the gate asks for a verdict; otherwise it pauses. The
+workflow does not run Constitution setup or the optional Clarify, Checklist,
+Analyze, and Converge commands; those remain explicit steps in the
+[SDD quickstart](../quickstart.md).
+
+Review the frozen contract and resume the same run:
 
 ```bash
 specify workflow status <run_id>
@@ -70,7 +75,7 @@ specify workflow run ./workflow.yml --input spec="Build a kanban board"
 
 | ID | Purpose | Main input |
 | --- | --- | --- |
-| `speckit` | Full SDD delivery cycle with a specification review gate | `spec` |
+| `speckit` | Core SDD delivery path with a specification review gate | `spec` |
 | `bugfix` | Bug assessment, fixing, and validation | `report` |
 | `assess` | Idea intake, research, definition, shaping, and decision | `idea` |
 

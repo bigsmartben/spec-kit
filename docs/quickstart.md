@@ -45,6 +45,30 @@ starting either path.
 6. `/speckit-analyze`
 7. `/speckit-implement`
 
+### Run the core path as a workflow
+
+The bundled `speckit` workflow is the automated alternative to the shorter
+interactive path. From an initialized project, install and run it in the
+terminal:
+
+```bash
+specify workflow add speckit
+specify workflow run speckit --input spec="Build a kanban board"
+```
+
+It runs the current **Specify → Task → Implement** sequence and pauses after
+Specify at `review-spec`. Review the generated `spec.md`, `prototype.html`, and
+`quickstart.md`, then resume with the explicit review verdict:
+
+```bash
+specify workflow resume <run_id> --input speckit_review_spec_verdict=approve
+```
+
+Use the interactive path when you need Constitution setup, Clarify, Checklist,
+Analyze, or Converge. The bundled workflow does not run those steps
+automatically. See [Workflows](workflows/overview.md) for status, rejection,
+and resume behavior.
+
 ### Install Specify
 
 **In your terminal**, install the CLI from PyPI (requires [uv](install/uv.md)), then initialize your project:

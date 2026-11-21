@@ -94,6 +94,24 @@ Specify 会冻结 `spec.md`、`prototype.html` 和 `quickstart.md` 中待执行�
 UAT 条目的 `Status`、`Actual Result`、`Evidence` 和 `Deviation`。
 需要额外的质量把关时，可加入需求澄清、检查清单和一致性分析。
 
+如果希望自动执行当前核心交付路径，请在已初始化的项目中安装并运行随仓库提供的
+`speckit` 工作流：
+
+```bash
+specify workflow add speckit
+specify workflow run speckit --input spec="Build a photo organizer with drag-and-drop albums"
+```
+
+该工作流执行 **Specify → Task → Implement**，并在 Specify 完成后暂停，等待人工评审。
+审查冻结契约后，显式恢复运行：
+
+```bash
+specify workflow resume <run_id> --input speckit_review_spec_verdict=approve
+```
+
+项目准则、Clarify、Checklist、Analyze 和 Converge 仍需单独执行；随仓库提供的
+工作流不会自动运行这些步骤。
+
 [SDD 实战指南](https://github.github.io/spec-kit/quickstart.html) ·
 [命令参考](https://github.github.io/spec-kit/reference/agentic-sdd.html)
 

@@ -122,6 +122,24 @@ Specify는 `spec.md`, `prototype.html`, `quickstart.md`의 미실행 UAT 기준�
 `Deviation`만 갱신합니다.
 명확화, 체크리스트, 일관성 분석은 SDD 실습 가이드를 참고하세요.
 
+현재 핵심 전달 경로를 자동화하려면 초기화된 프로젝트에서 번들 `speckit`
+워크플로를 설치하고 실행하세요:
+
+```bash
+specify workflow add speckit
+specify workflow run speckit --input spec="Build a photo organizer with drag-and-drop albums"
+```
+
+이 워크플로는 **Specify → Task → Implement**를 실행하고 Specify 후에는 사람의
+검토를 위해 일시 중지합니다. 고정된 계약을 검토한 뒤 명시적으로 다시 시작하세요:
+
+```bash
+specify workflow resume <run_id> --input speckit_review_spec_verdict=approve
+```
+
+Constitution 설정, Clarify, Checklist, Analyze, Converge는 별도로 실행해야 하며
+번들 워크플로가 자동으로 실행하지 않습니다.
+
 [SDD 실습 가이드](https://github.github.io/spec-kit/quickstart.html) ·
 [명령어 레퍼런스](https://github.github.io/spec-kit/reference/agentic-sdd.html)
 

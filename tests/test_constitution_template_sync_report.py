@@ -26,13 +26,13 @@ def test_sync_impact_report_step_documents_temporary_lifecycle():
     )
 
 
-def test_constitution_command_maintains_single_repository_authority():
+def test_constitution_command_limits_architecture_to_system_boundaries():
     content = CONSTITUTION_COMMAND.read_text(encoding="utf-8")
 
-    assert "single repository authority" in content
-    assert "No separate `blueprint.md` authority" in content
+    assert "high-level system/subsystem/component boundary" in content
+    assert "Defer public contracts" in content
     assert "Write only `.specify/memory/constitution.md`" in content
-    assert "Do not create or modify `blueprint.md`" in content
+    assert "architecture section contains no capability" in content
 
 
 def test_constitution_command_resolves_only_one_scaffold():
@@ -41,7 +41,7 @@ def test_constitution_command_resolves_only_one_scaffold():
     assert "`blueprint-template`" not in content
     assert "`contract-template`" not in content
     assert "parse `TEMPLATE_CONTENT` as the active template" in content
-    assert "single authority scaffold" in content
+    assert "Resolve the constitution scaffold" in content
 
 
 def test_no_parallel_architecture_template_assets():
@@ -53,34 +53,40 @@ def test_no_parallel_architecture_template_assets():
     assert "templates/contract-template.md" not in pyproject
 
 
-def test_architecture_structure_lives_in_constitution_template():
+def test_constitution_architecture_is_only_a_boundary_map():
     command = CONSTITUTION_COMMAND.read_text(encoding="utf-8")
     template = CONSTITUTION_TEMPLATE.read_text(encoding="utf-8")
+    architecture = template.split("## Repository Architecture", 1)[1].split(
+        "## Governance", 1
+    )[0]
 
-    for heading in (
-        "### 1. System Capability Use Cases",
-        "### 2. System Acceptance Use Cases",
-        "### 3. Responsibility Boundaries",
-        "### 4. Component Sequences",
-        "### 5. Public Contracts",
-        "### 6. Architectural Invariants",
-        "### 7. Traceability",
-        "### 8. Open Architecture Decisions",
+    assert "## Repository Architecture" in template
+    assert "### Responsibility Boundaries" in architecture
+    assert "`SYS-*`" in command
+    assert "`SUB-*`" in command
+    assert "`CMP-*`" in command
+    assert "SYS-" in architecture
+    assert "SUB-" in architecture
+    assert "CMP-" in architecture
+    assert "**Boundary**" in architecture
+
+    for forbidden_heading in (
+        "Capability Use Cases",
+        "Acceptance Use Cases",
+        "Component Sequences",
+        "Public Contracts",
+        "Architectural Invariants",
+        "Traceability",
     ):
-        assert heading in template
-        assert heading not in command
+        assert forbidden_heading not in architecture
 
-    assert "## Repository Blueprint (Architecture SSOT)" in template
-    assert "CAP-" in template
-    assert "ACCEPT-" in template
-    assert "SYS-" in template
-    assert "SUB-" in template
-    assert "CMP-" in template
-    assert "SEQ-" in template
-    assert "CON-*" in template
-    assert "CON-[CONTRACT_ID]" in template
-    assert "INV-" in template
-    assert "**Depends on**" in template
-    assert "**Dependency direction rule**" in template
-    assert "**Long-term stability need**" in template
-    assert "Exclude\n  feature-private contracts" in template
+    for forbidden_id in ("CAP-", "ACCEPT-", "SEQ-", "CON-", "INV-"):
+        assert forbidden_id not in architecture
+
+    for forbidden_field in (
+        "**Depends on**",
+        "**Dependency direction rule**",
+        "**Version and compatibility**",
+        "**Long-term stability need**",
+    ):
+        assert forbidden_field not in architecture

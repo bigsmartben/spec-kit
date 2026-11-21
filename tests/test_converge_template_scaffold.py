@@ -37,24 +37,28 @@ def test_converge_scaffold_uses_the_defined_intent_inventory():
     assert "assessment inventory" not in _normalized_template()
 
 
-def test_converge_scaffold_consumes_constitution_architecture_ssot():
+def test_converge_scaffold_consumes_constitution_boundaries_only():
     text = _normalized_template()
     for clause in (
-        "`Repository Blueprint (Architecture SSOT)`",
-        "`CAP-*`",
-        "`ACCEPT-*`",
+        "`Repository Architecture`",
         "`SYS-*`",
         "`SUB-*`",
         "`CMP-*`",
-        "`SEQ-*`",
-        "`CON-*`",
-        "`INV-*`",
-        "dependency direction",
-        "public-contract owners",
-        "cross-component sequences",
-        "architectural invariants",
+        "responsibility boundaries as architecture authority",
+        "system purpose and boundary",
+        "subsystem responsibility and boundary",
+        "component responsibility and boundary",
     ):
-        assert clause in text, f"converge.md is missing architecture authority: {clause!r}"
+        assert clause in text, f"converge.md is missing boundary authority: {clause!r}"
+
+    assert "do not infer them from the constitution" in text
+    assert "public-contract owners" not in text
+    assert "cross-component sequences" not in text
+    assert "`CAP-*`" not in text
+    assert "`ACCEPT-*`" not in text
+    assert "`SEQ-*`" not in text
+    assert "`CON-*`" not in text
+    assert "`INV-*`" not in text
 
 
 def test_converge_scaffold_reuses_existing_tasks_before_appending():

@@ -1,22 +1,22 @@
 {
   "schema_version": "1.0",
-  "updated_at": "2026-11-20T00:00:00Z",
+  "updated_at": "2026-08-04T00:00:00Z",
   "catalog_url": "https://raw.githubusercontent.com/github/spec-kit/main/presets/catalog.json",
   "presets": {
     "lean": {
       "name": "Lean Workflow",
       "id": "lean",
-      "version": "1.0.1",
+      "version": "1.0.0",
       "description": "Minimal core workflow commands - just the prompt, just the artifact",
       "author": "github",
       "repository": "https://github.com/github/spec-kit",
       "license": "MIT",
       "bundled": true,
       "requires": {
-        "speckit_version": ">=1.4.4.dev0"
+        "speckit_version": ">=0.6.0"
       },
       "provides": {
-        "commands": 4,
+        "commands": 5,
         "templates": 0
       },
       "tags": [
@@ -26,39 +26,10 @@
         "core"
       ]
     },
-    "workflow-preset": {
-      "name": "Workflow Preset",
-      "id": "workflow-preset",
-      "version": "3.2.1",
-      "description": "Constitution-managed architecture, behavior-first specification, design artifacts, and execution-ready task mapping",
-      "author": "bigsmartben",
-      "repository": "https://github.com/bigsmartben/spec-kit-workflow-preset",
-      "license": "MIT",
-      "bundled": true,
-      "requires": {
-        "speckit_version": ">=0.12.7.dev0"
-      },
-      "provides": {
-        "commands": 7,
-        "templates": 27
-      },
-      "tags": [
-        "architecture",
-        "constitution",
-        "behavior",
-        "bdd",
-        "test-first",
-        "ui-ux",
-        "planning",
-        "implementation"
-      ],
-      "source_commit": "6e80f25d0334f9e71504b46223565a517b2dedb8",
-      "sha256": "6667df31c2828be89e6d2256c38e60d207749e783c38dd5efb3f3dbe2c15261b"
-    },
     "constitution-sync": {
       "name": "Constitution Template Sync",
       "id": "constitution-sync",
-      "version": "1.0.1",
+      "version": "1.0.0",
       "description": "Opt-in: restores guarded install-time constitution seeding and /constitution propagation for teams that treat materialized templates as reviewed artifacts.",
       "author": "github",
       "repository": "https://github.com/github/spec-kit",

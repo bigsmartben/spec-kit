@@ -433,10 +433,6 @@ class CommandRegistrar:
                 agent_name, frontmatter, body, project_root, extension_id=extension_id,
                 rewrite_paths=rewrite_paths,
             )
-            from specify_cli.integrations.base import IntegrationBase  # noqa: PLC0415
-
-            _sep = agent_config.get("invoke_separator", ".")
-            body = IntegrationBase.normalize_slash_command_refs(body, _sep)
 
         description = frontmatter.get(
             "description", f"Spec-kit workflow command: {skill_name}"

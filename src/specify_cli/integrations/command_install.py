@@ -200,24 +200,6 @@ def integration_install(
         )
         raise typer.Exit(1)
 
-    if new_default == integration.key:
-        _register_presets_for_agent(
-            project_root,
-            integration.key,
-            continuing=(
-                "The integration was installed, but enabled presets may need "
-                "manual re-registration."
-            ),
-        )
-    else:
-        _reconcile_presets_for_active_agent(
-            project_root,
-            continuing=(
-                "The integration was installed, but enabled presets may need "
-                "manual re-registration."
-            ),
-        )
-
     name = (integration.config or {}).get("name", key)
     lifecycle_success(f"\n[green]✓[/green] Integration '{escape(str(name))}' installed successfully")
     if default_key:

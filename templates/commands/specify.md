@@ -170,10 +170,7 @@ Given that feature description, do this:
 
 8. **Specification Quality Validation**: After writing the three initial artifacts, validate them together:
 
-   a. **Create Spec Quality Checklist**: Compute the SHA-256 digest of the exact
-      `spec.md` bytes and generate
-      `SPECIFY_FEATURE_DIRECTORY/checklists/requirements.md` using the checklist
-      template structure with these validation items:
+   a. **Create Spec Quality Checklist**: Generate a checklist file at `SPECIFY_FEATURE_DIRECTORY/checklists/requirements.md` using the checklist template structure with these validation items:
 
       ```markdown
       # Specification Quality Checklist: [FEATURE NAME]

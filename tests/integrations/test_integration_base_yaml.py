@@ -15,7 +15,7 @@ import yaml
 from specify_cli.integrations import INTEGRATION_REGISTRY, get_integration
 from specify_cli.integrations.base import YamlIntegration
 from specify_cli.integrations.manifest import IntegrationManifest
-from tests.integrations.community_defaults import bundled_community_default_files
+from tests.integrations.community_defaults import bundled_personal_default_files
 
 
 class YamlIntegrationTests:
@@ -442,8 +442,7 @@ class YamlIntegrationTests:
 
 
 
-        files.extend(bundled_community_default_files(self.KEY))
-
+        files.extend(bundled_personal_default_files(self.KEY))
         return sorted(set(files))
 
     def test_complete_file_inventory_sh(self, tmp_path):

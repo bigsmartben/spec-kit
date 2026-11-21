@@ -767,21 +767,21 @@ class TestPresetSkills(PresetArtifactTestHelpers):
         preset_dir = self._create_multi_command_preset(
             temp_dir,
             "same-mode-partial-command-preset",
-            ["speckit.specify", "speckit.tasks"],
+            ["speckit.specify", "speckit.plan"],
         )
         manager = PresetManager(project_dir)
         manager.install_from_directory(preset_dir, "0.1.5")
 
         installed_dir = manager.presets_dir / "same-mode-partial-command-preset"
-        (installed_dir / "commands" / "speckit.tasks.md").unlink()
+        (installed_dir / "commands" / "speckit.plan.md").unlink()
         manager.register_enabled_presets_for_agent("copilot")
 
         metadata = manager.registry.get("same-mode-partial-command-preset")
         assert set(metadata["registered_commands"]["copilot"]) == {
             "speckit.specify",
-            "speckit.tasks",
+            "speckit.plan",
         }
-        assert (commands_dir / "speckit.tasks.agent.md").exists()
+        assert (commands_dir / "speckit.plan.agent.md").exists()
 
     def test_same_mode_partial_skill_rescaffold_keeps_skipped_tracking(
         self, project_dir, temp_dir
@@ -790,23 +790,23 @@ class TestPresetSkills(PresetArtifactTestHelpers):
         self._write_init_options(project_dir, ai="copilot", ai_skills=True)
         skills_dir = project_dir / ".github" / "skills"
         self._create_skill(skills_dir, "speckit-specify")
-        self._create_skill(skills_dir, "speckit-tasks")
+        self._create_skill(skills_dir, "speckit-plan")
         preset_dir = self._create_multi_command_preset(
             temp_dir,
             "same-mode-partial-skill-preset",
-            ["speckit.specify", "speckit.tasks"],
+            ["speckit.specify", "speckit.plan"],
         )
         manager = PresetManager(project_dir)
         manager.install_from_directory(preset_dir, "0.1.5")
 
         installed_dir = manager.presets_dir / "same-mode-partial-skill-preset"
-        (installed_dir / "commands" / "speckit.tasks.md").unlink()
+        (installed_dir / "commands" / "speckit.plan.md").unlink()
         manager.register_enabled_presets_for_agent("copilot")
 
         metadata = manager.registry.get("same-mode-partial-skill-preset")
         assert set(metadata["registered_skills"]["copilot"]) == {
             "speckit-specify",
-            "speckit-tasks",
+            "speckit-plan",
         }
 
     def test_toggle_command_to_skills_preserves_old_command_on_skills_failure(
@@ -941,26 +941,26 @@ class TestPresetSkills(PresetArtifactTestHelpers):
 
         preset_dir = self._create_multi_command_preset(
             temp_dir, "toggle-partial-result-preset",
-            ["speckit.specify", "speckit.tasks"],
+            ["speckit.specify", "speckit.plan"],
         )
         manager = PresetManager(project_dir)
         manager.install_from_directory(preset_dir, "0.1.5")
 
         specify_cmd_file = copilot_commands_dir / "speckit.specify.agent.md"
-        tasks_cmd_file = copilot_commands_dir / "speckit.tasks.agent.md"
-        assert specify_cmd_file.exists() and tasks_cmd_file.exists(), (
+        plan_cmd_file = copilot_commands_dir / "speckit.plan.agent.md"
+        assert specify_cmd_file.exists() and plan_cmd_file.exists(), (
             "sanity: command mode should have written both command files"
         )
         metadata = manager.registry.get("toggle-partial-result-preset")
         assert set(metadata["registered_commands"].get("copilot", [])) == {
-            "speckit.specify", "speckit.tasks",
+            "speckit.specify", "speckit.plan",
         }, "sanity: both commands should be tracked for copilot"
 
-        # Remove only the tasks command's *installed* source so its skill
+        # Remove only the plan command's *installed* source so its skill
         # replacement is silently skipped (missing source), while
         # specify's succeeds — a genuine partial result, not an injected
         # exception.
-        (manager.presets_dir / "toggle-partial-result-preset" / "commands" / "speckit.tasks.md").unlink()
+        (manager.presets_dir / "toggle-partial-result-preset" / "commands" / "speckit.plan.md").unlink()
 
         self._write_init_options(project_dir, ai="copilot", ai_skills=True)
         manager.register_enabled_presets_for_agent("copilot")
@@ -969,8 +969,8 @@ class TestPresetSkills(PresetArtifactTestHelpers):
             "the specify command's old artifact must be retired since its "
             "skill replacement actually landed (#2948)"
         )
-        assert tasks_cmd_file.exists(), (
-            "the tasks command's old artifact must survive since its skill "
+        assert plan_cmd_file.exists(), (
+            "the plan command's old artifact must survive since its skill "
             "replacement never landed (missing source) (#2948)"
         )
         metadata = manager.registry.get("toggle-partial-result-preset")
@@ -979,8 +979,8 @@ class TestPresetSkills(PresetArtifactTestHelpers):
             "specify must stop being tracked as a command once its "
             "artifact has been unregistered (#2948)"
         )
-        assert "speckit.tasks" in tracked_commands, (
-            "tasks must keep being tracked as a command since its old "
+        assert "speckit.plan" in tracked_commands, (
+            "plan must keep being tracked as a command since its old "
             "artifact is still on disk (#2948)"
         )
         specify_skill_file = (
@@ -989,9 +989,9 @@ class TestPresetSkills(PresetArtifactTestHelpers):
         assert "preset:toggle-partial-result-preset" in specify_skill_file.read_text(), (
             "sanity: specify's new skill artifact should exist"
         )
-        tasks_skill_file = project_dir / ".github" / "skills" / "speckit-tasks"
-        assert not tasks_skill_file.exists(), (
-            "sanity: no skill should have been written for tasks since its "
+        plan_skill_file = project_dir / ".github" / "skills" / "speckit-plan"
+        assert not plan_skill_file.exists(), (
+            "sanity: no skill should have been written for plan since its "
             "source was missing"
         )
 
@@ -1395,7 +1395,7 @@ class TestPresetSkills(PresetArtifactTestHelpers):
         copilot_commands_dir.mkdir(parents=True)
         skills_dir = project_dir / ".github" / "skills"
         self._create_skill(skills_dir, "speckit-specify")
-        self._create_skill(skills_dir, "speckit-tasks")
+        self._create_skill(skills_dir, "speckit-plan")
 
         # A core template lets the retired skill restore to core content
         # instead of being removed entirely (it has nothing else to fall
@@ -1409,24 +1409,24 @@ class TestPresetSkills(PresetArtifactTestHelpers):
 
         preset_dir = self._create_multi_command_preset(
             temp_dir, "toggle-skill-partial-result-preset",
-            ["speckit.specify", "speckit.tasks"],
+            ["speckit.specify", "speckit.plan"],
         )
         manager = PresetManager(project_dir)
         manager.install_from_directory(preset_dir, "0.1.5")
 
         specify_skill_file = skills_dir / "speckit-specify" / "SKILL.md"
-        tasks_skill_file = skills_dir / "speckit-tasks" / "SKILL.md"
+        plan_skill_file = skills_dir / "speckit-plan" / "SKILL.md"
         assert "preset:toggle-skill-partial-result-preset" in specify_skill_file.read_text()
-        assert "preset:toggle-skill-partial-result-preset" in tasks_skill_file.read_text()
+        assert "preset:toggle-skill-partial-result-preset" in plan_skill_file.read_text()
         metadata = manager.registry.get("toggle-skill-partial-result-preset")
         assert set(metadata["registered_skills"].get("copilot", [])) == {
-            "speckit-specify", "speckit-tasks",
+            "speckit-specify", "speckit-plan",
         }, "sanity: both skills should be tracked for copilot"
 
-        # Remove only the tasks command's *installed* source so its command
+        # Remove only the plan command's *installed* source so its command
         # replacement is silently skipped (missing source), while
         # specify's succeeds.
-        (manager.presets_dir / "toggle-skill-partial-result-preset" / "commands" / "speckit.tasks.md").unlink()
+        (manager.presets_dir / "toggle-skill-partial-result-preset" / "commands" / "speckit.plan.md").unlink()
 
         self._write_init_options(project_dir, ai="copilot", ai_skills=False)
         manager.register_enabled_presets_for_agent("copilot")
@@ -1435,8 +1435,8 @@ class TestPresetSkills(PresetArtifactTestHelpers):
             "the specify skill's old artifact must be retired/reverted "
             "since its command replacement actually landed (#2948)"
         )
-        assert "preset:toggle-skill-partial-result-preset" in tasks_skill_file.read_text(), (
-            "the tasks skill's old artifact must survive since its command "
+        assert "preset:toggle-skill-partial-result-preset" in plan_skill_file.read_text(), (
+            "the plan skill's old artifact must survive since its command "
             "replacement never landed (missing source) (#2948)"
         )
         metadata = manager.registry.get("toggle-skill-partial-result-preset")
@@ -1445,8 +1445,8 @@ class TestPresetSkills(PresetArtifactTestHelpers):
             "specify must stop being tracked as a skill once its artifact "
             "has been unregistered/reverted (#2948)"
         )
-        assert "speckit-tasks" in tracked_skills, (
-            "tasks must keep being tracked as a skill since its old "
+        assert "speckit-plan" in tracked_skills, (
+            "plan must keep being tracked as a skill since its old "
             "artifact is still on disk (#2948)"
         )
         assert (copilot_commands_dir / "speckit.specify.agent.md").exists(), (
@@ -1575,10 +1575,10 @@ class TestPresetSkills(PresetArtifactTestHelpers):
         skill actually lands is retired; the other survives intact.
 
         A preset with two commands (``speckit.specify`` with alias
-        ``speckit.spec``, and ``speckit.tasks`` with alias
-        ``speckit.tasks-alt``) where only ``speckit.tasks``'s installed
+        ``speckit.spec``, and ``speckit.plan`` with alias
+        ``speckit.plan-alt``) where only ``speckit.plan``'s installed
         source goes missing: ``speckit.specify``'s group (primary + alias)
-        must be fully retired, while ``speckit.tasks``'s entire group
+        must be fully retired, while ``speckit.plan``'s entire group
         (primary + alias) must survive together, since grouping is
         per-primary, not per-individual-name (#2948).
         """
@@ -1590,7 +1590,7 @@ class TestPresetSkills(PresetArtifactTestHelpers):
             temp_dir, "alias-group-partial-preset",
             [
                 ("speckit.specify", ["speckit.spec"]),
-                ("speckit.tasks", ["speckit.tasks-alt"]),
+                ("speckit.plan", ["speckit.plan-alt"]),
             ],
         )
         manager = PresetManager(project_dir)
@@ -1598,15 +1598,15 @@ class TestPresetSkills(PresetArtifactTestHelpers):
 
         specify_cmd = copilot_commands_dir / "speckit.specify.agent.md"
         spec_alias_cmd = copilot_commands_dir / "speckit.spec.agent.md"
-        tasks_cmd = copilot_commands_dir / "speckit.tasks.agent.md"
-        tasks_alias_cmd = copilot_commands_dir / "speckit.tasks-alt.agent.md"
+        plan_cmd = copilot_commands_dir / "speckit.plan.agent.md"
+        plan_alias_cmd = copilot_commands_dir / "speckit.plan-alt.agent.md"
         assert all(
-            f.exists() for f in (specify_cmd, spec_alias_cmd, tasks_cmd, tasks_alias_cmd)
+            f.exists() for f in (specify_cmd, spec_alias_cmd, plan_cmd, plan_alias_cmd)
         ), "sanity: command mode should have written all four command files"
 
-        # Remove only tasks' installed source so its group's skill
+        # Remove only plan's installed source so its group's skill
         # replacement is silently skipped, while specify's group succeeds.
-        (manager.presets_dir / "alias-group-partial-preset" / "commands" / "speckit.tasks.md").unlink()
+        (manager.presets_dir / "alias-group-partial-preset" / "commands" / "speckit.plan.md").unlink()
 
         self._write_init_options(project_dir, ai="copilot", ai_skills=True)
         manager.register_enabled_presets_for_agent("copilot")
@@ -1615,14 +1615,14 @@ class TestPresetSkills(PresetArtifactTestHelpers):
             "specify's whole group (primary + alias) must be retired "
             "since its skill replacement landed (#2948)"
         )
-        assert tasks_cmd.exists() and tasks_alias_cmd.exists(), (
-            "tasks' whole group (primary + alias) must survive together "
+        assert plan_cmd.exists() and plan_alias_cmd.exists(), (
+            "plan's whole group (primary + alias) must survive together "
             "since its skill replacement never landed (#2948)"
         )
         metadata = manager.registry.get("alias-group-partial-preset")
         tracked_commands = set(metadata["registered_commands"].get("copilot", []))
-        assert tracked_commands == {"speckit.tasks", "speckit.tasks-alt"}, (
-            "only tasks' group should remain tracked as commands; "
+        assert tracked_commands == {"speckit.plan", "speckit.plan-alt"}, (
+            "only plan's group should remain tracked as commands; "
             "specify's group must be fully untracked (#2948)"
         )
 

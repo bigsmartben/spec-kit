@@ -762,7 +762,11 @@ class TestClaudeNoModelInvocationOption:
 
         project = _init_project(tmp_path, "claude", "--no-model-invocation")
         skills_dir = project / ".claude" / "skills"
-        skill_files = sorted(skills_dir.glob("*/SKILL.md"))
+        skill_files = sorted(
+            path
+            for path in skills_dir.glob("*/SKILL.md")
+            if not path.parent.name.startswith("speckit-bug-")
+        )
         assert len(skill_files) > 0
         for f in skill_files:
             assert _skill_frontmatter(f)["disable-model-invocation"] is True, f.parent.name

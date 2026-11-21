@@ -49,14 +49,6 @@ def project_dir(temp_dir):
     return temp_dir
 
 
-def symlink_or_skip(link_path: Path, target: Path, *, target_is_directory: bool = False) -> None:
-    """Create a symlink, or skip when the local platform denies symlink creation."""
-    try:
-        link_path.symlink_to(target, target_is_directory=target_is_directory)
-    except OSError as exc:
-        pytest.skip(f"symlink creation is unavailable in this environment: {exc}")
-
-
 @pytest.fixture
 def sample_workflow_yaml():
     """Return a valid minimal workflow YAML string."""
@@ -11230,7 +11222,7 @@ class TestStepRegistryCustom:
             encoding="utf-8",
         )
         steps_link = project_dir / ".specify" / "workflows" / "steps"
-        symlink_or_skip(steps_link, outside, target_is_directory=True)
+        steps_link.symlink_to(outside, target_is_directory=True)
 
         registry = StepRegistry(project_dir)
         assert registry.list() == {}
@@ -11243,7 +11235,7 @@ class TestStepRegistryCustom:
         outside = project_dir.parent / "outside-steps-save"
         outside.mkdir(parents=True, exist_ok=True)
         steps_link = project_dir / ".specify" / "workflows" / "steps"
-        symlink_or_skip(steps_link, outside, target_is_directory=True)
+        steps_link.symlink_to(outside, target_is_directory=True)
 
         registry = StepRegistry(project_dir)
         with pytest.raises(StepValidationError, match="symlinked path"):
@@ -11994,8 +11986,8 @@ class TestCustomStep(StepBase):
         init_target = outside / "__init__.py"
         init_target.write_text("# external code", encoding="utf-8")
 
-        symlink_or_skip(step_dir / "step.yml", step_yml_target)
-        symlink_or_skip(step_dir / "__init__.py", init_target)
+        (step_dir / "step.yml").symlink_to(step_yml_target)
+        (step_dir / "__init__.py").symlink_to(init_target)
 
         loaded = load_custom_steps(project_dir)
         assert "bad-symlinked-files" not in loaded

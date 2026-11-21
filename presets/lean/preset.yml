@@ -3,27 +3,33 @@ schema_version: "1.0"
 preset:
   id: "lean"
   name: "Lean Workflow"
-  version: "1.0.1"
+  version: "1.0.0"
   description: "Minimal core workflow commands - just the prompt, just the artifact"
   author: "github"
   repository: "https://github.com/github/spec-kit"
   license: "MIT"
 
 requires:
-  speckit_version: ">=1.4.4.dev0"
+  speckit_version: ">=0.6.0"
 
 provides:
   templates:
     - type: "command"
       name: "speckit.specify"
       file: "commands/speckit.specify.md"
-      description: "Lean specify - create spec.md, prototype.html, and a pending UAT baseline"
+      description: "Lean specify - create spec.md from a feature description"
       replaces: "speckit.specify"
+
+    - type: "command"
+      name: "speckit.plan"
+      file: "commands/speckit.plan.md"
+      description: "Lean plan - create plan.md from the spec"
+      replaces: "speckit.plan"
 
     - type: "command"
       name: "speckit.tasks"
       file: "commands/speckit.tasks.md"
-      description: "Lean tasks - convert the frozen feature contract into requirement-level work packages"
+      description: "Lean tasks - create tasks.md from plan and spec"
       replaces: "speckit.tasks"
 
     - type: "command"

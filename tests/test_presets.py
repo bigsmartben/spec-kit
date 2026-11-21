@@ -29,8 +29,6 @@ valid_pack_data = _fixtures.valid_pack_data
 pack_dir = _fixtures.pack_dir
 project_dir = _fixtures.project_dir
 
-SELF_TEST_TEMPLATE_NAMES = list(CORE_TEMPLATE_NAMES)
-
 
 class TestIntegration:
     """Integration tests for complete preset workflows."""
@@ -127,14 +125,14 @@ class TestSelfTestPreset:
         manifest = PresetManifest(SELF_TEST_PRESET_DIR / "preset.yml")
         assert manifest.id == "self-test"
         assert manifest.name == "Self-Test Preset"
-        assert manifest.version == "1.0.1"
-        assert len(manifest.templates) == 8  # 6 templates + 2 commands
+        assert manifest.version == "1.0.0"
+        assert len(manifest.templates) == 7  # 5 templates + 2 commands
 
-    def test_self_test_provides_all_active_core_templates(self):
-        """Verify the self-test preset overrides every active core template."""
+    def test_self_test_provides_all_core_templates(self):
+        """Verify the self-test preset provides an override for every core template."""
         manifest = PresetManifest(SELF_TEST_PRESET_DIR / "preset.yml")
         provided_names = {t["name"] for t in manifest.templates}
-        for name in SELF_TEST_TEMPLATE_NAMES:
+        for name in CORE_TEMPLATE_NAMES:
             assert name in provided_names, f"Self-test preset missing template: {name}"
 
     def test_self_test_template_files_exist(self):
@@ -146,28 +144,10 @@ class TestSelfTestPreset:
 
     def test_self_test_templates_have_marker(self):
         """Verify each template contains the preset:self-test marker."""
-        for name in SELF_TEST_TEMPLATE_NAMES:
+        for name in CORE_TEMPLATE_NAMES:
             tmpl_path = SELF_TEST_PRESET_DIR / "templates" / f"{name}.md"
             content = tmpl_path.read_text()
             assert "preset:self-test" in content, f"{name}.md missing preset:self-test marker"
-
-    @pytest.mark.parametrize(
-        ("template_name", "expected"),
-        [
-            ("prototype-template", "<!doctype html>"),
-            ("quickstart-template", "artifact: \"user-acceptance-baseline\""),
-        ],
-    )
-    def test_self_test_specify_companion_templates_resolve(
-        self, project_dir, template_name, expected
-    ):
-        """Self-test overrides must participate in runtime template resolution."""
-        install_self_test_preset(PresetManager(project_dir))
-
-        content = PresetResolver(project_dir).resolve_content(template_name)
-
-        assert expected in content
-        assert "preset:self-test" in content
 
     def test_self_test_not_in_catalog(self):
         """Verify the self-test preset is NOT in the catalog (it's local-only)."""
@@ -462,7 +442,6 @@ class TestResolveActiveAgentForRegistration:
 
 
 LEAN_PRESET_DIR = Path(__file__).parent.parent / "presets" / "lean"
-SCAFFOLD_PRESET_DIR = Path(__file__).parent.parent / "presets" / "scaffold"
 
 
 CORE_CONSTITUTION_COMMAND = (
@@ -472,6 +451,7 @@ CORE_CONSTITUTION_COMMAND = (
 
 LEAN_COMMAND_NAMES = [
     "speckit.specify",
+    "speckit.plan",
     "speckit.tasks",
     "speckit.implement",
     "speckit.constitution",
@@ -511,9 +491,6 @@ def test_core_constitution_command_resolves_template_at_runtime():
     assert "resolve-template.ps1 constitution-template -Json" in content
     assert "resolve_template.py constitution-template --json" in content
     assert "parse `TEMPLATE_CONTENT` as the active template" in content
-    assert "`blueprint-template`" not in content
-    assert "`contract-template`" not in content
-    assert "single repository authority" in content
     assert "do not continue with only one contributing" in content
     assert "Do not write back to any versioned template layer" in content
 
@@ -529,8 +506,8 @@ def test_core_checklist_command_resolves_template_at_runtime():
     assert "Use TEMPLATE_CONTENT as the structural template" in content
 
 
-def test_core_specify_command_resolves_all_artifact_templates():
-    """Specify must consume all three composed templates at runtime."""
+def test_core_specify_command_writes_composed_spec_template():
+    """The specify command must start spec.md from the composed spec-template."""
     content = (CORE_CONSTITUTION_COMMAND.parent / "specify.md").read_text(
         encoding="utf-8"
     )
@@ -539,54 +516,10 @@ def test_core_specify_command_resolves_all_artifact_templates():
     assert "resolve-template.ps1 spec-template -Json" in content
     assert "resolve_template.py spec-template --json" in content
     assert "parse `TEMPLATE_CONTENT` as `SPEC_TEMPLATE_CONTENT`" in content
-    assert "`prototype-template`" in content
-    assert "`quickstart-template`" in content
-    assert "Write the specification to `SPEC_FILE` using `SPEC_TEMPLATE_CONTENT`" in content
-    assert "raw standalone HTML" in content
-    assert "Never fall back to a single layer" in content
+    assert "Write the specification to `SPEC_FILE`" in content
+    assert "`PROTOTYPE_TEMPLATE_CONTENT`" in content
+    assert "`QUICKSTART_TEMPLATE_CONTENT`" in content
     assert "Copy the resolved `spec-template` file" not in content
-
-
-def test_specify_artifact_templates_define_the_stage_contract():
-    """The core companion templates must preserve construction and UAT semantics."""
-    templates_dir = CORE_CONSTITUTION_COMMAND.parent.parent
-    prototype = (templates_dir / "prototype-template.md").read_text(encoding="utf-8")
-    quickstart = (templates_dir / "quickstart-template.md").read_text(encoding="utf-8")
-    spec = (templates_dir / "spec-template.md").read_text(encoding="utf-8")
-
-    assert prototype.lstrip().startswith("<!--")
-    assert "<!doctype html>" in prototype
-    assert "data-spec-ref" in prototype
-    assert "http://" not in prototype
-    assert "https://" not in prototype
-    assert "UAT-001" in quickstart
-    assert "Requirement Refs" in quickstart
-    assert "Prototype Refs" in quickstart
-    assert "**Status**: PENDING" in quickstart
-    assert "Actual Result" in quickstart and "Not executed" in quickstart
-    assert "[prototype.html](./prototype.html)" in spec
-    assert "[quickstart.md](./quickstart.md)" in spec
-
-
-@pytest.mark.parametrize(
-    "command_path",
-    [
-        CORE_CONSTITUTION_COMMAND.parent / "specify.md",
-        LEAN_PRESET_DIR / "commands" / "speckit.specify.md",
-        SCAFFOLD_PRESET_DIR / "commands" / "speckit.specify.md",
-        SELF_TEST_PRESET_DIR / "commands" / "speckit.specify.md",
-    ],
-    ids=["core", "lean", "scaffold", "self-test"],
-)
-def test_bundled_specify_commands_preserve_three_artifact_contract(command_path):
-    """Repository-owned command overrides cannot drop prototype or UAT generation."""
-    content = command_path.read_text(encoding="utf-8")
-
-    assert "prototype.html" in content
-    assert "quickstart.md" in content
-    assert "data-spec-ref" in content
-    assert "UAT-" in content
-    assert "PENDING" in content
 
 
 class TestLeanPreset:
@@ -602,8 +535,8 @@ class TestLeanPreset:
         manifest = PresetManifest(LEAN_PRESET_DIR / "preset.yml")
         assert manifest.id == "lean"
         assert manifest.name == "Lean Workflow"
-        assert manifest.version == "1.0.1"
-        assert len(manifest.templates) == 4  # 4 commands
+        assert manifest.version == "1.0.0"
+        assert len(manifest.templates) == 5  # 5 commands
 
     def test_lean_provides_core_workflow_commands(self):
         """Verify the lean preset provides overrides for core workflow commands."""
@@ -637,56 +570,17 @@ class TestLeanPreset:
             assert "hooks." not in content, f"{name} should not reference extension hooks"
             assert "extensions.yml" not in content, f"{name} should not reference extensions.yml"
 
-    def test_lean_task_command_preserves_contract_boundary(self):
-        tasks = (LEAN_PRESET_DIR / "commands" / "speckit.tasks.md").read_text()
-
-        assert "spec.md" in tasks
-        assert "prototype.html" in tasks
-        assert "quickstart.md" in tasks
-        assert "FR-*" in tasks
-        assert "SC-*" in tasks
-        assert "data-spec-ref" in tasks
-        assert "UAT-*" in tasks
-        assert "T001" in tasks
-        assert "[BUILD]" in tasks
-        assert "exactly one `[UAT]` task" in tasks
-        assert "Status: PASS" in tasks
-        assert "plan.md" not in tasks
-        assert "file path" in tasks
-
-    def test_lean_implement_command_owns_technical_choices_and_uat(self):
-        implement = (
-            LEAN_PRESET_DIR / "commands" / "speckit.implement.md"
-        ).read_text()
-
-        assert "Own the technical choices" in implement
-        assert "Status" in implement
-        assert "Actual Result" in implement
-        assert "Evidence" in implement
-        assert "Deviation" in implement
-        assert "plan.md" not in implement
-        assert "Select this invocation's scope from `$ARGUMENTS`" in implement
-        assert "Leave out-of-scope work unchanged" in implement
-        assert "FAIL" in implement
-        assert "BLOCKED" in implement
-        assert "leave it unchecked" in implement
-        assert "If it is missing or" in implement
-        assert "Implement does not create task" in implement
-        assert "return the issue to Specify or Clarify" in implement
-        assert "all selected work" in implement
-        assert not (LEAN_PRESET_DIR / "commands" / "speckit.plan.md").exists()
-
     def test_install_lean_preset(self, project_dir):
         """Test installing the lean preset from its directory."""
         manager = PresetManager(project_dir)
-        manifest = manager.install_from_directory(LEAN_PRESET_DIR, "1.4.4.dev0")
+        manifest = manager.install_from_directory(LEAN_PRESET_DIR, "0.6.0")
         assert manifest.id == "lean"
         assert manager.registry.is_installed("lean")
 
     def test_lean_overrides_commands(self, project_dir):
         """Test that lean preset overrides are resolved correctly."""
         manager = PresetManager(project_dir)
-        manager.install_from_directory(LEAN_PRESET_DIR, "1.4.4.dev0")
+        manager.install_from_directory(LEAN_PRESET_DIR, "0.6.0")
 
         resolver = PresetResolver(project_dir)
         for name in LEAN_COMMAND_NAMES:
@@ -705,20 +599,23 @@ class TestBundledPresetLocator:
         assert path is not None
         assert (path / "preset.yml").is_file()
 
-    def test_locate_bundled_workflow_preset(self):
-        """_locate_bundled_preset finds the workflow preset."""
-        from specify_cli import _locate_bundled_preset
-
-        path = _locate_bundled_preset("workflow-preset")
-        assert path is not None
-        assert (path / "preset.yml").is_file()
-
     def test_locate_bundled_preset_not_found(self):
         """_locate_bundled_preset returns None for nonexistent preset."""
         from specify_cli import _locate_bundled_preset
 
         path = _locate_bundled_preset("nonexistent-preset")
         assert path is None
+
+    def test_historical_workflow_preset_is_not_bundled_or_cataloged(self):
+        from specify_cli import _locate_bundled_preset
+
+        assert _locate_bundled_preset("workflow-preset") is None
+        for catalog_name in ("catalog.json", "catalog.community.json"):
+            catalog_path = (
+                Path(__file__).parent.parent / "presets" / catalog_name
+            )
+            catalog = json.loads(catalog_path.read_text(encoding="utf-8"))
+            assert "workflow-preset" not in catalog["presets"]
 
     def test_locate_bundled_preset_rejects_invalid_id(self):
         """_locate_bundled_preset rejects IDs with invalid characters."""
@@ -729,300 +626,12 @@ class TestBundledPresetLocator:
         assert _locate_bundled_preset("has spaces") is None
 
     def test_bundled_preset_in_catalog(self):
-        """Verify bundled presets are listed in catalog.json with bundled marker."""
+        """Verify the lean preset is listed in catalog.json with bundled marker."""
         catalog_path = Path(__file__).parent.parent / "presets" / "catalog.json"
         catalog = json.loads(catalog_path.read_text())
-        for preset_id in ("lean", "workflow-preset"):
-            assert preset_id in catalog["presets"]
-            assert catalog["presets"][preset_id]["bundled"] is True
-            assert "download_url" not in catalog["presets"][preset_id]
-
-    def test_workflow_preset_catalog_matches_manifest(self):
-        """workflow-preset catalog entry matches bundled preset manifest."""
-        catalog_path = Path(__file__).parent.parent / "presets" / "catalog.json"
-        manifest_path = Path(__file__).parent.parent / "presets" / "workflow-preset" / "preset.yml"
-        catalog = json.loads(catalog_path.read_text(encoding="utf-8"))
-        manifest = yaml.safe_load(manifest_path.read_text(encoding="utf-8"))
-
-        entry = catalog["presets"]["workflow-preset"]
-        catalog_updated_at = datetime.fromisoformat(catalog["updated_at"].replace("Z", "+00:00"))
-        provided = manifest["provides"]["templates"]
-        command_count = sum(1 for item in provided if item["type"] == "command")
-        template_count = sum(1 for item in provided if item["type"] == "template")
-
-        assert catalog_updated_at >= datetime(2026, 6, 18, tzinfo=timezone.utc)
-        assert entry["bundled"] is True
-        assert entry["version"] == "3.2.1"
-        assert entry["version"] == manifest["preset"]["version"]
-        assert entry["repository"] == manifest["preset"]["repository"]
-        assert entry["requires"]["speckit_version"] == manifest["requires"]["speckit_version"]
-        assert entry["provides"]["commands"] == command_count
-        assert entry["provides"]["templates"] == template_count
-        assert command_count == 7
-        assert template_count == 27
-        assert entry["tags"] == manifest["tags"]
-        assert len(entry["source_commit"]) == 40
-        assert entry["sha256"]
-
-    def test_workflow_preset_community_catalog_matches_manifest(self):
-        """workflow-preset community catalog entry matches the released preset."""
-        catalog_path = Path(__file__).parent.parent / "presets" / "catalog.community.json"
-        manifest_path = Path(__file__).parent.parent / "presets" / "workflow-preset" / "preset.yml"
-        catalog = json.loads(catalog_path.read_text(encoding="utf-8"))
-        manifest = yaml.safe_load(manifest_path.read_text(encoding="utf-8"))
-
-        entry = catalog["presets"]["workflow-preset"]
-        provided = manifest["provides"]["templates"]
-        command_count = sum(1 for item in provided if item["type"] == "command")
-        template_count = sum(1 for item in provided if item["type"] == "template")
-        version = manifest["preset"]["version"]
-
-        assert entry["version"] == version
-        assert entry["repository"] == manifest["preset"]["repository"]
-        assert entry["download_url"] == (
-            "https://github.com/bigsmartben/spec-kit-workflow-preset/"
-            f"releases/download/v{version}/spec-kit-workflow-preset-v{version}.zip"
-        )
-        assert entry["requires"]["speckit_version"] == manifest["requires"]["speckit_version"]
-        assert entry["provides"]["commands"] == command_count
-        assert entry["provides"]["templates"] == template_count
-        assert command_count == 7
-        assert template_count == 27
-        assert entry["tags"] == manifest["tags"]
-        assert len(entry["source_commit"]) == 40
-        assert entry["sha256"]
-
-    def test_workflow_preset_snapshot_matches_release_manifest(self):
-        """Bundled files are an unmodified snapshot of the declared release."""
-        root = Path(__file__).parent.parent
-        snapshot_root = root / "presets" / "workflow-preset"
-        release_manifest = json.loads(
-            (root / "presets" / "workflow-preset.release.json").read_text(
-                encoding="utf-8"
-            )
-        )
-        bundled_catalog = json.loads(
-            (root / "presets" / "catalog.json").read_text(encoding="utf-8")
-        )["presets"]["workflow-preset"]
-        community_catalog = json.loads(
-            (root / "presets" / "catalog.community.json").read_text(
-                encoding="utf-8"
-            )
-        )["presets"]["workflow-preset"]
-
-        expected_hashes = {
-            entry["path"]: entry["sha256"]
-            for entry in release_manifest["files"]
-        }
-        actual_paths = {
-            path.relative_to(snapshot_root).as_posix()
-            for path in snapshot_root.rglob("*")
-            if path.is_file()
-            and "__pycache__" not in path.parts
-            and path.suffix not in {".pyc", ".pyo"}
-        }
-
-        assert actual_paths == set(expected_hashes)
-        for relative_path, expected_hash in expected_hashes.items():
-            assert (
-                hashlib.sha256((snapshot_root / relative_path).read_bytes()).hexdigest()
-                == expected_hash
-            )
-
-        manifest = yaml.safe_load(
-            (snapshot_root / "preset.yml").read_text(encoding="utf-8")
-        )
-        assert release_manifest["version"] == manifest["preset"]["version"]
-        assert release_manifest["source_repository"] == manifest["preset"]["repository"]
-        assert bundled_catalog["source_commit"] == release_manifest["source_commit"]
-        assert community_catalog["source_commit"] == release_manifest["source_commit"]
-        assert bundled_catalog["sha256"] == release_manifest["artifact"]["sha256"]
-        assert community_catalog["sha256"] == release_manifest["artifact"]["sha256"]
-
-        command_names = {
-            entry["name"]
-            for entry in manifest["provides"]["templates"]
-            if entry["type"] == "command"
-        }
-        assert len(command_names) == 7
-        assert "speckit.implement" not in command_names
-        assert not (snapshot_root / "commands" / "speckit.implement.md").exists()
-
-    def test_workflow_preset_integration_release_payload_contract(self):
-        """Workflow validates immutable release and bundled-install parity."""
-        workflow_path = (
-            Path(__file__).parent.parent
-            / ".github"
-            / "workflows"
-            / "workflow-preset-integration.yml"
-        )
-        workflow_text = workflow_path.read_text(encoding="utf-8")
-        workflow = yaml.safe_load(workflow_text)
-        on_config = workflow.get("on", workflow.get(True))
-
-        assert "repository_dispatch" not in on_config
-        assert "workflow_dispatch" in on_config
-        assert "preset_manifest_url" in on_config["workflow_dispatch"]["inputs"]
-        assert (
-            "releases/download/v${preset_version}/"
-            "spec-kit-workflow-preset-v${preset_version}.zip"
-        ) in workflow_text
-        assert (
-            "releases/download/v${preset_version}/"
-            "spec-kit-workflow-preset-v${preset_version}.manifest.json"
-        ) in workflow_text
-        assert "^[0-9]+\\.[0-9]+\\.[0-9]+$" in workflow_text
-        assert 'release_manifest["artifact"]["sha256"]' in workflow_text
-        assert 'entry["path"]: entry["sha256"]' in workflow_text
-        assert "diff -ru" in workflow_text
-        assert "test -f .specify/presets/workflow-preset/templates/tasks-template.md" not in workflow_text
-        assert "specify preset resolve tasks-template" in workflow_text
-        assert 'grep -F "(top layer from: core)" preset-resolve-tasks-template.txt' in workflow_text
-        assert "test -f .specify/templates/tasks-template.md" in workflow_text
-        assert "core_implement_sha" in workflow_text
-        assert (
-            'test "${core_implement_sha}" = "$(sha256sum '
-            ".claude/skills/speckit-implement/SKILL.md"
-            in workflow_text
-        )
-        assert (
-            "test ! -e .specify/presets/workflow-preset/commands/speckit.implement.md"
-            in workflow_text
-        )
-        assert "speckit.implement.receipt.v1.schema.json" not in workflow_text
-
-    def test_community_smoke_checks_wheel_assets_and_extension_dev_reinstall(self):
-        """Community smoke validates wheel assets and extension dev reinstall skills."""
-        workflow_path = (
-            Path(__file__).parent.parent
-            / ".github"
-            / "workflows"
-            / "community-smoke.yml"
-        )
-        workflow_text = workflow_path.read_text(encoding="utf-8")
-        workflow = yaml.safe_load(workflow_text)
-        on_config = workflow.get("on", workflow.get(True))
-        steps = workflow["jobs"]["init-smoke"]["steps"]
-        runs_by_name = {
-            step["name"]: step["run"]
-            for step in steps
-            if "name" in step and "run" in step
-        }
-        build_run = runs_by_name["Build CLI wheel from checkout"]
-        install_run = runs_by_name["Install CLI from built wheel"]
-        verify_run = runs_by_name["Verify bundled init defaults"]
-
-        assert "pull_request" in on_config
-        assert "uv build --wheel --out-dir /tmp/specify-community-smoke-dist" in build_run
-        assert (
-            "uv pip install --python /tmp/specify-community-smoke-venv/bin/python "
-            "/tmp/specify-community-smoke-dist/*.whl"
-        ) in install_run
-        assert (
-            'manifest = yaml.safe_load(Path(".specify/presets/workflow-preset/preset.yml")'
-            '.read_text(encoding="utf-8"))'
-        ) in verify_run
-        assert (
-            'registry = json.loads(Path(".specify/presets/.registry").read_text(encoding="utf-8"))'
-        ) in verify_run
-        assert 'manifest_version == "1.3.' not in verify_run
-        assert 'registry_version == "1.3.' not in verify_run
-        assert "registry_version == manifest_version" in verify_run
-        assert "speckit.implement.receipt.v1.schema.json" not in verify_run
-        assert (
-            "test ! -e .specify/presets/workflow-preset/templates/behavior/"
-            "behavior-testability-checklist.md"
-        ) in verify_run
-        assert (
-            "test ! -e .specify/presets/workflow-preset/templates/behavior/"
-            "behavior-testability.md"
-        ) in verify_run
-        for removed_template in (
-            "uif-intent.json",
-            "data-fixtures-intent.json",
-        ):
-            assert (
-                "test ! -e .specify/presets/workflow-preset/templates/behavior/"
-                f"{removed_template}"
-            ) in verify_run
-        for template in (
-            "behavior-gate.md",
-            "domain-gate.md",
-            "nfr-gate.md",
-            "visual-gate.md",
-        ):
-            assert f"templates/requirements/{template}" in verify_run
-        for template in (
-            "class-diagram-template.md",
-            "sequences-template.md",
-            "ui-ux-design-template.md",
-            "quickstart-template.md",
-            "test-readiness-template.md",
-            "test/test-conditions.json",
-        ):
-            assert f"templates/{template}" in verify_run
-        assert "schemas/speckit.test.conditions.v1.schema.json" in verify_run
-        for command in ("specify", "clarify", "constitution"):
-            assert (
-                "test ! -e .specify/presets/workflow-preset/.composed/"
-                f"speckit.{command}.md"
-            ) in verify_run
-        for command in ("checklist", "analyze", "plan", "tasks"):
-            assert (
-                "test -f .specify/presets/workflow-preset/.composed/"
-                f"speckit.{command}.md"
-            ) in verify_run
-        for marker in (
-            "Full-Spectrum Projection",
-            "Shared-Root Ambiguity Map",
-            "Cross-Command Consistency Gates",
-            "X0 — Feature Plan Control",
-            "PLAN_OUTPUT_READY",
-        ):
-            assert marker in verify_run
-        assert "test -f .specify/extensions/git/extension.yml" in verify_run
-        for extension_id in (
-            "discovery",
-            "inception",
-            "intake",
-            "preview",
-            "repository-governance",
-        ):
-            assert f"test ! -e .specify/extensions/{extension_id}" in verify_run
-        assert "for extension_id in arch discovery preview; do" in verify_run
-        assert "test -f .specify/extensions/arch/extension.yml" not in verify_run
-        assert "speckit-preview-wireflow" in verify_run
-        assert "test ! -e .claude/skills/speckit-preview-wireflow" in verify_run
-        assert "test -f .claude/skills/speckit-preview-wireflow/SKILL.md" in verify_run
-        assert (
-            'grep -q "Input-to-Design Synthesis Pass" .claude/skills/speckit-preview-wireflow/SKILL.md'
-            in verify_run
-        )
-        assert (
-            '/tmp/specify-community-smoke-venv/bin/specify extension add "$GITHUB_WORKSPACE/extensions/$extension_id" --dev'
-            in verify_run
-        )
-        assert (
-            'test -f .claude/skills/speckit-arch-generate/SKILL.md'
-            in verify_run
-        )
-        assert (
-            'test -f .claude/skills/speckit-arch-reverse/SKILL.md'
-            in verify_run
-        )
-        assert (
-            'grep -q "ARCH_COMMAND_RETIRED" .claude/skills/speckit-arch-generate/SKILL.md'
-            in verify_run
-        )
-        assert (
-            'test -f .claude/skills/speckit-discovery-contract/SKILL.md'
-            in verify_run
-        )
-        assert "specify extension add discovery" in verify_run
-        assert (
-            'test -f .claude/skills/speckit-discovery-contract/SKILL.md'
-            in verify_run
-        )
+        assert "lean" in catalog["presets"]
+        assert catalog["presets"]["lean"]["bundled"] is True
+        assert "download_url" not in catalog["presets"]["lean"]
 
 
 class TestEnsureConstitutionResolverAware:
@@ -1170,9 +779,9 @@ class TestConstitutionSyncPreset:
         assert manifest["requires"]["speckit_version"] == ">=0.14.4"
 
     def test_wrapper_uses_core_template_and_propagates(self):
-        text = (self.PRESET_DIR / "commands" / "speckit.constitution.md").read_text(
-            encoding="utf-8"
-        )
+        text = (
+            self.PRESET_DIR / "commands" / "speckit.constitution.md"
+        ).read_text(encoding="utf-8")
 
         # Parse the Markdown frontmatter as YAML rather than substring-matching,
         # so `strategy: wrap` is asserted structurally (not as text that could
@@ -1184,12 +793,10 @@ class TestConstitutionSyncPreset:
 
         assert "{CORE_TEMPLATE}" in body
         assert "strategy: wrap" not in body  # only in frontmatter
-        # The active governed scaffolds propagated into the Specify/Task/Implement flow.
+        # The three governed scaffolds the old checklist propagated into.
+        assert "plan-template.md" in body
         assert "spec-template.md" in body
-        assert "prototype-template.md" in body
-        assert "quickstart-template.md" in body
         assert "tasks-template.md" in body
-        assert "plan-template.md" not in body
         # Must not mutate versioned preset/extension artifacts.
         assert "Do not edit versioned preset- or extension-provided template or command files" in body
 
@@ -1230,8 +837,4 @@ class TestConstitutionSyncPreset:
         # The wrapper's propagation pass is present and supersedes the guard.
         assert "## Constitution Template Sync" in content
         assert "supersedes the \"Scope Guard\" above" in content
-        assert "spec-template.md" in content
-        assert "prototype-template.md" in content
-        assert "quickstart-template.md" in content
-        assert "tasks-template.md" in content
-        assert "plan-template.md" not in content
+        assert "plan-template.md" in content

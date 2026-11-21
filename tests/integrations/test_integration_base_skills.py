@@ -8,7 +8,6 @@ Mirrors ``MarkdownIntegrationTests`` / ``TomlIntegrationTests`` closely,
 adapted for the ``speckit-<name>/SKILL.md`` skills layout.
 """
 
-import json
 import os
 
 import yaml
@@ -16,7 +15,7 @@ import yaml
 from specify_cli.integrations import INTEGRATION_REGISTRY, get_integration
 from specify_cli.integrations.base import SkillsIntegration
 from specify_cli.integrations.manifest import IntegrationManifest
-from tests.integrations.community_defaults import bundled_community_default_files
+from tests.integrations.community_defaults import bundled_personal_default_files
 
 
 class SkillsIntegrationTests:
@@ -60,10 +59,6 @@ class SkillsIntegrationTests:
         assert i.registrar_config["format"] == "markdown"
         assert i.registrar_config["args"] == "$ARGUMENTS"
         assert i.registrar_config["extension"] == "/SKILL.md"
-
-    def test_integration_declares_no_context_file(self):
-        i = get_integration(self.KEY)
-        assert not hasattr(i, "context_file")
 
     # -- Setup / teardown -------------------------------------------------
 
@@ -367,25 +362,27 @@ class SkillsIntegrationTests:
 
         assert (foreign_dir / "SKILL.md").exists(), "Foreign skill was removed"
 
-    # -- Context ownership -------------------------------------------------
+    # -- Context file ownership (extension-owned, opt-in) -----------------
 
-    def test_setup_does_not_create_context_files(self, tmp_path):
+    def test_setup_does_not_write_context_section(self, tmp_path):
+        """Setup must not create or manage any agent context file — that is
+        owned entirely by the opt-in agent-context extension."""
         i = get_integration(self.KEY)
         m = IntegrationManifest(self.KEY, tmp_path)
         i.setup(tmp_path, m)
-        for rel_path in (
-            "AGENTS.md",
-            "CLAUDE.md",
-            ".github/copilot-instructions.md",
-            ".clinerules/specify-rules.md",
-        ):
-            assert not (tmp_path / rel_path).exists()
+        for path in tmp_path.rglob("*"):
+            if path.is_file():
+                text = path.read_text(encoding="utf-8", errors="ignore")
+                assert "<!-- SPECKIT START -->" not in text, (
+                    f"Setup wrote a managed context section into {path} for {self.KEY}"
+                )
 
     def test_teardown_leaves_existing_context_file_intact(self, tmp_path):
+        """A user-authored context file must survive setup + teardown untouched."""
         i = get_integration(self.KEY)
         m = IntegrationManifest(self.KEY, tmp_path)
         ctx_path = tmp_path / "AGENTS.md"
-        original = "# User-authored instructions\n"
+        original = "# My Rules\n\nUser content.\n"
         ctx_path.write_text(original, encoding="utf-8")
         i.setup(tmp_path, m)
         m.save()
@@ -436,8 +433,9 @@ class SkillsIntegrationTests:
         skills_dir = i.skills_dest(project)
         assert skills_dir.is_dir(), f"Skills directory {skills_dir} not created"
 
-    def test_init_options_exclude_context_file(self, tmp_path):
-        """specify init must not install or configure agent-context implicitly."""
+    def test_init_does_not_create_agent_context_config(self, tmp_path):
+        """agent-context is opt-in: init must not auto-install the extension
+        or write its config."""
         from typer.testing import CliRunner
         from specify_cli import app
 
@@ -453,10 +451,6 @@ class SkillsIntegrationTests:
         finally:
             os.chdir(old_cwd)
         assert result.exit_code == 0
-        init_options = json.loads(
-            (project / ".specify" / "init-options.json").read_text(encoding="utf-8")
-        )
-        assert "context_file" not in init_options
         ext_cfg_path = project / ".specify" / "extensions" / "agent-context" / "agent-context-config.yml"
         assert not ext_cfg_path.exists()
 
@@ -528,9 +522,9 @@ class SkillsIntegrationTests:
             ".specify/workflows/speckit/workflow.yml",
             ".specify/workflows/workflow-registry.json",
         ]
-        files.append(".specify/extensions.yml")
-        files.append(".specify/extensions/.registry")
-        files.extend(bundled_community_default_files(self.KEY))
+        files.extend(
+            bundled_personal_default_files(self.KEY, skills_mode=True)
+        )
         return sorted(set(files))
 
     def test_complete_file_inventory_sh(self, tmp_path):

@@ -33,28 +33,6 @@
         "workflow"
       ]
     },
-    "arch": {
-      "name": "Architecture Command Migration",
-      "id": "arch",
-      "version": "3.0.1",
-      "description": "Redirect retired architecture commands to the Constitution-managed project Architecture lifecycle",
-      "author": "bigsmartben",
-      "repository": "https://github.com/bigsmartben/spec-kit-arch",
-      "license": "MIT",
-      "bundled": true,
-      "requires": {
-        "speckit_version": ">=0.8.10.dev0"
-      },
-      "provides": {
-        "commands": 2
-      },
-      "tags": [
-        "architecture",
-        "migration",
-        "deprecated",
-        "constitution"
-      ]
-    },
     "bug": {
       "name": "Bug Triage Workflow",
       "id": "bug",

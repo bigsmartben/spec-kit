@@ -36,17 +36,6 @@ def _sha256(path: Path) -> str:
     return h.hexdigest()
 
 
-def _sha256_with_lf_newlines(path: Path) -> str | None:
-    """Return a normalized text hash, or ``None`` for non-UTF-8 content."""
-    content = path.read_bytes()
-    try:
-        content.decode("utf-8")
-    except UnicodeDecodeError:
-        return None
-    content = content.replace(b"\r\n", b"\n").replace(b"\r", b"\n")
-    return hashlib.sha256(content).hexdigest()
-
-
 def _validate_rel_path(rel: Path, root: Path) -> Path:
     """Resolve *rel* against *root* and verify it stays within *root*.
 
@@ -376,12 +365,6 @@ class IntegrationManifest:
                 continue
             try:
                 changed = _sha256(abs_path) != expected_hash
-                if changed:
-                    normalized_hash = _sha256_with_lf_newlines(abs_path)
-                    changed = (
-                        normalized_hash is None
-                        or normalized_hash != expected_hash
-                    )
             except OSError:
                 # Unreadable regular file (e.g. permission denied): treat as
                 # modified, consistent with the symlink / non-regular-file
@@ -390,24 +373,6 @@ class IntegrationManifest:
             if changed:
                 modified.append(rel)
         return modified
-
-    def refresh_existing_hashes(self) -> None:
-        """Refresh hashes for tracked files that currently exist on disk.
-
-        Integration setup writes the core command artifacts first, after which
-        enabled extensions and presets may legitimately project their winning
-        command content onto the same paths.  The manifest must describe those
-        final managed bytes so a later upgrade does not mistake the projection
-        for a user customization.
-
-        Only paths already tracked by this manifest are refreshed.  Preset-only
-        and extension-only artifacts therefore remain owned by their respective
-        registries.
-        """
-        for rel_path in list(self._files):
-            abs_path = self.project_root / rel_path
-            if abs_path.is_file():
-                self.record_existing(rel_path)
 
     # -- Uninstall --------------------------------------------------------
 

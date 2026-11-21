@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import os
-import re
 
 import pytest
 import yaml
@@ -262,8 +261,6 @@ class TestRovodevIntegration:
             command.replace(".", "-")
             for command in DEFAULT_EXTENSION_COMMANDS
         }
-
-        # Skills: core templates plus default bundled extension commands.
         assert skill_names == core_skill_names | extension_skill_names
 
         # prompts.yml mirrors the prompt files exactly.
@@ -302,9 +299,9 @@ class TestRovodevIntegration:
                 assert placeholder not in body, (
                     f"{skill_file} body contains unprocessed placeholder {placeholder!r}"
                 )
-            # Skills agents must use hyphen-style slash-command refs in body.
-            assert re.search(r"(?<![\w/])/speckit\.[\w.-]+", body) is None, (
-                f"{skill_file} body contains dot-notation slash command reference"
+            # Skills agents must use hyphen-style refs in body.
+            assert "/speckit." not in body, (
+                f"{skill_file} body contains dot-notation /speckit. reference"
             )
 
     # -- Full-CLI init: integration metadata -------------------------------

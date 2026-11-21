@@ -43,18 +43,6 @@ steps:
     input:
       args: "{{ inputs.spec }}"
 
-  - id: checklist
-    command: speckit.checklist
-    integration: "{{ inputs.integration }}"
-    input:
-      args: "Evaluate all standard requirement domains"
-
-  - id: clarify
-    command: speckit.clarify
-    integration: "{{ inputs.integration }}"
-    input:
-      args: "Repair blocked product-decision gates and recompute Planning Readiness"
-
   - id: review-spec
     type: gate
     verdict_input: speckit_review_spec_verdict

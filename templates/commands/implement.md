@@ -83,7 +83,6 @@ Select the invocation scope from `$ARGUMENTS` before executing any task:
      | security.md | 6   | 6       | 0         | ✓ PASS |
      ```
 
-   - Also require each included checklist metadata `Status` to be `PASS`.
    - Calculate overall status:
      - **PASS**: All checklists have 0 unchecked items
      - **FAIL**: One or more checklists have unchecked items

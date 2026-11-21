@@ -360,7 +360,7 @@ class TestPresetManifest:
         """Test pack with multiple templates of different types."""
         valid_pack_data["provides"]["templates"] = [
             {"type": "template", "name": "spec-template", "file": "templates/spec-template.md"},
-            {"type": "template", "name": "quickstart-template", "file": "templates/quickstart-template.md"},
+            {"type": "template", "name": "plan-template", "file": "templates/plan-template.md"},
             {"type": "command", "name": "specify", "file": "commands/specify.md"},
             {"type": "script", "name": "create-new-feature", "file": "scripts/create-new-feature.sh"},
         ]

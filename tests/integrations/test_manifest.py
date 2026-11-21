@@ -7,7 +7,6 @@ import sys
 import pytest
 
 from specify_cli.integrations.manifest import IntegrationManifest, _sha256
-from tests.conftest import requires_symlink
 
 
 class TestManifestRecordFile:
@@ -191,10 +190,7 @@ class TestManifestRecordExistingErrors:
         target = tmp_path / "target.txt"
         target.write_text("target content", encoding="utf-8")
         link = tmp_path / "link.txt"
-        try:
-            link.symlink_to(target)
-        except OSError as exc:
-            pytest.skip(f"symlinks unavailable: {exc}")
+        link.symlink_to(target)
         m = IntegrationManifest("test", tmp_path)
         with pytest.raises(ValueError, match="symlinked"):
             m.record_existing("link.txt")
@@ -203,10 +199,7 @@ class TestManifestRecordExistingErrors:
         # A symlink pointing nowhere should still be rejected before the
         # ``is_file()`` check (which would itself be False on a dangler).
         link = tmp_path / "dangler.txt"
-        try:
-            link.symlink_to(tmp_path / "no-such-target.txt")
-        except OSError as exc:
-            pytest.skip(f"symlinks unavailable: {exc}")
+        link.symlink_to(tmp_path / "no-such-target.txt")
         m = IntegrationManifest("test", tmp_path)
         with pytest.raises(ValueError, match="symlinked"):
             m.record_existing("dangler.txt")
@@ -309,19 +302,12 @@ class TestManifestCheckModified:
         (tmp_path / "f.txt").write_text("changed", encoding="utf-8")
         assert m.check_modified() == ["f.txt"]
 
-    def test_crlf_only_change_is_not_modified(self, tmp_path):
-        m = IntegrationManifest("test", tmp_path)
-        m.record_file("f.txt", "line 1\nline 2\n")
-        (tmp_path / "f.txt").write_bytes(b"line 1\r\nline 2\r\n")
-        assert m.check_modified() == []
-
     def test_deleted_file_not_reported(self, tmp_path):
         m = IntegrationManifest("test", tmp_path)
         m.record_file("f.txt", "original")
         (tmp_path / "f.txt").unlink()
         assert m.check_modified() == []
 
-    @requires_symlink
     def test_symlink_treated_as_modified(self, tmp_path):
         m = IntegrationManifest("test", tmp_path)
         m.record_file("f.txt", "original")
@@ -509,7 +495,6 @@ class TestManifestUninstall:
         assert not (tmp_path / "a" / "b" / "tracked.txt").exists()
         assert (tmp_path / "a" / "b" / "other.txt").exists()
 
-    @requires_symlink
     def test_symlink_skipped_without_force(self, tmp_path):
         m = IntegrationManifest("test", tmp_path)
         m.record_file("f.txt", "original")
@@ -522,7 +507,6 @@ class TestManifestUninstall:
         assert removed == []
         assert len(skipped) == 1
 
-    @requires_symlink
     def test_symlink_removed_with_force(self, tmp_path):
         m = IntegrationManifest("test", tmp_path)
         m.record_file("f.txt", "original")
@@ -750,10 +734,7 @@ class TestRecordExistingNewGuards:
         real_dir = tmp_path / "real_dir"
         real_dir.mkdir()
         (real_dir / "file.txt").write_text("payload", encoding="utf-8")
-        try:
-            (tmp_path / "linked_dir").symlink_to(real_dir, target_is_directory=True)
-        except OSError as exc:
-            pytest.skip(f"symlinks unavailable: {exc}")
+        (tmp_path / "linked_dir").symlink_to(real_dir, target_is_directory=True)
         m = IntegrationManifest("test", tmp_path)
         with pytest.raises(ValueError, match="symlinked"):
             m.record_existing("linked_dir/file.txt")

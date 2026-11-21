@@ -29,10 +29,9 @@ from specify_cli.workflows.base import RunStatus, StepContext, StepStatus
 from specify_cli.workflows.engine import WorkflowDefinition, WorkflowEngine
 from specify_cli.workflows.step.command import CommandStep
 from specify_cli.workflows.step.prompt import PromptStep
+from tests.integrations.community_defaults import bundled_personal_default_files
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-
-from .community_defaults import bundled_community_default_files
 
 
 @pytest.fixture(autouse=True)
@@ -58,7 +57,6 @@ class TestCopilotCommandsMode:
         assert copilot.config["folder"] == ".github/"
         assert copilot.config["commands_subdir"] == "agents"
         assert copilot.registrar_config["extension"] == ".agent.md"
-        assert not hasattr(copilot, "context_file")
 
     def test_command_filename_agent_md(self):
         copilot = get_integration("copilot")
@@ -306,7 +304,6 @@ class TestCopilotCommandsMode:
         assert tasks_file.exists()
         content = tasks_file.read_text(encoding="utf-8")
         assert "__CONTEXT_FILE__" not in content
-        assert ".github/copilot-instructions.md" not in content
 
     def test_complete_file_inventory_sh(self, tmp_path):
         """Every file produced by Copilot commands mode with shell scripts."""
@@ -343,8 +340,6 @@ class TestCopilotCommandsMode:
             ".github/prompts/speckit.specify.prompt.md",
             ".github/prompts/speckit.tasks.prompt.md",
             ".vscode/settings.json",
-            ".specify/extensions.yml",
-            ".specify/extensions/.registry",
             ".specify/integration.json",
             ".specify/init-options.json",
             ".specify/integrations/copilot.manifest.json",
@@ -368,7 +363,7 @@ class TestCopilotCommandsMode:
             ".specify/workflows/workflow-registry.json",
         ]
         expected = sorted(
-            set(expected) | set(bundled_community_default_files("copilot"))
+            set(expected) | set(bundled_personal_default_files("copilot"))
         )
         assert actual == expected, (
             f"Missing: {sorted(set(expected) - set(actual))}\n"
@@ -410,8 +405,6 @@ class TestCopilotCommandsMode:
             ".github/prompts/speckit.specify.prompt.md",
             ".github/prompts/speckit.tasks.prompt.md",
             ".vscode/settings.json",
-            ".specify/extensions.yml",
-            ".specify/extensions/.registry",
             ".specify/integration.json",
             ".specify/init-options.json",
             ".specify/integrations/copilot.manifest.json",
@@ -435,7 +428,7 @@ class TestCopilotCommandsMode:
             ".specify/workflows/workflow-registry.json",
         ]
         expected = sorted(
-            set(expected) | set(bundled_community_default_files("copilot"))
+            set(expected) | set(bundled_personal_default_files("copilot"))
         )
         assert actual == expected, (
             f"Missing: {sorted(set(expected) - set(actual))}\n"
@@ -809,7 +802,6 @@ class TestCopilotSkillsMode:
         assert tasks_file.exists()
         content = tasks_file.read_text(encoding="utf-8")
         assert "__CONTEXT_FILE__" not in content
-        assert ".github/copilot-instructions.md" not in content
 
     # -- Manifest tracking ------------------------------------------------
 
@@ -871,13 +863,15 @@ class TestCopilotSkillsMode:
         assert copilot.build_command_invocation("plan", "my args") == "my args"
         assert copilot.build_command_invocation("plan") == ""
 
-    # -- Context ownership -------------------------------------------------
+    # -- Context section ---------------------------------------------------
 
-    def test_skills_setup_does_not_create_context_file(self, tmp_path):
+    def test_skills_setup_does_not_write_context_section(self, tmp_path):
         copilot = self._make_copilot()
         self._setup_skills(copilot, tmp_path)
-        ctx_path = tmp_path / ".github" / "copilot-instructions.md"
-        assert not ctx_path.exists()
+        for path in tmp_path.rglob("*"):
+            if path.is_file():
+                text = path.read_text(encoding="utf-8", errors="ignore")
+                assert "<!-- SPECKIT START -->" not in text
 
     # -- CLI integration test ---------------------------------------------
 
@@ -927,8 +921,6 @@ class TestCopilotSkillsMode:
         expected = [
             # Skill files (core commands)
             *[f".github/skills/speckit-{cmd}/SKILL.md" for cmd in self._SKILL_COMMANDS],
-            ".specify/extensions.yml",
-            ".specify/extensions/.registry",
             # Integration metadata
             ".specify/init-options.json",
             ".specify/integration.json",
@@ -957,7 +949,11 @@ class TestCopilotSkillsMode:
         ]
         expected = sorted(
             set(expected)
-            | set(bundled_community_default_files("copilot", skills_mode=True))
+            | set(
+                bundled_personal_default_files(
+                    "copilot", skills_mode=True
+                )
+            )
         )
         assert actual == expected, (
             f"Missing: {sorted(set(expected) - set(actual))}\n"
@@ -1208,7 +1204,11 @@ class TestCopilotNoModelInvocationOption:
 
         project = _init_project(tmp_path, "copilot", "--no-model-invocation")
         skills_dir = project / ".github" / "skills"
-        skill_files = sorted(skills_dir.glob("speckit-*/SKILL.md"))
+        skill_files = sorted(
+            path
+            for path in skills_dir.glob("speckit-*/SKILL.md")
+            if not path.parent.name.startswith("speckit-bug-")
+        )
         assert len(skill_files) > 0
         for f in skill_files:
             assert _skill_frontmatter(f)["disable-model-invocation"] is True, f.parent.name

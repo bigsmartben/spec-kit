@@ -1394,18 +1394,18 @@ class TestPresetSkills(PresetArtifactTestHelpers):
         copilot_commands_dir.mkdir(parents=True)
 
         lower_dir = self._create_command_preset(
-            temp_dir, "stale-toggle-lower-preset", "speckit.tasks",
+            temp_dir, "stale-toggle-lower-preset", "speckit.plan",
             "Lower preset", "Lower body",
         )
         higher_dir = self._create_command_preset(
-            temp_dir, "stale-toggle-higher-preset", "speckit.tasks",
+            temp_dir, "stale-toggle-higher-preset", "speckit.plan",
             "Higher preset", "Higher body",
         )
         manager = PresetManager(project_dir)
         manager.install_from_directory(lower_dir, "0.1.5", priority=20)
         manager.install_from_directory(higher_dir, "0.1.5", priority=10)
 
-        command_file = copilot_commands_dir / "speckit.tasks.agent.md"
+        command_file = copilot_commands_dir / "speckit.plan.agent.md"
         assert "Higher body" in command_file.read_text(encoding="utf-8"), (
             "sanity: command mode should have written the winning preset"
         )
@@ -1414,12 +1414,12 @@ class TestPresetSkills(PresetArtifactTestHelpers):
         # replacement is silently skipped during the toggle — a genuine
         # partial command→skills toggle that leaves the stale
         # registered_commands entry for copilot behind.
-        (manager.presets_dir / "stale-toggle-higher-preset" / "commands" / "speckit.tasks.md").unlink()
+        (manager.presets_dir / "stale-toggle-higher-preset" / "commands" / "speckit.plan.md").unlink()
         self._write_init_options(project_dir, ai="copilot", ai_skills=True)
         manager.register_enabled_presets_for_agent("copilot")
 
         metadata = manager.registry.get("stale-toggle-higher-preset")
-        assert "speckit.tasks" in metadata["registered_commands"].get("copilot", []), (
+        assert "speckit.plan" in metadata["registered_commands"].get("copilot", []), (
             "sanity: the partial toggle must leave the stale command "
             "tracking behind"
         )
@@ -1451,18 +1451,18 @@ class TestPresetSkills(PresetArtifactTestHelpers):
         copilot_commands_dir.mkdir(parents=True)
 
         lower_dir = self._create_command_preset(
-            temp_dir, "inverse-toggle-lower-preset", "speckit.tasks",
+            temp_dir, "inverse-toggle-lower-preset", "speckit.plan",
             "Lower preset", "Lower body",
         )
         higher_dir = self._create_command_preset(
-            temp_dir, "inverse-toggle-higher-preset", "speckit.tasks",
+            temp_dir, "inverse-toggle-higher-preset", "speckit.plan",
             "Higher preset", "Higher body",
         )
         manager = PresetManager(project_dir)
         manager.install_from_directory(lower_dir, "0.1.5", priority=20)
         manager.install_from_directory(higher_dir, "0.1.5", priority=10)
 
-        skill_dir = project_dir / ".github" / "skills" / "speckit-tasks"
+        skill_dir = project_dir / ".github" / "skills" / "speckit-plan"
         assert (skill_dir / "SKILL.md").exists(), (
             "sanity: skills mode should have written the skill"
         )
@@ -1470,7 +1470,7 @@ class TestPresetSkills(PresetArtifactTestHelpers):
         # Break the higher preset's installed source so its command
         # replacement never lands during the skills→command toggle,
         # leaving the skill tracked for copilot.
-        (manager.presets_dir / "inverse-toggle-higher-preset" / "commands" / "speckit.tasks.md").unlink()
+        (manager.presets_dir / "inverse-toggle-higher-preset" / "commands" / "speckit.plan.md").unlink()
         self._write_init_options(project_dir, ai="copilot", ai_skills=False)
         manager.register_enabled_presets_for_agent("copilot")
 
@@ -1501,21 +1501,21 @@ class TestPresetSkills(PresetArtifactTestHelpers):
         preset_dir = self._create_multi_command_preset(
             temp_dir,
             "partial-install-failure-preset",
-            ["speckit.specify", "speckit.tasks"],
+            ["speckit.specify", "speckit.plan"],
         )
         manager = PresetManager(project_dir)
         original_read_text = Path.read_text
 
-        def fail_tasks_source(path, *args, **kwargs):
+        def fail_plan_source(path, *args, **kwargs):
             if (
-                path.name == "speckit.tasks.md"
+                path.name == "speckit.plan.md"
                 and path.parent.name == "commands"
                 and "partial-install-failure-preset" in path.parts
             ):
                 raise UnicodeDecodeError("utf-8", b"\xff", 0, 1, "invalid")
             return original_read_text(path, *args, **kwargs)
 
-        monkeypatch.setattr(Path, "read_text", fail_tasks_source)
+        monkeypatch.setattr(Path, "read_text", fail_plan_source)
         with pytest.raises(UnicodeDecodeError):
             manager.install_from_directory(preset_dir, "0.1.5")
 

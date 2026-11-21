@@ -4,20 +4,21 @@ A minimal preset that strips the Spec Kit workflow down to its essentials — ju
 
 ## When to Use
 
-Use Lean when you want the structured Specify → Task → Implement pipeline without the ceremony of the full templates. Specify freezes the product contract, Task converts it into requirement-level work packages, and Implement owns the technical execution.
+Use Lean when you want the structured specify → plan → tasks → implement pipeline without the ceremony of the full templates. Each command produces a single focused Markdown file with no boilerplate sections to fill in.
 
 ## Commands Included
 
 | Command | Output | Description |
 |---------|--------|-------------|
-| `speckit.specify` | `spec.md`, `prototype.html`, `quickstart.md` | Create a specification, construction-contract prototype, and pending UAT baseline |
-| `speckit.tasks` | `tasks.md` | Create traceable requirement-level work packages without technical or file-path lock-in |
-| `speckit.implement` | *(code)*, `tasks.md`, `quickstart.md` | Choose the implementation and execute tasks plus UAT |
+| `speckit.specify` | `spec.md` | Create a specification from a feature description |
+| `speckit.plan` | `plan.md` | Create an implementation plan from the spec |
+| `speckit.tasks` | `tasks.md` | Create dependency-ordered tasks from spec and plan |
+| `speckit.implement` | *(code)* | Execute all tasks in order, marking progress |
 | `speckit.constitution` | `constitution.md` | Create or update the project constitution |
 
 ## What It Replaces
 
-Lean overrides the four active core workflow commands with self-contained prompts that consume and produce the artifacts directly — no separate template files involved. The result is a shorter, more direct workflow.
+Lean overrides the five core workflow commands with self-contained prompts that produce each artifact directly — no separate template files involved. The result is a shorter, more direct workflow.
 
 ## Installation
 

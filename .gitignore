@@ -3,11 +3,6 @@ __pycache__/
 *.py[cod]
 *$py.class
 *.so
-.pytest_cache/
-.mypy_cache/
-.ruff_cache/
-.coverage
-htmlcov/
 .Python
 build/
 develop-eggs/
@@ -30,13 +25,6 @@ venv/
 ENV/
 env/
 .venv
-.venv*/
-
-# Local caches and generated artifacts
-.tmp/
-tmp/
-temp/
-.worktrees/
 
 # IDE
 .vscode/

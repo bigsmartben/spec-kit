@@ -294,10 +294,7 @@ def test_add_source_refuses_symlinked_specify_escape(tmp_path: Path):
     project.mkdir()
     outside = tmp_path / "outside"
     outside.mkdir()
-    try:
-        (project / ".specify").symlink_to(outside, target_is_directory=True)
-    except OSError as exc:
-        pytest.skip(f"symlinks unavailable: {exc}")
+    (project / ".specify").symlink_to(outside, target_is_directory=True)
 
     with pytest.raises(BundlerError, match="escapes the allowed root"):
         cc.add_source(project, "https://example.com/c.json", policy="install-allowed", priority=50)

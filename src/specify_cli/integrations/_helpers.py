@@ -495,7 +495,6 @@ def _register_presets_for_agent(
 
         preset_mgr = PresetManager(project_root)
         preset_mgr.register_enabled_presets_for_agent(agent_key)
-        _refresh_active_integration_manifest(project_root)
     except Exception as preset_err:
         from .. import _print_cli_warning
 
@@ -681,89 +680,6 @@ def _unregister_enabled_extension_commands_for_agent(
     )
 
 
-# ---------------------------------------------------------------------------
-# Preset reconciliation helpers (shared by init / install / use / switch / upgrade)
-# ---------------------------------------------------------------------------
-
-def _refresh_active_integration_manifest(project_root: Path) -> None:
-    """Record the final projected bytes for the active integration's files."""
-    from .. import load_init_options
-    from .manifest import IntegrationManifest
-
-    init_options = load_init_options(project_root)
-    if not isinstance(init_options, dict):
-        return
-    active_key = init_options.get("integration") or init_options.get("ai")
-    if not isinstance(active_key, str) or not active_key:
-        return
-
-    manifest_path = (
-        project_root / ".specify" / "integrations" / f"{active_key}.manifest.json"
-    )
-    if not manifest_path.is_file():
-        return
-
-    manifest = IntegrationManifest.load(active_key, project_root)
-    manifest.refresh_existing_hashes()
-    manifest.save()
-
-
-def _reconcile_presets_for_active_agent(
-    project_root: Path,
-    *,
-    continuing: str,
-) -> None:
-    """Best-effort projection of enabled presets onto the active integration.
-
-    Callers run this after core setup and extension registration so the preset
-    layer remains the final, highest-precedence agent artifact.  The active
-    integration manifest is refreshed only after that final projection.
-    """
-    try:
-        from .._init_options import resolve_active_agent_for_registration
-        from ..presets import PresetManager
-
-        active_agent = resolve_active_agent_for_registration(project_root)
-        if not isinstance(active_agent, str):
-            return
-        PresetManager(project_root).register_enabled_presets_for_agent(active_agent)
-        _refresh_active_integration_manifest(project_root)
-    except Exception as preset_err:
-        from .. import _print_cli_warning
-
-        _print_cli_warning(
-            "reconcile preset artifacts for",
-            "integration",
-            None,
-            preset_err,
-            continuing=continuing,
-        )
-
-
-def _unregister_presets_for_agent(
-    project_root: Path,
-    agent_key: str,
-    *,
-    continuing: str,
-) -> None:
-    """Best-effort removal of ``agent_key``'s preset artifacts and metadata."""
-    try:
-        from ..presets import PresetManager
-
-        PresetManager(project_root).unregister_agent_artifacts(agent_key)
-    except Exception as preset_err:
-        from .. import _print_cli_warning
-
-        _print_cli_warning(
-            "clean up preset artifacts for",
-            "integration",
-            agent_key,
-            preset_err,
-            continuing=continuing,
-        )
-
-
-# ---------------------------------------------------------------------------
 # CLI formatting helpers (re-exported from _commands.py)
 # ---------------------------------------------------------------------------
 

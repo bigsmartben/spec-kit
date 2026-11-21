@@ -79,7 +79,7 @@
       "_enableSearch": true,
       "_disableContribution": false,
       "_gitContribute": {
-        "repo": "https://github.com/bigsmartben/spec-kit",
+        "repo": "https://github.com/github/spec-kit",
         "branch": "main"
       }
     },

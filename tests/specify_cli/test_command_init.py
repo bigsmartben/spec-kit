@@ -59,6 +59,38 @@ def test_command_init_importable():
     assert callable(mod.register)
 
 
+def test_init_installs_bug_without_git_or_workflow_preset(tmp_path, monkeypatch):
+    """Fresh init includes the personal bug extension, but no legacy preset."""
+    monkeypatch.chdir(tmp_path)
+    result = CliRunner().invoke(
+        app,
+        [
+            "init",
+            "proj",
+            "--integration",
+            "copilot",
+            "--script",
+            "ps",
+            "--ignore-agent-tools",
+            "--offline",
+            "--non-interactive",
+        ],
+    )
+
+    assert result.exit_code == 0, _strip(result.stdout)
+    project = tmp_path / "proj"
+    for name in ("assess", "fix", "test"):
+        assert (
+            project
+            / ".github"
+            / "skills"
+            / f"speckit-bug-{name}"
+            / "SKILL.md"
+        ).is_file()
+    assert not (project / ".specify" / "extensions" / "git").exists()
+    assert not (project / ".specify" / "presets" / "workflow-preset").exists()
+
+
 def test_transitional_commands_package_removed():
     import specify_cli
 

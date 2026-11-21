@@ -133,7 +133,7 @@ Execution steps:
    - Clarification would not materially change implementation or validation strategy
    - The item is specifically about implementation method, tech-stack comparison, or task breakdown (note internally)
 
-5. Generate (internally) a prioritized queue of candidate clarification questions (maximum 5). Do NOT output them all at once. Apply these constraints:
+4. Generate (internally) a prioritized queue of candidate clarification questions (maximum 5). Do NOT output them all at once. Apply these constraints:
     - Maximum of 5 total questions across the whole session.
     - Each question must be answerable with EITHER:
        - A short multiple‑choice selection (2–5 distinct, mutually exclusive options), OR
@@ -144,7 +144,7 @@ Execution steps:
     - Favor clarifications that reduce downstream rework risk or prevent misaligned acceptance tests.
     - If more than 5 categories remain unresolved, select the top 5 by (Impact * Uncertainty) heuristic.
 
-6. Sequential questioning loop (interactive):
+5. Sequential questioning loop (interactive):
     - Present EXACTLY ONE question at a time.
     - **Question writing quality (applies to every question, MC or short-answer):**
        - Lead with `**Question:**` followed by a full interrogative that ends with `?`. The question text before the `?` must make sense on its own.
@@ -241,7 +241,7 @@ Execution steps:
    written, stop, preserve/report what remains unmodified, and do not claim
    clarification is complete.
 
-10. **Re-validate the baseline Spec Quality Checklist** (if it exists):
+9. **Re-validate Spec Quality Checklist** (if it exists):
    - Check if `FEATURE_DIR/checklists/requirements.md` exists.
    - If it does NOT exist, skip this step silently.
    - If it exists:
@@ -260,26 +260,6 @@ Execution steps:
         - **Regressions**: items that changed from checked to unchecked.
         - **Still unchecked**: items that remain unchecked.
      8. Record the before/after pass counts as checked/total checkbox items (e.g., "12/16 → 15/16 items passing").
-
-11. **Recompute requirement gates and aggregate Planning Readiness**:
-    - Compute the SHA-256 digest of the exact updated `spec.md` bytes as
-      `sha256:<lowercase-hex>`.
-    - Recompute the generated content, blocker set, applicability, and status
-      for every gate affected by the accepted answers.
-    - For other requirement gates, verify that their referenced requirements
-      remain unchanged before stamping the new `Spec Revision`. If that cannot
-      be established, recompute that gate too.
-    - Update by stable CHK ID. Replace generated status/blocker sections
-      atomically; do not append duplicate IDs, old blockers, or repeated Gate
-      Status sections.
-    - Provider-evidence blockers remain unchecked and keep the aggregate
-      BLOCKED until the provider/source-evidence workflow supplies evidence.
-    - PASS requires every standard domain to be evaluated, every gate to carry
-      the current spec revision, every applicable planning gate to be PASS, and
-      every NOT_APPLICABLE result to include a reason.
-    - Advisory checklists do not affect the aggregate.
-    - Report the aggregate in memory. Do not create
-      `planning-readiness.md`.
 
 Behavior rules:
 
@@ -341,8 +321,6 @@ Report completion (after questioning loop ends or early termination):
   `__SPECKIT_COMMAND_TASKS__` or run `__SPECKIT_COMMAND_CLARIFY__` again before
   implementation.
 - Suggested next command.
-- Planning Readiness aggregate, with product-decision and provider-evidence
-  blockers reported separately.
 
 ## Done When
 
@@ -350,8 +328,5 @@ Report completion (after questioning loop ends or early termination):
       `spec.md`, `prototype.html`, and `quickstart.md` artifacts
 - [ ] Requirement, prototype-anchor, and UAT mappings re-validate without gaps
 - [ ] Spec quality checklist re-validated against updated spec (if `FEATURE_DIR/checklists/requirements.md` exists)
-- [ ] Affected requirement gates recomputed with stable IDs and current spec revision
-- [ ] Provider-evidence blockers preserved and routed to source evidence
-- [ ] Planning Readiness aggregated without creating a summary file
 - [ ] Extension hooks dispatched or skipped according to the rules in Mandatory Post-Execution Hooks above
 - [ ] Completion reported to user with questions answered, sections touched, checklist status, and coverage summary

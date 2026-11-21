@@ -12,30 +12,6 @@ Set up this checkout's `.venv` and editable install using the [local development
 - [ ] Ran relevant existing tests with `.venv/bin/python -m pytest tests -q` (Windows PowerShell: `.\.venv\Scripts\python.exe -m pytest tests -q`); use affected test paths for focused checks and `LC_ALL=en_US.UTF-8` on macOS
 - [ ] Tested with a sample project (if applicable)
 
-## Preset / Extension Contract
-
-<!-- Required when extensions/** or presets/** changes; otherwise enter n/a. -->
-
-- Component choice and boundary: <!-- Why Extension or Preset? -->
-- Contract split: <!-- Command / Template / Contract / Schema / Validator / Script -->
-- Platform neutrality: <!-- Evidence that source prompts contain no agent-specific rendering -->
-- Lifecycle evidence: <!-- install / repeat / rollback / enable-disable / remove, as applicable -->
-- Component validation: <!-- command and PASS/BLOCKED result -->
-- Prompt behavior evidence: <!-- real agent run for behavior changes, or n/a -->
-
-## Community Catalog Submission
-
-<!-- Complete this section for community extension or preset catalog changes. -->
-
-- Submission route: <!-- pr-template | issue-template | n/a -->
-- Catalog type: <!-- extension | preset | n/a -->
-- Source repository: <!-- https://github.com/owner/repo or n/a -->
-- Source version: <!-- vX.Y.Z / X.Y.Z or n/a -->
-- Source commit: <!-- 40-character SHA or n/a -->
-- Download URL: <!-- release archive or asset URL, or n/a -->
-- Related issue: <!-- Closes #123 for issue-template route, or n/a -->
-- Maintainer direct PR approval: <!-- Required only for community extension/preset pr-template route. Link to maintainer request, or n/a -->
-
 ## AI Disclosure
 
 <!-- Per our Contributing guidelines, AI assistance must be disclosed. -->

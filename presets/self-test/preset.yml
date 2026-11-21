@@ -3,7 +3,7 @@ schema_version: "1.0"
 preset:
   id: "self-test"
   name: "Self-Test Preset"
-  version: "1.0.1"
+  version: "1.0.0"
   description: "A preset that overrides all core templates for testing purposes"
   author: "github"
   repository: "https://github.com/github/spec-kit"
@@ -19,6 +19,12 @@ provides:
       file: "templates/spec-template.md"
       description: "Self-test spec template"
       replaces: "spec-template"
+
+    - type: "template"
+      name: "plan-template"
+      file: "templates/plan-template.md"
+      description: "Self-test plan template"
+      replaces: "plan-template"
 
     - type: "template"
       name: "tasks-template"
@@ -37,18 +43,6 @@ provides:
       file: "templates/constitution-template.md"
       description: "Self-test constitution template"
       replaces: "constitution-template"
-
-    - type: "template"
-      name: "prototype-template"
-      file: "templates/prototype-template.md"
-      description: "Self-test prototype template"
-      replaces: "prototype-template"
-
-    - type: "template"
-      name: "quickstart-template"
-      file: "templates/quickstart-template.md"
-      description: "Self-test UAT template"
-      replaces: "quickstart-template"
 
     - type: "command"
       name: "speckit.specify"

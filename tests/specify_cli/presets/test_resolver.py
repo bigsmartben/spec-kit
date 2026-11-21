@@ -1596,18 +1596,18 @@ class TestResolveContent:
 
     def test_resolve_content_command_type(self, project_dir, temp_dir, valid_pack_data):
         """Test resolve_content with command template type."""
-        # Create core command using stem naming (matches real layout: tasks.md, not speckit.tasks.md)
+        # Create core command using stem naming (matches real layout: plan.md, not speckit.plan.md)
         commands_dir = project_dir / ".specify" / "templates" / "commands"
         commands_dir.mkdir(parents=True, exist_ok=True)
-        (commands_dir / "tasks.md").write_text("# Core Tasks Command\n")
+        (commands_dir / "plan.md").write_text("# Core Plan Command\n")
 
         pack_data = {**valid_pack_data}
         pack_data["preset"] = {**valid_pack_data["preset"], "id": "cmd-append", "name": "CmdAppend"}
         pack_data["provides"] = {
             "templates": [{
                 "type": "command",
-                "name": "speckit.tasks",
-                "file": "commands/speckit.tasks.md",
+                "name": "speckit.plan",
+                "file": "commands/speckit.plan.md",
                 "strategy": "append",
             }]
         }
@@ -1616,15 +1616,15 @@ class TestResolveContent:
         with open(pack_dir / "preset.yml", 'w') as f:
             yaml.dump(pack_data, f)
         (pack_dir / "commands").mkdir()
-        (pack_dir / "commands" / "speckit.tasks.md").write_text("## Additional Instructions\n")
+        (pack_dir / "commands" / "speckit.plan.md").write_text("## Additional Instructions\n")
 
         manager = PresetManager(project_dir)
         manager.install_from_directory(pack_dir, "0.1.5")
 
         resolver = PresetResolver(project_dir)
-        content = resolver.resolve_content("speckit.tasks", "command")
+        content = resolver.resolve_content("speckit.plan", "command")
         assert content is not None
-        assert "Core Tasks Command" in content
+        assert "Core Plan Command" in content
         assert "Additional Instructions" in content
 
     def test_resolve_content_command_frontmatter_stripping(self, project_dir, temp_dir, valid_pack_data):

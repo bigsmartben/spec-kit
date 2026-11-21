@@ -44,13 +44,9 @@ _HOOK_COMMAND_NOTE = (
 )
 
 _CORE_COMMAND_TEMPLATE_ORDER = (
-    "constitution",
-    "specify",
-    "checklist",
-    "clarify",
-    "plan",
-    "tasks",
     "analyze",
+    "clarify",
+    "constitution",
     "implement",
     "converge",
     "checklist",
@@ -1086,16 +1082,6 @@ class IntegrationBase(ABC):
             + "speckit"
             + separator
             + m.group(1).lower().replace("_", separator),
-            content,
-        )
-
-    def normalize_slash_command_refs(content: str, separator: str = ".") -> str:
-        """Normalize literal ``/speckit.foo`` slash references for an agent."""
-        if separator == ".":
-            return content
-        return re.sub(
-            r"(?<![\w/])/(speckit\.[A-Za-z0-9-_]+(?:\.[A-Za-z0-9-_]+)*)\b",
-            lambda m: "/" + m.group(1).replace(".", separator),
             content,
         )
 

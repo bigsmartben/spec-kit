@@ -28,7 +28,7 @@ Install once and use everywhere. Replace `vX.Y.Z` with a release tag from [Relea
 > The command below requires **[uv](https://docs.astral.sh/uv/)**. If you see `command not found: uv`, [install uv first](./install/uv.md).
 
 ```bash
-uv tool install specify-cli --from git+https://github.com/bigsmartben/spec-kit.git@vX.Y.Z
+uv tool install specify-cli --from git+https://github.com/github/spec-kit.git@vX.Y.Z
 ```
 
 Then initialize a project:

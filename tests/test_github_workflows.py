@@ -19,7 +19,6 @@ from tests.conftest import requires_bash
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 WORKFLOWS_DIR = REPO_ROOT / ".github" / "workflows"
-ISSUE_TEMPLATES_DIR = REPO_ROOT / ".github" / "ISSUE_TEMPLATE"
 # Match both the dedicated-step form (`        uses: x@sha`) and the
 # inline shorthand (`      - uses: x@sha`) used in catalog-assign.yml.
 USES_RE = re.compile(r"^\s*(?:-\s*)?uses:\s*(?P<ref>\S+)", re.MULTILINE)

@@ -75,8 +75,8 @@ def project_dir(temp_dir):
     (templates_dir / "spec-template.md").write_text(
         "# Core Spec Template\n", encoding="utf-8"
     )
-    (templates_dir / "quickstart-template.md").write_text(
-        "# Core Quickstart Template\n", encoding="utf-8"
+    (templates_dir / "plan-template.md").write_text(
+        "# Core Plan Template\n", encoding="utf-8"
     )
     (templates_dir / "commands").mkdir()
     return project

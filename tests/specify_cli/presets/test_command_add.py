@@ -213,7 +213,7 @@ class TestPresetAdd:
         runner = CliRunner()
         with (
             patch.object(Path, "cwd", return_value=project_dir),
-            patch("specify_cli.get_speckit_version", return_value="1.4.4.dev0"),
+            patch("specify_cli.get_speckit_version", return_value="0.6.0"),
         ):
             result = runner.invoke(app, ["preset", "add", "lean"])
 
@@ -229,24 +229,24 @@ class TestPresetAdd:
         entry = {
             "id": "lean",
             "name": "Lean Workflow",
-            "version": "1.0.1",
+            "version": "1.0.0",
             "bundled": True,
             "_install_allowed": True,
         }
         with (
             patch.object(Path, "cwd", return_value=project_dir),
-            patch("specify_cli.get_speckit_version", return_value="1.4.4.dev0"),
+            patch("specify_cli.get_speckit_version", return_value="0.6.0"),
             patch.object(PresetCatalog, "get_pack_info", return_value=entry),
             patch.object(PresetCatalog, "download_pack_info") as download,
             patch.object(PresetManager, "install_from_zip") as install_zip,
         ):
             result = CliRunner().invoke(
-                app, ["preset", "add", "lean", "--version", "1.0.1"]
+                app, ["preset", "add", "lean", "--version", "1.0"]
             )
 
         assert result.exit_code == 0, result.output
         assert "Lean Workflow" in result.output
-        assert PresetManager(project_dir).get_pack("lean").version == "1.0.1"
+        assert PresetManager(project_dir).get_pack("lean").version == "1.0.0"
         download.assert_not_called()
         install_zip.assert_not_called()
 
@@ -278,7 +278,7 @@ class TestPresetAdd:
         with (
             patch.object(Path, "cwd", return_value=project_dir),
             patch("specify_cli._locate_bundled_preset", return_value=packaged_path),
-            patch("specify_cli.get_speckit_version", return_value="1.4.4.dev0"),
+            patch("specify_cli.get_speckit_version", return_value="0.6.0"),
             patch.object(PresetCatalog, "get_pack_info", return_value=entry),
             patch.object(PresetCatalog, "download_pack_info") as download,
             patch.object(PresetManager, "install_from_directory") as install_dir,

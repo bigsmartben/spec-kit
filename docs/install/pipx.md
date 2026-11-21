@@ -4,7 +4,7 @@
 
 ## Install Specify CLI
 
-Pin a specific release tag for stability (check [Releases](https://github.com/bigsmartben/spec-kit/releases) for the latest):
+Pin a specific release tag for stability (check [Releases](https://github.com/github/spec-kit/releases) for the latest):
 
 ```bash
 # Install a specific stable release (recommended — replace vX.Y.Z with the
@@ -12,7 +12,7 @@ Pin a specific release tag for stability (check [Releases](https://github.com/bi
 pipx install git+https://github.com/github/spec-kit.git@vX.Y.Z
 
 # Or install latest from main (may include unreleased changes)
-pipx install git+https://github.com/bigsmartben/spec-kit.git
+pipx install git+https://github.com/github/spec-kit.git
 ```
 
 ## Verify
@@ -24,7 +24,7 @@ specify version
 ## Upgrade
 
 ```bash
-pipx install --force git+https://github.com/bigsmartben/spec-kit.git@vX.Y.Z
+pipx install --force git+https://github.com/github/spec-kit.git@vX.Y.Z
 ```
 
 ## Uninstall

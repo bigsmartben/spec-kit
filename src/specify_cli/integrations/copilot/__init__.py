@@ -141,6 +141,7 @@ class _CopilotSkillsHelper(SkillsIntegration):
         "extension": "/SKILL.md",
     }
 
+
 class CopilotIntegration(IntegrationBase):
     """Integration for GitHub Copilot (VS Code IDE + CLI).
 
@@ -776,6 +777,7 @@ class CopilotIntegration(IntegrationBase):
                     shutil.copy2(settings_src, dst_settings)
                 self.record_file_in_manifest(dst_settings, project_root, manifest)
                 created.append(dst_settings)
+
 
         return created
 

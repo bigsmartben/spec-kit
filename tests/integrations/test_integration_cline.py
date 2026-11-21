@@ -9,6 +9,7 @@ from specify_cli.integrations.cline import (
     format_cline_command_name,
     hyphenate_command_refs,
 )
+from tests.integrations.community_defaults import bundled_personal_default_files
 from .test_integration_base_markdown import MarkdownIntegrationTests
 
 
@@ -464,9 +465,5 @@ class TestClineIntegration(MarkdownIntegrationTests):
         files.append(".specify/workflows/speckit/workflow.yml")
         files.append(".specify/workflows/workflow-registry.json")
 
-        files.append(".specify/extensions.yml")
-        files.append(".specify/extensions/.registry")
-
-        files.extend(bundled_community_default_files(self.KEY))
-
+        files.extend(bundled_personal_default_files(self.KEY))
         return sorted(set(files))

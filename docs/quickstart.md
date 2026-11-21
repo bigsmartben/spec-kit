@@ -2,7 +2,7 @@
 
 # Spec-Driven Development Quickstart
 
-这份指南面向本仓库分发版的 Spec Kit。它保留核心 Spec-Driven Development 流程，默认只安装 `git` 扩展和 `workflow-preset`；技术调研、HTML 预览和上下文维护均按需启用。
+This guide will help you get started with Spec-Driven Development using Spec Kit. Throughout, we illustrate each step with a running example: **Taskify**, a small team productivity platform.
 
 Use SDD to build a feature or application from a specification. For a repair,
 follow the [bug-fixing quickstart](guides/bugfix.md); to decide whether an idea
@@ -22,24 +22,14 @@ commands; only CLI installation and project setup use the terminal.
 ## Recommended Process
 
 > [!TIP]
-> Spec Kit 会根据当前 Git 分支自动识别 active feature，例如 `001-photo-album`。切换规格时通常只需要切换分支。
+> **Context Awareness**: Spec Kit tracks the active feature by the feature directory recorded in `.specify/feature.json` (overridable with the `SPECIFY_FEATURE_DIRECTORY` environment variable). Commands resolve the feature from that state, **not** from the checked-out Git branch — no Git required. The opt-in **git** extension adds numbered feature branches (e.g. `001-feature-name`) for organizing work in version control, but the active feature is still whichever directory that state points to; `git checkout` alone does not change it. To point commands at a different feature, update `.specify/feature.json` (or set `SPECIFY_FEATURE_DIRECTORY`).
 
 After installing Spec Kit, each skill below is a step in the process. Two paths are common:
 
 Establish a constitution once per project with `/speckit-constitution` before
 starting either path.
 
-```text
-/speckit.constitution             # 同时托管 constitution.md 与 architecture.md
-/speckit.specify
-/speckit.checklist
-/speckit.clarify
-/speckit.plan
-/speckit.tasks
-/speckit.analyze
-/speckit.implement
-/speckit.converge
-```
+**Shorter path** — for smaller features:
 
 1. `/speckit-specify`
 2. `/speckit-tasks`
@@ -186,7 +176,7 @@ Run it once to build everything, or scope it to a set of work packages at a time
 > boundaries, UAT ownership, and how the commands interact — see
 > [Agentic SDD](reference/agentic-sdd.md).
 
-大型项目可以分阶段实现和验证，例如先完成核心结构，再做交互行为，最后补齐评论、权限、分配等垂直切片，避免单次上下文过载。
+## Key Principles
 
 - **Be explicit** about what you're building and why
 - **Don't focus on tech stack** during specification phase
@@ -195,7 +185,7 @@ Run it once to build everything, or scope it to a set of work packages at a time
 - **Validate** full FR, SC, prototype, and UAT coverage before coding
 - **Let Implement own** architecture, files, implementation paths, and UAT evidence
 
-如果你想体验可恢复的端到端 workflow：
+## Next Steps
 
 - See the [Agentic SDD](reference/agentic-sdd.md) reference for full detail on every command
 - Learn how to [customize the process](how-to/customization.md) with extensions, presets, workflows, and bundles

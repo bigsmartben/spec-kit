@@ -41,8 +41,8 @@ from specify_cli.extensions import (
     ValidationError,
     CompatibilityError,
     normalize_priority,
-    version_satisfies,
 )
+from specify_cli._utils import version_satisfies
 
 # Minimal valid ZIP (empty end-of-central-directory record). Passes
 # zipfile.is_zipfile() so --from download tests exercise the content guard.
@@ -269,37 +269,72 @@ class TestExtensionManifest:
 
         assert CORE_COMMAND_NAMES == expected
 
-    @pytest.mark.parametrize("extension_id", ("arch", "discovery", "preview"))
-    def test_bundled_opt_in_catalogs_match_manifest(self, extension_id):
-        """Bundled opt-in packages and catalogs stay aligned without becoming defaults."""
-        from tests.integrations.community_defaults import DEFAULT_EXTENSION_COMMANDS
+    def test_load_core_command_names_discovers_from_source_checkout(self, monkeypatch):
+        """Discovery must actually read the repo-root templates, not silently
+        fall back (#3274).
 
-        repo_root = Path(__file__).resolve().parent.parent
-        manifest = ExtensionManifest(repo_root / "extensions" / extension_id / "extension.yml")
-        bundled_catalog = json.loads(
-            (repo_root / "extensions" / "catalog.json").read_text(encoding="utf-8")
+        The fallback set happens to equal the real command stems today, so an
+        equality check against the live tree cannot tell a working loader apart
+        from a dead one. Point ``_repo_root`` at a temp tree with *different*
+        command names: the old off-by-one path math read nothing and returned
+        the baked-in fallback; the fixed loader returns the temp stems.
+        """
+        from specify_cli.extensions import (
+            _load_core_command_names,
+            _FALLBACK_CORE_COMMAND_NAMES,
         )
-        community_catalog = json.loads(
-            (repo_root / "extensions" / "catalog.community.json").read_text(encoding="utf-8")
-        )
-        bundled_entry = bundled_catalog["extensions"][extension_id]
-        community_entry = community_catalog["extensions"][extension_id]
-        manifest_repository = manifest.data["extension"]["repository"]
-        default_commands = tuple(
-            command
-            for command in DEFAULT_EXTENSION_COMMANDS
-            if command.startswith(f"speckit.{extension_id}.")
-        )
+        import specify_cli.extensions as ext
 
-        for entry in (bundled_entry, community_entry):
-            assert entry["name"] == manifest.name
-            assert entry["version"] == manifest.version
-            assert entry["description"] == manifest.description
-            assert entry["repository"] == manifest_repository
-            assert entry["provides"]["commands"] == len(manifest.commands)
+        with tempfile.TemporaryDirectory() as tmp:
+            commands = Path(tmp) / "templates" / "commands"
+            commands.mkdir(parents=True)
+            (commands / "widget.md").write_text("# widget", encoding="utf-8")
+            (commands / "gadget.md").write_text("# gadget", encoding="utf-8")
+            (commands / "notacommand.txt").write_text("skip me", encoding="utf-8")
 
-        assert community_entry["download_url"].endswith(".zip")
-        assert default_commands == ()
+            # No wheel bundle in this scenario; force the source-checkout path.
+            monkeypatch.setattr(ext, "_locate_core_pack", lambda: None)
+            monkeypatch.setattr(ext, "_repo_root", lambda: Path(tmp))
+
+            result = _load_core_command_names()
+
+        assert result == {"widget", "gadget"}
+        assert result != _FALLBACK_CORE_COMMAND_NAMES
+
+    def test_load_core_command_names_prefers_wheel_core_pack(self, monkeypatch):
+        """When a wheel ``core_pack`` bundle exists, discovery reads
+        ``core_pack/commands`` (the force-include target) ahead of the source
+        tree (#3274)."""
+        from specify_cli.extensions import _load_core_command_names
+        import specify_cli.extensions as ext
+
+        with tempfile.TemporaryDirectory() as tmp:
+            core_pack = Path(tmp) / "core_pack"
+            (core_pack / "commands").mkdir(parents=True)
+            (core_pack / "commands" / "sprocket.md").write_text("# sprocket", encoding="utf-8")
+
+            monkeypatch.setattr(ext, "_locate_core_pack", lambda: core_pack)
+            # Source fallback should be ignored while the bundle resolves.
+            monkeypatch.setattr(ext, "_repo_root", lambda: Path(tmp) / "nonexistent")
+
+            result = _load_core_command_names()
+
+        assert result == {"sprocket"}
+
+    def test_load_core_command_names_falls_back_when_nothing_found(self, monkeypatch):
+        """With neither a bundle nor a source tree, discovery returns the
+        baked-in fallback so validation still works (#3274)."""
+        from specify_cli.extensions import (
+            _load_core_command_names,
+            _FALLBACK_CORE_COMMAND_NAMES,
+        )
+        import specify_cli.extensions as ext
+
+        with tempfile.TemporaryDirectory() as tmp:
+            monkeypatch.setattr(ext, "_locate_core_pack", lambda: None)
+            monkeypatch.setattr(ext, "_repo_root", lambda: Path(tmp) / "nonexistent")
+
+            assert _load_core_command_names() == _FALLBACK_CORE_COMMAND_NAMES
 
     def test_missing_required_field(self, temp_dir):
         """Test manifest missing required field."""
@@ -5065,6 +5100,12 @@ class TestVersionSatisfies:
         """Test complex version specifier."""
         assert version_satisfies("1.0.5", ">=1.0.0,!=1.0.3")
         assert not version_satisfies("1.0.3", ">=1.0.0,!=1.0.3")
+
+    def test_version_satisfies_prerelease(self):
+        """Prerelease builds should satisfy compatible lower bounds, but not higher bounds."""
+        assert version_satisfies("0.8.8.dev0", ">=0.2.0")
+        assert not version_satisfies("0.2.0.dev0", ">=0.2.0")
+        assert not version_satisfies("0.8.7.dev1", ">=0.8.8")
 
     def test_version_satisfies_invalid(self):
         """Test invalid version strings."""

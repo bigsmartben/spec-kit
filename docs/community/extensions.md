@@ -5,7 +5,7 @@
 
 🔍 **Browse and search community extensions on the [Community Extensions website](https://speckit-community.github.io/extensions/).**
 
-The following community-contributed extensions are available in [`catalog.community.json`](https://github.com/bigsmartben/spec-kit/blob/main/extensions/catalog.community.json):
+The following community-contributed extensions are available in [`catalog.community.json`](https://github.com/github/spec-kit/blob/main/extensions/catalog.community.json):
 
 **Categories** (common values, but any string is allowed):
 
@@ -35,6 +35,7 @@ The following community-contributed extensions are available in [`catalog.commun
 | Agentstandards Architecture Council | Run a bounded, multi-vendor architecture council between Spec Kit planning and task generation. | `process` | Read+Write | [agentstandards](https://github.com/bbjwz/agentstandards) |
 | A·I·DID·IT — Agile Expansion Pack | Runs every work item through Assemble, Ideate, Draft, Iterate, Deliver, Investigate and Tidy, with a simulated agile team and a web-cited practitioner panel in place of human gates. | `process` | Read+Write | [ai-did-it](https://github.com/RubberDuckEngineering/ai-did-it) |
 | AI-Driven Engineering (AIDE) | A structured 7-step workflow for building new projects from scratch with AI assistants — from vision through implementation | `process` | Read+Write | [aide](https://github.com/mnriem/spec-kit-extensions/tree/main/aide) |
+| Analytics | Measure what your AI builds, and how much time it saves you | `visibility` | Read+Write | [spec-kit-analytics](https://github.com/Fyloss/spec-kit-analytics) |
 | API Evolve | Managed API contract evolution — breaking-change detection, semver enforcement, deprecation orchestration, and lifecycle gates across REST, GraphQL, and gRPC | `process` | Read+Write | [spec-kit-api-evolve](https://github.com/Quratulain-bilal/spec-kit-api-evolve) |
 | Applied Epistemic Engineering | Checks the claims in a spec-driven project against their evidence at every stage, and shows plainly what is verified, what is not, and what remains not understood. | `process` | Read+Write | [spec-kit-aee](https://github.com/electrohire/spec-kit-aee) |
 | Architect Impact Previewer | Predicts architectural impact, complexity, and risks of proposed changes before implementation. | `visibility` | Read-only | [spec-kit-architect-preview](https://github.com/UmmeHabiba1312/spec-kit-architect-preview) |
@@ -94,6 +95,7 @@ The following community-contributed extensions are available in [`catalog.commun
 | Guildwork: request, verdict, register | No code is written until a named human approves a written request, and every verdict is kept. | `process` | Read+Write | [Guildwork](https://github.com/Simon-Pacifae-Dupont/Guildwork) |
 | Illustrate | Generate, import, and export forty-four technical, product, architecture, process, and quantitative illustration types with tracked project-level light/dark color and font themes. | `docs` | Read+Write | [sanduq](https://github.com/samykabu/sanduq) |
 | Improve Extension | Audits any codebase as a senior advisor and writes prioritized, self-contained spec prompts under specs/ that the spec-kit lifecycle can process | `process` | Read+Write | [spec-kit-improve](https://github.com/d0whc3r/spec-kit-improve) |
+| Intake | Normalize PRD, design, HTML SSOT, and test-case evidence into SDD-ready intake artifacts. | `docs` | Read+Write | [spec-kit-intake](https://github.com/bigsmartben/spec-kit-intake) |
 | Intelligent Agent Orchestrator | Cross-catalog agent discovery and intelligent prompt-to-command routing | `process` | Read+Write | [spec-kit-orchestrator](https://github.com/pragya247/spec-kit-orchestrator) |
 | Intent Reconciliation | Reconcile implementation-discovered decisions against approved feature intent | `process` | Read+Write | [spec-kit-reconcile](https://github.com/SuhaibAslam/spec-kit-reconcile) |
 | Iterate | Iterate on spec documents with a two-phase define-and-apply workflow — refine specs mid-implementation and go straight back to building | `docs` | Read+Write | [spec-kit-iterate](https://github.com/imviancagrace/spec-kit-iterate) |
@@ -153,6 +155,7 @@ The following community-contributed extensions are available in [`catalog.commun
 | Reconcile Extension | Reconcile implementation drift by surgically updating the feature's own spec, plan, and tasks. | `docs` | Read+Write | [spec-kit-reconcile](https://github.com/stn1slv/spec-kit-reconcile) |
 | Red Team | Adversarial review of specs before /speckit.plan — parallel lens agents surface risks that clarify/analyze structurally can't (prompt injection, integrity gaps, cross-spec drift, silent failures). Produces a structured findings report; no auto-edits to specs. | `docs` | Read+Write | [spec-kit-red-team](https://github.com/ashbrener/spec-kit-red-team) |
 | Research Harness | State-externalizing research harness: budgeted exploration, evidence curation, and claim verification for spec-driven development | `process` | Read+Write | [spec-kit-harness](https://github.com/formin/spec-kit-harness) |
+| Repository Governance | Generate project-governance projections from Spec Kit metadata | `process` | Read+Write | [spec-kit-agent-governance](https://github.com/bigsmartben/spec-kit-agent-governance) |
 | Repository Index | Generate index for existing repo for overview, architecture and module level. | `docs` | Read-only | [spec-kit-repoindex](https://github.com/liuyiyu/spec-kit-repoindex) |
 | Reqnroll BDD | Adds Reqnroll BDD planning, Gherkin generation, traceability, safe task injection, handoff, and verification to Spec Kit | `process` | Read+Write | [spec-kit-reqnroll-bdd](https://github.com/LoogacyStudio/spec-kit-reqnroll-bdd) |
 | Retro Extension | Sprint retrospective analysis with metrics, spec accuracy assessment, and improvement suggestions | `process` | Read+Write | [spec-kit-retro](https://github.com/arunt14/spec-kit-retro) |

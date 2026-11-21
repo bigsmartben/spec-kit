@@ -57,10 +57,10 @@ If your installed CLI is older than the release that introduced `specify self up
 
 ### If you installed with `uv tool install`
 
-Upgrade to a specific release (check [Releases](https://github.com/bigsmartben/spec-kit/releases) for the latest tag):
+Upgrade to a specific release (check [Releases](https://github.com/github/spec-kit/releases) for the latest tag):
 
 ```bash
-uv tool install specify-cli --force --from git+https://github.com/bigsmartben/spec-kit.git@vX.Y.Z
+uv tool install specify-cli --force --from git+https://github.com/github/spec-kit.git@vX.Y.Z
 ```
 
 ### If you use one-shot `uvx` commands
@@ -68,7 +68,7 @@ uv tool install specify-cli --force --from git+https://github.com/bigsmartben/sp
 Specify the desired release tag:
 
 ```bash
-uvx --from git+https://github.com/bigsmartben/spec-kit.git@vX.Y.Z specify init --here --integration copilot
+uvx --from git+https://github.com/github/spec-kit.git@vX.Y.Z specify init --here --integration copilot
 ```
 
 `uvx` runs a temporary copy of Spec Kit for that single command. It does not update a persistent `specify` installed with `uv tool install`, `pipx`, or another tool manager. If a newer feature works through `uvx` but your local `specify` still reports an older version, upgrade the persistent CLI with the command that matches your install method.
@@ -78,7 +78,7 @@ uvx --from git+https://github.com/bigsmartben/spec-kit.git@vX.Y.Z specify init -
 Upgrade to a specific release:
 
 ```bash
-pipx install --force git+https://github.com/bigsmartben/spec-kit.git@vX.Y.Z
+pipx install --force git+https://github.com/github/spec-kit.git@vX.Y.Z
 ```
 
 ### Verify the upgrade
@@ -501,7 +501,7 @@ If not found, reinstall:
 
 ```bash
 uv tool uninstall specify-cli
-uv tool install specify-cli --from git+https://github.com/bigsmartben/spec-kit.git
+uv tool install specify-cli --from git+https://github.com/github/spec-kit.git
 ```
 
 ### "Do I need to run specify every time I open my project?"
@@ -572,6 +572,6 @@ Spec Kit follows semantic versioning for major releases. The CLI and project fil
 After upgrading:
 
 - **Test new slash commands:** Run `/speckit.constitution` or another command to verify everything works
-- **Review release notes:** Check [GitHub Releases](https://github.com/bigsmartben/spec-kit/releases) for new features and breaking changes
+- **Review release notes:** Check [GitHub Releases](https://github.com/github/spec-kit/releases) for new features and breaking changes
 - **Update workflows:** If new commands were added, update your team's development workflows
 - **Check documentation:** Visit [github.io/spec-kit](https://github.github.io/spec-kit/) for updated guides

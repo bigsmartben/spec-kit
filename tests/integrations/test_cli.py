@@ -4,7 +4,6 @@ import io
 import json
 import os
 import runpy
-from pathlib import Path
 
 import pytest
 import yaml
@@ -956,7 +955,7 @@ class TestInitIntegrationFlag(IntegrationCatalogCliTestBase):
         assert "Could not read shared infrastructure manifest" in captured.out
         assert "A new shared manifest will be created" in captured.out
 
-    @requires_symlink
+    @pytest.mark.skipif(not hasattr(os, "symlink"), reason="symlinks are unavailable")
     def test_shared_infra_buckets_symlinked_script_destination(self, tmp_path, capsys):
         """Symlinked script destinations are bucketed with a warning; the symlink target is preserved."""
         from specify_cli import _install_shared_infra
@@ -977,7 +976,7 @@ class TestInitIntegrationFlag(IntegrationCatalogCliTestBase):
         assert "symlinked shared infrastructure" in captured.out
         assert outside.read_text(encoding="utf-8") == "# outside\n"
 
-    @requires_symlink
+    @pytest.mark.skipif(not hasattr(os, "symlink"), reason="symlinks are unavailable")
     def test_shared_infra_buckets_symlinked_template_destination(self, tmp_path, capsys):
         """Symlinked template destinations are bucketed with a warning; the symlink target is preserved."""
         from specify_cli import _install_shared_infra
@@ -998,7 +997,7 @@ class TestInitIntegrationFlag(IntegrationCatalogCliTestBase):
         assert "symlinked shared infrastructure" in captured.out
         assert outside.read_text(encoding="utf-8") == "# outside\n"
 
-    @requires_symlink
+    @pytest.mark.skipif(not hasattr(os, "symlink"), reason="symlinks are unavailable")
     def test_shared_template_refresh_refuses_symlinked_destination(self, tmp_path):
         """Template-only refreshes must not follow destination symlinks."""
         from specify_cli import _refresh_shared_templates
@@ -1018,7 +1017,7 @@ class TestInitIntegrationFlag(IntegrationCatalogCliTestBase):
 
         assert outside.read_text(encoding="utf-8") == "# outside\n"
 
-    @requires_symlink
+    @pytest.mark.skipif(not hasattr(os, "symlink"), reason="symlinks are unavailable")
     def test_shared_infra_refuses_symlinked_specify_directory_before_mkdir(self, tmp_path):
         """Shared infra installs must not follow a symlinked .specify directory."""
         from specify_cli import _install_shared_infra
@@ -1037,7 +1036,7 @@ class TestInitIntegrationFlag(IntegrationCatalogCliTestBase):
         assert not (outside / "scripts").exists()
         assert not (outside / "templates").exists()
 
-    @requires_symlink
+    @pytest.mark.skipif(not hasattr(os, "symlink"), reason="symlinks are unavailable")
     def test_shared_infra_refuses_symlinked_shared_manifest(self, tmp_path):
         """Shared infra manifest saves must not follow destination symlinks."""
         from specify_cli.shared_infra import install_shared_infra
@@ -1069,7 +1068,7 @@ class TestInitIntegrationFlag(IntegrationCatalogCliTestBase):
 
         assert outside.read_text(encoding="utf-8") == "# outside\n"
 
-    @requires_symlink
+    @pytest.mark.skipif(not hasattr(os, "symlink"), reason="symlinks are unavailable")
     def test_shared_template_refresh_preflights_before_writing(self, tmp_path):
         """Template refresh validates all destinations before writing any file."""
         from specify_cli.shared_infra import refresh_shared_templates
@@ -1105,7 +1104,7 @@ class TestInitIntegrationFlag(IntegrationCatalogCliTestBase):
         assert existing.read_text(encoding="utf-8") == "# old a\n"
         assert outside.read_text(encoding="utf-8") == "# outside\n"
 
-    @requires_symlink
+    @pytest.mark.skipif(not hasattr(os, "symlink"), reason="symlinks are unavailable")
     def test_shared_infra_install_buckets_unsafe_destinations_and_continues(self, tmp_path):
         """Symlinked destinations are bucketed with a warning; safe destinations in the same install still complete."""
         from specify_cli.shared_infra import install_shared_infra
@@ -1208,12 +1207,6 @@ class TestInitIntegrationFlag(IntegrationCatalogCliTestBase):
     def test_shared_template_writes_are_not_world_writable(self, tmp_path):
         """Shared template writes use a safe default mode instead of chmod 666."""
         from specify_cli.shared_infra import install_shared_infra
-
-        probe = tmp_path / "mode-probe"
-        probe.write_text("x", encoding="utf-8")
-        probe.chmod(0o644)
-        if probe.stat().st_mode & 0o777 != 0o644:
-            pytest.skip("current filesystem does not preserve POSIX mode bits")
 
         project = tmp_path / "template-mode-test"
         project.mkdir()
@@ -1457,15 +1450,15 @@ class TestForceExistingDirectory:
         assert "already exists" in _normalize_cli_output(result.output)
 
 
-class TestBugExtensionDefaultInstall:
-    """Tests verifying that the bug extension is installed during specify init."""
+class TestGitExtensionOptIn:
+    """Tests verifying that the git extension is opt-in (not auto-installed) during specify init."""
 
-    def test_bug_extension_auto_installed(self, tmp_path):
-        """Bug extension is installed automatically during init."""
+    def test_git_extension_not_auto_installed(self, tmp_path):
+        """Git extension is NOT installed automatically during init."""
         from typer.testing import CliRunner
         from specify_cli import app
 
-        project = tmp_path / "bug-default"
+        project = tmp_path / "git-opt-in"
         project.mkdir()
         old_cwd = os.getcwd()
         try:
@@ -1480,8 +1473,9 @@ class TestBugExtensionDefaultInstall:
 
         assert result.exit_code == 0, f"init failed: {result.output}"
 
-        ext_dir = project / ".specify" / "extensions" / "bug"
-        assert (ext_dir / "extension.yml").exists(), "bug extension should be auto-installed"
+        # Git extension directory should NOT be present after init
+        ext_dir = project / ".specify" / "extensions" / "git"
+        assert not ext_dir.exists(), "git extension should not be auto-installed"
 
     def test_no_git_flag_is_rejected(self, tmp_path):
         """--no-git flag has been removed; passing it should fail."""
@@ -1504,12 +1498,12 @@ class TestBugExtensionDefaultInstall:
         assert result.exit_code != 0, "--no-git should be rejected as an unknown option"
         assert "No such option" in result.output or "no such option" in result.output.lower()
 
-    def test_bug_extension_commands_registered_by_default(self, tmp_path):
-        """Bug extension commands are registered with the agent during default init."""
+    def test_git_extension_commands_not_registered_by_default(self, tmp_path):
+        """Git extension commands are NOT registered with the agent during default init."""
         from typer.testing import CliRunner
         from specify_cli import app
 
-        project = tmp_path / "bug-cmds-present"
+        project = tmp_path / "git-cmds-absent"
         project.mkdir()
         old_cwd = os.getcwd()
         try:
@@ -1524,227 +1518,11 @@ class TestBugExtensionDefaultInstall:
 
         assert result.exit_code == 0, f"init failed: {result.output}"
 
+        # Git extension skill commands should NOT be present
         claude_skills = project / ".claude" / "skills"
         assert claude_skills.exists(), "Claude skills directory was not created"
-        expected_bug_skills = {
-            "speckit-bug-assess",
-            "speckit-bug-fix",
-            "speckit-bug-test",
-        }
-        actual_bug_skills = {
-            f.name for f in claude_skills.iterdir() if f.name.startswith("speckit-bug-")
-        }
-        assert expected_bug_skills <= actual_bug_skills
-
-    def test_minimal_extensions_and_workflow_preset_auto_installed(self, tmp_path):
-        """specify init installs the bug extension plus the workflow preset."""
-        from typer.testing import CliRunner
-        from specify_cli import app
-
-        project = tmp_path / "community-defaults"
-        project.mkdir()
-        old_cwd = os.getcwd()
-        try:
-            os.chdir(project)
-            runner = CliRunner()
-            result = runner.invoke(app, [
-                "init", "--here", "--integration", "claude", "--script", "sh",
-                "--ignore-agent-tools",
-            ], catch_exceptions=False)
-        finally:
-            os.chdir(old_cwd)
-
-        assert result.exit_code == 0, f"init failed: {result.output}"
-
-        assert (project / ".specify" / "extensions" / "bug" / "extension.yml").exists()
-        for extension_id in ("git", "discovery", "inception", "intake", "preview", "repository-governance"):
-            assert not (project / ".specify" / "extensions" / extension_id).exists()
-
-        extensions_yml = project / ".specify" / "extensions.yml"
-        hooks_data = yaml.safe_load(extensions_yml.read_text(encoding="utf-8"))
-        assert hooks_data["installed"] == ["bug"]
-
-        preset_dir = project / ".specify" / "presets" / "workflow-preset"
-        assert (preset_dir / "preset.yml").exists(), "workflow-preset was not installed"
-        preset_registry = json.loads((project / ".specify" / "presets" / ".registry").read_text())
-        assert "workflow-preset" in preset_registry["presets"]
-
-    def test_workflow_preset_registers_commands_and_composes_wrappers(self, tmp_path):
-        """workflow-preset registers commands and composes wrapped core templates."""
-        from typer.testing import CliRunner
-        from specify_cli import app
-
-        project = tmp_path / "workflow-preset-registration"
-        project.mkdir()
-        old_cwd = os.getcwd()
-        try:
-            os.chdir(project)
-            runner = CliRunner()
-            result = runner.invoke(app, [
-                "init", "--here", "--integration", "claude", "--script", "sh",
-                "--ignore-agent-tools",
-            ], catch_exceptions=False)
-        finally:
-            os.chdir(old_cwd)
-
-        assert result.exit_code == 0, f"init failed: {result.output}"
-
-        preset_dir = project / ".specify" / "presets" / "workflow-preset"
-        assert (preset_dir / "preset.yml").exists()
-        assert not (preset_dir / "schemas" / "speckit.implement.handoff.v2.schema.json").exists()
-        assert (preset_dir / "templates" / "constitution-template.md").exists()
-        assert (preset_dir / "templates" / "behavior" / "bdd-draft.feature").exists()
-        assert not (preset_dir / "templates" / "behavior" / "behavior-testability.md").exists()
-        assert not (preset_dir / "templates" / "behavior" / "uif-intent.json").exists()
-        assert not (preset_dir / "templates" / "behavior" / "data-fixtures-intent.json").exists()
-        assert (preset_dir / "templates" / "ui-ux-design-template.md").exists()
-        assert (preset_dir / "templates" / "test" / "test-conditions.json").exists()
-        assert (preset_dir / "templates" / "test-readiness-template.md").exists()
-        assert not (preset_dir / ".composed" / "speckit.specify.md").exists()
-        assert not (preset_dir / ".composed" / "speckit.clarify.md").exists()
-        assert (preset_dir / ".composed" / "speckit.checklist.md").exists()
-        assert not (preset_dir / ".composed" / "speckit.constitution.md").exists()
-        assert (preset_dir / ".composed" / "speckit.plan.md").exists()
-        assert (preset_dir / ".composed" / "speckit.tasks.md").exists()
-        assert (preset_dir / ".composed" / "speckit.analyze.md").exists()
-        assert not (preset_dir / "commands" / "speckit.implement.md").exists()
-        assert not (preset_dir / ".composed" / "speckit.implement.md").exists()
-
-        preset_registry = json.loads((project / ".specify" / "presets" / ".registry").read_text())
-        workflow_entry = preset_registry["presets"]["workflow-preset"]
-        installed_manifest = yaml.safe_load((preset_dir / "preset.yml").read_text(encoding="utf-8"))
-        source_manifest_path = Path(__file__).parents[2] / "presets" / "workflow-preset" / "preset.yml"
-        source_manifest = yaml.safe_load(source_manifest_path.read_text(encoding="utf-8"))
-        assert installed_manifest["preset"]["version"] == source_manifest["preset"]["version"]
-        assert workflow_entry["version"] == installed_manifest["preset"]["version"]
-        expected_preset_commands = {
-            "speckit.specify",
-            "speckit.clarify",
-            "speckit.checklist",
-            "speckit.constitution",
-            "speckit.analyze",
-            "speckit.plan",
-            "speckit.tasks",
-        }
-        assert set(workflow_entry["registered_commands"]["claude"]) == expected_preset_commands
-
-        specify_skill = project / ".claude" / "skills" / "speckit-specify" / "SKILL.md"
-        clarify_skill = project / ".claude" / "skills" / "speckit-clarify" / "SKILL.md"
-        analyze_skill = project / ".claude" / "skills" / "speckit-analyze" / "SKILL.md"
-        plan_skill = project / ".claude" / "skills" / "speckit-plan" / "SKILL.md"
-        constitution_skill = project / ".claude" / "skills" / "speckit-constitution" / "SKILL.md"
-        tasks_skill = project / ".claude" / "skills" / "speckit-tasks" / "SKILL.md"
-        implement_skill = project / ".claude" / "skills" / "speckit-implement" / "SKILL.md"
-        for skill_path in (
-            specify_skill,
-            clarify_skill,
-            analyze_skill,
-            plan_skill,
-            constitution_skill,
-            tasks_skill,
-            implement_skill,
-        ):
-            assert skill_path.exists(), f"{skill_path} was not registered"
-
-        assert "Change Scope Granularity" in constitution_skill.read_text(encoding="utf-8")
-        assert "Full-Spectrum Projection" in specify_skill.read_text(encoding="utf-8")
-        assert "Shared-Root Ambiguity Map" in clarify_skill.read_text(encoding="utf-8")
-        assert "Cross-Command Consistency Gates" in analyze_skill.read_text(encoding="utf-8")
-        assert "X0 — Feature Plan Control" in plan_skill.read_text(encoding="utf-8")
-        assert "PLAN_OUTPUT_READY" in tasks_skill.read_text(encoding="utf-8")
-        implement_text = implement_skill.read_text(encoding="utf-8")
-        assert "## Pre-Execution Checks" in implement_text
-        assert "## Mandatory Post-Execution Hooks" in implement_text
-        assert "mark the task off as [X] in the tasks file" in implement_text
-        assert "speckit.implement.handoff.v2" not in implement_text
-
-    @pytest.mark.parametrize(
-        ("integration", "plan_path"),
-        [
-            ("codex", ".agents/skills/speckit-plan/SKILL.md"),
-            ("amp", ".agents/commands/speckit.plan.md"),
-            ("gemini", ".gemini/commands/speckit.plan.toml"),
-            ("goose", ".goose/recipes/speckit.plan.yaml"),
-            ("copilot", ".github/agents/speckit.plan.agent.md"),
-        ],
-    )
-    def test_repeated_init_reapplies_active_workflow_preset(
-        self,
-        tmp_path,
-        integration,
-        plan_path,
-    ):
-        """Repeated init must leave the active command at the Preset winner."""
-        from typer.testing import CliRunner
-        from specify_cli import app
-
-        project = tmp_path / f"repeat-init-{integration}"
-        project.mkdir()
-        args = [
-            "init",
-            "--here",
-            "--integration",
-            integration,
-            "--script",
-            "sh",
-            "--ignore-agent-tools",
-        ]
-
-        old_cwd = os.getcwd()
-        try:
-            os.chdir(project)
-            runner = CliRunner()
-            first = runner.invoke(app, args, catch_exceptions=False)
-            assert first.exit_code == 0, first.output
-
-            plan_file = project / plan_path
-            first_content = plan_file.read_text(encoding="utf-8")
-            assert "workflow-preset" in first_content
-            assert "X0 — Feature Plan Control" in first_content
-
-            second = runner.invoke(
-                app,
-                [*args, "--force"],
-                catch_exceptions=False,
-            )
-        finally:
-            os.chdir(old_cwd)
-
-        assert second.exit_code == 0, second.output
-        assert plan_file.read_text(encoding="utf-8") == first_content
-
-        registry = json.loads(
-            (project / ".specify" / "presets" / ".registry").read_text(
-                encoding="utf-8"
-            )
-        )
-        assert registry["presets"]["workflow-preset"]["enabled"] is True
-
-    def test_git_default_keeps_community_defaults(self, tmp_path):
-        """Optional and retired community extensions are absent from fresh init."""
-        from typer.testing import CliRunner
-        from specify_cli import app
-
-        project = tmp_path / "git-community-defaults"
-        project.mkdir()
-        old_cwd = os.getcwd()
-        try:
-            os.chdir(project)
-            runner = CliRunner()
-            result = runner.invoke(app, [
-                "init", "--here", "--integration", "claude", "--script", "sh",
-                "--ignore-agent-tools",
-            ], catch_exceptions=False)
-        finally:
-            os.chdir(old_cwd)
-
-        assert result.exit_code == 0, f"init failed: {result.output}"
-        assert (project / ".specify" / "extensions" / "git" / "extension.yml").exists()
-
-        for extension_id in ("discovery", "inception", "intake", "preview", "repository-governance"):
-            assert not (project / ".specify" / "extensions" / extension_id).exists()
-
-        assert (project / ".specify" / "presets" / "workflow-preset" / "preset.yml").exists()
+        git_skills = [f for f in claude_skills.iterdir() if f.name.startswith("speckit-git-")]
+        assert len(git_skills) == 0, "git extension commands should not be registered by default"
 
 
 class TestSharedInfraCommandRefs:

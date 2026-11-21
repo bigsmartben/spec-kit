@@ -7,7 +7,7 @@
 ## Pre-Implementation
 
 - [ ] Spec reviewed
-- [ ] Requirement-level tasks reviewed
+- [ ] Plan approved
 
 ## Post-Implementation
 

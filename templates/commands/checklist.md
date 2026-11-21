@@ -1,5 +1,5 @@
 ---
-description: Generate or recompute requirement-quality gates before implementation planning.
+description: Generate a custom checklist for the current feature based on user requirements.
 scripts:
   sh: scripts/bash/check-prerequisites.sh --json --template checklist-template
   ps: scripts/powershell/check-prerequisites.ps1 -Json -Template checklist-template
@@ -42,9 +42,9 @@ scripts:
 $ARGUMENTS
 ```
 
-You **MUST** consider the user input before proceeding.
+You **MUST** consider the user input before proceeding (if not empty).
 
-## Responsibility
+## Pre-Execution Checks
 
 **Check for extension hooks (before checklist generation)**:
 - Check if `.specify/extensions.yml` exists in the project root.
@@ -59,7 +59,9 @@ You **MUST** consider the user input before proceeding.
     ```
     ## Extension Hooks
 
-Expected lifecycle:
+    **Optional Pre-Hook**: {extension}
+    Command: `/{command}`
+    Description: {description}
 
     Prompt: {prompt}
     To execute: `/{command}`
@@ -327,69 +329,27 @@ Sample items:
 - [ ] CHK004 - Check that related episodes section shows 3-5 items [Spec §FR-005]
 ```
 
-Planning Readiness is an in-memory aggregate. Never create
-`planning-readiness.md`. Never create
-`checklists/behavior-testability.md`; that legacy path is non-authoritative.
-
-## Pre-Execution Hooks
-
-Read `.specify/extensions.yml` when present and process enabled
-`hooks.before_checklist` entries:
-
-- Ignore invalid YAML and hooks with `enabled: false`.
-- Run an entry only when `condition` is absent or empty.
-- For a mandatory hook (`optional: false`), emit `EXECUTE_COMMAND: {command}`,
-  invoke it using the current agent's command syntax, and wait for completion.
-- For an optional hook, show its command, description, and prompt without
-  invoking it.
-
-## Execution
-
-1. Run `{SCRIPT}` once from the repository root and parse `FEATURE_DIR`,
-   `FEATURE_SPEC`, and `IMPL_PLAN`.
-2. Require `FEATURE_SPEC` to exist. If it does not, stop and direct the user to
-   `__SPECKIT_COMMAND_SPECIFY__`.
-3. If `IMPL_PLAN` already exists, stop. Requirement gates are authored before
-   planning and cannot be regenerated from plan or tasks.
-4. Read only `FEATURE_SPEC` and, if present, `/memory/constitution.md`. Do not read `plan.md` or `tasks.md`.
-5. Compute the SHA-256 digest of the exact `spec.md` bytes and format it as
-   `sha256:<lowercase-hex>`. Use the platform-native equivalent of
-   `sha256sum`/`shasum -a 256` or `Get-FileHash -Algorithm SHA256`.
-6. Evaluate the standard requirement domains:
-   `requirements`, `behavior`, `ux`, `security`, `nfr`, and `visual`.
-   - Each domain must have an explicit result.
-   - Use `APPLICABLE` when the spec contains or requires that domain.
-   - Use `NOT_APPLICABLE` only with a concrete reason derived from the spec.
-   - A workflow preset may add domains but may not silently omit the standard
-     domain evaluation.
-7. Create or recompute `FEATURE_DIR/checklists/<domain>.md`. The existing
-   `requirements.md` created by specify is the baseline requirements domain.
-8. Custom user-requested helper checklists default to `Gate: advisory`. Only
-   files explicitly marked `Gate: planning-readiness` block planning.
-
-## Checklist Contract
-
-Every generated checklist starts with:
+**✅ CORRECT - These test requirements quality:**
 
 ```markdown
-**Stage**: requirements
-**Domain**: <domain>
-**Gate**: planning-readiness | advisory
-**Applicability**: APPLICABLE | NOT_APPLICABLE
-**Status**: PASS | BLOCKED
-**Spec Revision**: sha256:<spec-content-hash>
+- [ ] CHK001 - Are the number and layout of featured episodes explicitly specified? [Completeness, Spec §FR-001]
+- [ ] CHK002 - Are hover state requirements consistently defined for all interactive elements? [Consistency, Spec §FR-003]
+- [ ] CHK003 - Are navigation requirements clear for all clickable brand elements? [Clarity, Spec §FR-010]
+- [ ] CHK004 - Is the selection criteria for related episodes documented? [Gap, Spec §FR-005]
+- [ ] CHK005 - Are loading state requirements defined for asynchronous episode data? [Gap]
+- [ ] CHK006 - Can "visual hierarchy" requirements be objectively measured? [Measurability, Spec §FR-001]
 ```
 
-For `NOT_APPLICABLE`, include `**Applicability Reason**: <reason>` and set
-`Status: PASS`.
+**Key Differences:**
 
-Use stable, domain-namespaced IDs such as `CHK-SEC-001` or `CHK-NFR-003`.
-Blocking items must declare their routing:
+- Wrong: Tests if the system works correctly
+- Correct: Tests if the requirements are written correctly
+- Wrong: Verification of behavior
+- Correct: Validation of requirement quality
+- Wrong: "Does it do X?"
+- Correct: "Is X clearly specified?"
 
-```markdown
-- [ ] CHK-SEC-003 [blocker:product-decision] [spec:FR-012] Is the guest export policy specified?
-- [ ] CHK-VIS-004 [blocker:provider-evidence] [return:source-evidence] Is the approved design revision referenced?
-```
+## Post-Execution Checks
 
 **Check for extension hooks (after checklist generation)**:
 Check if `.specify/extensions.yml` exists in the project root.
@@ -404,62 +364,20 @@ Check if `.specify/extensions.yml` exists in the project root.
     ```
     ## Extension Hooks
 
-Regeneration is recomputation, not append-only:
+    **Optional Hook**: {extension}
+    Command: `/{command}`
+    Description: {description}
 
-- Reuse stable IDs for the same requirement concern.
-- Replace generated status and blocker sections atomically.
-- Remove blockers that no longer apply.
-- Preserve unrelated manual notes, but never accumulate duplicate Gate Status
-  blocks or duplicate IDs.
+    Prompt: {prompt}
+    To execute: `/{command}`
+    ```
+  - **Mandatory hook** (`optional: false`):
+    ```
+    ## Extension Hooks
 
-Checklist items must ask about what is written in the requirements. Good:
-“Is retry behavior quantified for each external dependency?” Bad: “Test that
-retry works.”
-
-At least 80% of applicable items must reference a requirement ID/section or a
-`[Gap]`, `[Ambiguity]`, `[Conflict]`, or `[Assumption]` marker.
-
-## Aggregate Planning Readiness
-
-After writing all domain results, compute and report the aggregate without
-creating another file:
-
-- PASS only when every standard domain was evaluated, every
-  `planning-readiness` checklist carries the current spec revision, and every
-  applicable gate is `PASS`.
-- `NOT_APPLICABLE` is acceptable only with a reason.
-- Missing domains, stale revisions, malformed metadata, or any `BLOCKED` gate
-  produce BLOCKED.
-- Advisory checklists are shown separately and never affect the aggregate.
-
-When BLOCKED, list each blocker ID and route:
-
-- product decisions → `__SPECKIT_COMMAND_CLARIFY__`
-- provider evidence → source-evidence/provider workflow
-
-## Post-Execution Hooks
-
-After gate files and the aggregate result are complete, process enabled
-`hooks.after_checklist` using the same mandatory/optional and condition rules as
-the pre-execution hooks. Mandatory hooks must be invoked and awaited.
-
-## Completion Report
-
-Report:
-
-- evaluated domains and applicability;
-- created/recomputed file paths;
-- current spec revision;
-- per-domain status;
-- aggregate Planning Readiness PASS or BLOCKED;
-- product-decision blockers and provider-evidence blockers in separate lists;
-- suggested next command.
-
-## Done When
-
-- [ ] Only requirement-stage sources were read
-- [ ] Every standard domain has an explicit result
-- [ ] Stable metadata and IDs were written without duplicate stale blockers
-- [ ] No planning-readiness or behavior-testability checklist file was created
-- [ ] Planning Readiness was aggregated in memory and reported
-- [ ] Extension hooks were processed
+    **Automatic Hook**: {extension}
+    Executing: `/{command}`
+    EXECUTE_COMMAND: {command}
+    ```
+    After emitting the block above you MUST actually invoke the hook and wait for it to finish before continuing. Run it the same way you would run the command yourself in this agent/session (the invocation may differ from the literal `{command}` id shown above, e.g. a skills-mode agent runs it as `/skill:speckit-...` or `$speckit-...`). Emitting the block alone does not run the hook.
+- If no hooks are registered or `.specify/extensions.yml` does not exist, skip silently

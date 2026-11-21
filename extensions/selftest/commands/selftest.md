@@ -9,8 +9,7 @@ This command drives a self-test simulating the developer experience with the `$A
 ## Goal
 
 Validate the end-to-end lifecycle (discovery, installation, registration) for the extension: `$ARGUMENTS`.
-If `$ARGUMENTS` is empty, tell the user to provide an extension name, for example:
-`__SPECKIT_COMMAND_SELFTEST_EXTENSION__ linear`.
+If `$ARGUMENTS` is empty, you must tell the user to provide an extension name, for example: `/speckit.selftest.extension linear`.
 
 ## Steps
 

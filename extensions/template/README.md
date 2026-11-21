@@ -1,27 +1,38 @@
-# Extension Scaffold
+# Extension Template
 
-Contract-first starter for a Spec Kit Extension.
+Starter template for creating a Spec Kit extension.
 
 ## Quick Start
 
-1. Copy this directory:
+1. **Copy this template**:
 
    ```bash
    cp -r extensions/template my-extension
    cd my-extension
    ```
 
-2. Rename every `my-extension` identifier and keep command filenames aligned
-   with their canonical IDs.
-3. Put workflow routing in `commands/`, stable semantics in `contracts/`,
-   persistent shapes in `templates/`, and machine structure in `schemas/`.
-4. Replace the example focused tests with tests for the actual contract and
-   lifecycle.
-5. Validate before installing:
+2. **Customize `extension.yml`**:
+   - Change extension ID, name, description
+   - Update author and repository
+   - Define your commands
+
+3. **Create commands**:
+   - Add command files in `commands/` directory
+   - Use Markdown format with YAML frontmatter
+
+4. **Create config template**:
+   - Define configuration options
+   - Document all settings
+
+5. **Write documentation**:
+   - Update README.md with usage instructions
+   - Add examples
+
+6. **Test locally**:
 
    ```bash
-   uv run python scripts/validate-component-standard.py extensions/my-extension
-   .venv/bin/python -m pytest extensions/my-extension/tests
+   cd /path/to/spec-kit-project
+   specify extension add --dev /path/to/my-extension
    ```
 
 7. **Publish** (optional):
@@ -31,27 +42,30 @@ Contract-first starter for a Spec Kit Extension.
 
 ## Files in This Template
 
-- `extension.yml`: package contract and canonical command declarations.
-- `commands/`: agent-neutral workflow prompts.
-- `contracts/`: stable domain semantics.
-- `templates/`: persistent artifact shapes.
-- `schemas/`: machine-readable structure.
-- `validators/`: deterministic cross-field readiness.
-- `tests/`: focused executable evidence.
-- `config-template.yml`: user configuration defaults.
-- `README.md`, `CHANGELOG.md`, `LICENSE`: release evidence.
+- `extension.yml` - Extension manifest (CUSTOMIZE THIS)
+- `config-template.yml` - Configuration template (CUSTOMIZE THIS)
+- `commands/example.md` - Example command (REPLACE THIS)
+- `README.md` - Extension documentation (REPLACE THIS)
+- `LICENSE` - MIT License (REVIEW THIS)
+- `CHANGELOG.md` - Version history (UPDATE THIS)
+- `.gitignore` - Git ignore rules
 
 ## Customization Checklist
 
 - [ ] Update `extension.yml` with your extension details
-- [ ] Keep command IDs and filenames in `speckit.<id>.<command>` form
-- [ ] Keep platform rendering out of command sources
-- [ ] Align Template, Schema, Validator, and tests
-- [ ] Cover install, repeated install, rollback, and removal as applicable
-- [ ] Update README, CHANGELOG, and LICENSE
-- [ ] Run component validation and focused tests
+- [ ] Change extension ID to your extension name
+- [ ] Update author information
+- [ ] Define your commands
+- [ ] Create command files in `commands/`
+- [ ] Update config template
+- [ ] Write README with usage instructions
+- [ ] Add examples
+- [ ] Update LICENSE if needed
+- [ ] Test extension locally
+- [ ] Create git repository
+- [ ] Create first release
 
-## Normative Reference
+## Need Help?
 
 - **Development Guide**: See [Extension Development Guide](https://github.github.io/spec-kit/extensions/developing.html)
 - **API Reference**: See the [Extension API Reference](https://github.github.io/spec-kit/extensions/api.html)

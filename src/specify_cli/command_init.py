@@ -31,7 +31,6 @@ from ._console import StepTracker, console, select_with_arrows, show_banner
 from ._utils import check_tool
 
 DEFAULT_BUNDLED_EXTENSIONS = ("bug",)
-DEFAULT_BUNDLED_PRESETS = ("workflow-preset",)
 
 
 def _stdin_is_interactive() -> bool:
@@ -664,6 +663,7 @@ def register(app: typer.Typer) -> None:
 
         tracker.add("integration", "Install integration")
         tracker.add("shared-infra", "Install shared infrastructure")
+        tracker.add("default-extensions", "Install default extensions")
 
         for key, label in [
             ("chmod", "Ensure scripts executable"),
@@ -903,127 +903,28 @@ def register(app: typer.Typer) -> None:
                     init_opts.pop("ai_skills", None)
                 save_init_options(project_path, init_opts)
 
-                try:
-                    from .extensions import ExtensionManager as _ExtMgr
-
+                if resolved_integration.list_command_templates():
                     tracker.start("default-extensions")
-                    ext_mgr = _ExtMgr(project_path)
-                    installed_extensions: list[str] = []
-                    skipped_extensions: list[str] = []
-                    missing_extensions: list[str] = []
-                    failed_extensions: list[str] = []
-                    for extension_id in DEFAULT_BUNDLED_EXTENSIONS:
-                        bundled_ext = _locate_bundled_extension(extension_id)
-                        if not bundled_ext:
-                            missing_extensions.append(extension_id)
-                            continue
-                        if ext_mgr.registry.is_installed(extension_id):
-                            skipped_extensions.append(extension_id)
-                            continue
-                        try:
-                            ext_mgr.install_from_directory(
-                                bundled_ext, get_speckit_version()
+                    try:
+                        statuses = [
+                            _install_extension_during_init(
+                                project_path, extension_id, get_speckit_version()
                             )
-                            installed_extensions.append(extension_id)
-                        except Exception as ext_err:
-                            sanitized_ext = str(ext_err).replace("\n", " ").strip()
-                            failed_extensions.append(
-                                f"{extension_id}: {sanitized_ext[:80]}"
-                            )
-
-                    if failed_extensions:
+                            for extension_id in DEFAULT_BUNDLED_EXTENSIONS
+                        ]
+                        tracker.complete("default-extensions", "; ".join(statuses))
+                    except Exception as default_ext_err:
+                        sanitized_default_ext = (
+                            str(default_ext_err).replace("\n", " ").strip()
+                        )
                         tracker.error(
                             "default-extensions",
-                            "; ".join(failed_extensions)[:160],
+                            f"install failed: {sanitized_default_ext[:120]}",
                         )
-                    elif missing_extensions:
-                        tracker.error(
-                            "default-extensions",
-                            f"missing bundled: {', '.join(missing_extensions)}",
-                        )
-                    else:
-                        details = []
-                        if installed_extensions:
-                            details.append(
-                                "installed " + ", ".join(installed_extensions)
-                            )
-                        if skipped_extensions:
-                            details.append(
-                                "already installed "
-                                + ", ".join(skipped_extensions)
-                            )
-                        tracker.complete(
-                            "default-extensions",
-                            "; ".join(details) if details else "none",
-                        )
-                except Exception as default_ext_err:
-                    sanitized_default_ext = (
-                        str(default_ext_err).replace("\n", " ").strip()
-                    )
-                    tracker.error(
+                else:
+                    tracker.skip(
                         "default-extensions",
-                        f"install failed: {sanitized_default_ext[:120]}",
-                    )
-
-                try:
-                    from .presets import PresetManager
-
-                    tracker.start("default-presets")
-                    preset_manager = PresetManager(project_path)
-                    installed_presets: list[str] = []
-                    skipped_presets: list[str] = []
-                    missing_presets: list[str] = []
-                    failed_presets: list[str] = []
-                    for preset_id in DEFAULT_BUNDLED_PRESETS:
-                        bundled_preset = _locate_bundled_preset(preset_id)
-                        if not bundled_preset:
-                            missing_presets.append(preset_id)
-                            continue
-                        if preset_manager.registry.is_installed(preset_id):
-                            skipped_presets.append(preset_id)
-                            continue
-                        try:
-                            preset_manager.install_from_directory(
-                                bundled_preset, get_speckit_version()
-                            )
-                            installed_presets.append(preset_id)
-                        except Exception as default_preset_err:
-                            sanitized_default_preset = (
-                                str(default_preset_err).replace("\n", " ").strip()
-                            )
-                            failed_presets.append(
-                                f"{preset_id}: {sanitized_default_preset[:80]}"
-                            )
-
-                    if failed_presets:
-                        tracker.error(
-                            "default-presets",
-                            "; ".join(failed_presets)[:160],
-                        )
-                    elif missing_presets:
-                        tracker.error(
-                            "default-presets",
-                            f"missing bundled: {', '.join(missing_presets)}",
-                        )
-                    else:
-                        details = []
-                        if installed_presets:
-                            details.append("installed " + ", ".join(installed_presets))
-                        if skipped_presets:
-                            details.append(
-                                "already installed " + ", ".join(skipped_presets)
-                            )
-                        tracker.complete(
-                            "default-presets",
-                            "; ".join(details) if details else "none",
-                        )
-                except Exception as default_preset_err:
-                    sanitized_default_preset = (
-                        str(default_preset_err).replace("\n", " ").strip()
-                    )
-                    tracker.error(
-                        "default-presets",
-                        f"install failed: {sanitized_default_preset[:120]}",
+                        "integration has no command artifacts",
                     )
 
                 ensure_executable_scripts(project_path, tracker=tracker)
@@ -1148,20 +1049,6 @@ def register(app: typer.Typer) -> None:
                 # preset-provided constitution-template (resolved via the
                 # priority stack) wins over the core template.
                 ensure_constitution_from_template(project_path, tracker=tracker)
-
-                from .integrations._helpers import (
-                    _reconcile_presets_for_active_agent,
-                )
-
-                _reconcile_presets_for_active_agent(
-                    project_path,
-                    continuing=(
-                        "Initialization completed, but enabled presets may need "
-                        "manual re-registration."
-                    ),
-                )
-                manifest.refresh_existing_hashes()
-                manifest.save()
 
                 tracker.complete("final", "project ready")
             except (typer.Exit, SystemExit):

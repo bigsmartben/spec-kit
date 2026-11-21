@@ -194,6 +194,7 @@ class ForgeIntegration(MarkdownIntegration):
             )
             created.append(dst_file)
 
+
         return created
 
     def _apply_forge_transformations(self, content: str, template_name: str) -> str:

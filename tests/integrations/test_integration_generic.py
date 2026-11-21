@@ -17,6 +17,7 @@ from specify_cli.integrations.manifest import IntegrationManifest, _sha256
 from specify_cli.integration_state import INTEGRATION_STATE_SCHEMA, write_integration_json
 from specify_cli.extensions import ExtensionCatalog, ExtensionError, ExtensionManager, HookExecutor
 from specify_cli import save_init_options
+from tests.integrations.community_defaults import bundled_personal_default_files
 
 
 @pytest.fixture
@@ -2195,10 +2196,6 @@ class TestGenericIntegration:
         i = get_integration("generic")
         assert i.config["requires_cli"] is False
 
-    def test_integration_declares_no_context_file(self):
-        i = get_integration("generic")
-        assert not hasattr(i, "context_file")
-
     # -- Options ----------------------------------------------------------
 
     def test_options_include_commands_dir(self):
@@ -2484,11 +2481,14 @@ class TestGenericIntegration:
 
     # -- Context section ---------------------------------------------------
 
-    def test_setup_does_not_create_context_file(self, tmp_path):
+    def test_setup_does_not_write_context_section(self, tmp_path):
         i = get_integration("generic")
         m = IntegrationManifest("generic", tmp_path)
         i.setup(tmp_path, m, parsed_options={"commands_dir": ".custom/cmds"})
-        assert not (tmp_path / "AGENTS.md").exists()
+        for path in tmp_path.rglob("*"):
+            if path.is_file():
+                text = path.read_text(encoding="utf-8", errors="ignore")
+                assert "<!-- SPECKIT START -->" not in text
 
     def test_tasks_command_has_no_context_placeholder(self, tmp_path):
         """The core tasks command must not carry a context-file placeholder —
@@ -2500,7 +2500,6 @@ class TestGenericIntegration:
         assert tasks_file.exists()
         content = tasks_file.read_text(encoding="utf-8")
         assert "__CONTEXT_FILE__" not in content
-        assert "AGENTS.md" not in content
 
     def test_tasks_define_uat_as_implement_execution(self, tmp_path):
         """The Task command must make UAT execution an Implement responsibility."""
@@ -2570,26 +2569,6 @@ class TestGenericIntegration:
         # Generic requires --commands-dir via --integration-options
         assert result.exit_code != 0
 
-    def test_init_options_do_not_include_context_file(self, tmp_path):
-        """init must not install or configure agent-context for generic."""
-        from typer.testing import CliRunner
-        from specify_cli import app
-
-        project = tmp_path / "opts-generic"
-        project.mkdir()
-        old_cwd = os.getcwd()
-        try:
-            os.chdir(project)
-            result = CliRunner().invoke(app, [
-                "init", "--here", "--integration", "generic",
-                "--integration-options=--commands-dir .myagent/commands",
-                "--script", "sh",
-            ], catch_exceptions=False)
-        finally:
-            os.chdir(old_cwd)
-        assert result.exit_code == 0
-        ext_cfg_path = project / ".specify" / "extensions" / "agent-context" / "agent-context-config.yml"
-        assert not ext_cfg_path.exists()
 
     def test_complete_file_inventory_sh(self, tmp_path):
         """Every file produced by specify init --integration generic --integration-options=--commands-dir ... --script sh."""
@@ -2645,10 +2624,8 @@ class TestGenericIntegration:
             ".specify/workflows/workflow-registry.json",
         ]
         expected.extend(
-            bundled_community_default_files(
-                "generic",
-                commands_dir=".myagent/commands",
-                include_registered_commands=False,
+            bundled_personal_default_files(
+                "generic", commands_dir=".myagent/commands"
             )
         )
         expected = sorted(set(expected))
@@ -2800,10 +2777,8 @@ class TestGenericIntegration:
             ".specify/workflows/workflow-registry.json",
         ]
         expected.extend(
-            bundled_community_default_files(
-                "generic",
-                commands_dir=".myagent/commands",
-                include_registered_commands=False,
+            bundled_personal_default_files(
+                "generic", commands_dir=".myagent/commands"
             )
         )
         expected = sorted(set(expected))

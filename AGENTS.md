@@ -8,6 +8,11 @@
 
 The toolkit supports multiple AI coding assistants, allowing teams to use their preferred tools while maintaining consistent project structure and development practices.
 
+## Personal Fork Workflow
+
+For personal downstream repository operations, read and follow
+[Personal Fork Agent Guide](docs/agent-guides/personal-fork.md).
+
 ## Adding or Updating CLI Commands
 
 Before adding, updating, or reorganizing Specify CLI commands, read
@@ -61,11 +66,6 @@ Before authoring commits, opening PRs, or posting review comments, read
 [Agent-authored Git and review activity](CONTRIBUTING.md#agent-authored-git-and-review-activity).
 Agent-authored commits and AI-generated PRs and comments each require their
 own disclosure; a PR-body disclosure alone does not cover later activity.
-
-## Personal Fork Workflow
-
-For personal downstream repository operations, read and follow
-[Personal Fork Agent Guide](docs/agent-guides/personal-fork.md).
 
 ## Other Contribution Guidance
 

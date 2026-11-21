@@ -30,9 +30,7 @@ from ._assets import (
 from ._console import StepTracker, console, select_with_arrows, show_banner
 from ._utils import check_tool
 
-DEFAULT_BUNDLED_EXTENSIONS = (
-    "git",
-)
+DEFAULT_BUNDLED_EXTENSIONS = ("bug",)
 DEFAULT_BUNDLED_PRESETS = ("workflow-preset",)
 
 

@@ -1457,15 +1457,15 @@ class TestForceExistingDirectory:
         assert "already exists" in _normalize_cli_output(result.output)
 
 
-class TestGitExtensionDefaultInstall:
-    """Tests verifying that the git extension is installed during specify init."""
+class TestBugExtensionDefaultInstall:
+    """Tests verifying that the bug extension is installed during specify init."""
 
-    def test_git_extension_auto_installed(self, tmp_path):
-        """Git extension is installed automatically during init."""
+    def test_bug_extension_auto_installed(self, tmp_path):
+        """Bug extension is installed automatically during init."""
         from typer.testing import CliRunner
         from specify_cli import app
 
-        project = tmp_path / "git-default"
+        project = tmp_path / "bug-default"
         project.mkdir()
         old_cwd = os.getcwd()
         try:
@@ -1480,8 +1480,8 @@ class TestGitExtensionDefaultInstall:
 
         assert result.exit_code == 0, f"init failed: {result.output}"
 
-        ext_dir = project / ".specify" / "extensions" / "git"
-        assert (ext_dir / "extension.yml").exists(), "git extension should be auto-installed"
+        ext_dir = project / ".specify" / "extensions" / "bug"
+        assert (ext_dir / "extension.yml").exists(), "bug extension should be auto-installed"
 
     def test_no_git_flag_is_rejected(self, tmp_path):
         """--no-git flag has been removed; passing it should fail."""
@@ -1504,12 +1504,12 @@ class TestGitExtensionDefaultInstall:
         assert result.exit_code != 0, "--no-git should be rejected as an unknown option"
         assert "No such option" in result.output or "no such option" in result.output.lower()
 
-    def test_git_extension_commands_registered_by_default(self, tmp_path):
-        """Git extension commands are registered with the agent during default init."""
+    def test_bug_extension_commands_registered_by_default(self, tmp_path):
+        """Bug extension commands are registered with the agent during default init."""
         from typer.testing import CliRunner
         from specify_cli import app
 
-        project = tmp_path / "git-cmds-present"
+        project = tmp_path / "bug-cmds-present"
         project.mkdir()
         old_cwd = os.getcwd()
         try:
@@ -1526,20 +1526,18 @@ class TestGitExtensionDefaultInstall:
 
         claude_skills = project / ".claude" / "skills"
         assert claude_skills.exists(), "Claude skills directory was not created"
-        expected_git_skills = {
-            "speckit-git-feature",
-            "speckit-git-validate",
-            "speckit-git-remote",
-            "speckit-git-initialize",
-            "speckit-git-commit",
+        expected_bug_skills = {
+            "speckit-bug-assess",
+            "speckit-bug-fix",
+            "speckit-bug-test",
         }
-        actual_git_skills = {
-            f.name for f in claude_skills.iterdir() if f.name.startswith("speckit-git-")
+        actual_bug_skills = {
+            f.name for f in claude_skills.iterdir() if f.name.startswith("speckit-bug-")
         }
-        assert expected_git_skills <= actual_git_skills
+        assert expected_bug_skills <= actual_bug_skills
 
     def test_minimal_extensions_and_workflow_preset_auto_installed(self, tmp_path):
-        """specify init installs only the core git extension plus the workflow preset."""
+        """specify init installs the bug extension plus the workflow preset."""
         from typer.testing import CliRunner
         from specify_cli import app
 
@@ -1558,13 +1556,13 @@ class TestGitExtensionDefaultInstall:
 
         assert result.exit_code == 0, f"init failed: {result.output}"
 
-        assert (project / ".specify" / "extensions" / "git" / "extension.yml").exists()
-        for extension_id in ("discovery", "inception", "intake", "preview", "repository-governance"):
+        assert (project / ".specify" / "extensions" / "bug" / "extension.yml").exists()
+        for extension_id in ("git", "discovery", "inception", "intake", "preview", "repository-governance"):
             assert not (project / ".specify" / "extensions" / extension_id).exists()
 
         extensions_yml = project / ".specify" / "extensions.yml"
         hooks_data = yaml.safe_load(extensions_yml.read_text(encoding="utf-8"))
-        assert hooks_data["installed"] == ["git"]
+        assert hooks_data["installed"] == ["bug"]
 
         preset_dir = project / ".specify" / "presets" / "workflow-preset"
         assert (preset_dir / "preset.yml").exists(), "workflow-preset was not installed"

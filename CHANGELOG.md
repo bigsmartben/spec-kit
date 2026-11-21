@@ -8,6 +8,14 @@
 
 <!-- insert new changelog below this comment -->
 
+## [1.4.4] - 2026-11-21
+
+### Changed
+
+- Make the `bug` extension default and keep the `git` extension opt-in
+- Fix project initialization after personal fork integration
+- Include the default workflow preset in wheel distributions
+
 ## [1.4.3] - 2026-11-19
 
 ### Changed

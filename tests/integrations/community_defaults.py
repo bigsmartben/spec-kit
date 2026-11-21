@@ -9,15 +9,11 @@ from specify_cli.extensions import ExtensionManager
 from specify_cli.integrations import get_integration
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-DEFAULT_EXTENSION_IDS = (
-    "git",
-)
+DEFAULT_EXTENSION_IDS = ("bug",)
 DEFAULT_EXTENSION_COMMANDS = (
-    "speckit.git.feature",
-    "speckit.git.validate",
-    "speckit.git.remote",
-    "speckit.git.initialize",
-    "speckit.git.commit",
+    "speckit.bug.assess",
+    "speckit.bug.fix",
+    "speckit.bug.test",
 )
 DEFAULT_PRESET_ID = "workflow-preset"
 DEFAULT_PRESET_COMMANDS = (

@@ -8,11 +8,11 @@
 # agent-context extension config:
 #   .specify/extensions/agent-context/agent-context-config.yml
 #
-# Usage: update-agent-context.sh [plan_path]
+# Usage: update-agent-context.sh [feature_directory]
 #
-# When `plan_path` is omitted, the script derives it from `.specify/feature.json`
-# (written by /speckit-specify). Falls back to the most recently modified
-# `specs/**/plan.md` only when feature.json is absent or its plan does not exist yet.
+# When `feature_directory` is omitted, the script derives it from
+# `.specify/feature.json` (written by /speckit-specify). It safely discovers the
+# most recently modified specs/**/spec.md when the recorded feature is absent.
 
 set -euo pipefail
 
@@ -174,6 +174,7 @@ fi
 
 _opts_lines=()
 while IFS= read -r _line || [[ -n "$_line" ]]; do
+  _line="${_line%$'\r'}"
   _opts_lines+=("$_line")
 done < <(printf '%s\n' "$_raw_opts")
 if (( ${#_opts_lines[@]} < 1 )); then
@@ -209,6 +210,7 @@ fi
 
 CONTEXT_FILES=()
 while IFS= read -r _line || [[ -n "$_line" ]]; do
+  _line="${_line%$'\r'}"
   [[ -n "$_line" ]] && CONTEXT_FILES+=("$_line")
 done < <(printf '%s\n' "$_context_files_raw")
 
@@ -249,134 +251,187 @@ PY
     echo "agent-context: context file path resolves outside the project root; got '$CONTEXT_FILE'." >&2
     exit 1
   fi
+  case "$(uname -s 2>/dev/null || true)" in
+    MINGW*|MSYS*|CYGWIN*)
+      if command -v realpath >/dev/null 2>&1; then
+        _root_check="$PROJECT_ROOT"
+        if command -v cygpath >/dev/null 2>&1; then
+          _root_check="$(cygpath -u "$PROJECT_ROOT")"
+        fi
+        _root_real="$(realpath -m "$_root_check")"
+        _context_real="$(realpath -m "$_root_check/$CONTEXT_FILE")"
+        if [[ "${_root_real,,}" != "${_context_real,,}" &&
+              "${_context_real,,}" != "${_root_real,,}/"* ]]; then
+          echo "agent-context: context file path resolves outside the project root; got '$CONTEXT_FILE'." >&2
+          exit 1
+        fi
+      fi
+      _root_check="$PROJECT_ROOT"
+      if command -v cygpath >/dev/null 2>&1; then
+        _root_check="$(cygpath -u "$PROJECT_ROOT")"
+      fi
+      _root_physical="$(cd "$_root_check" && pwd -P)"
+      _walk="$_root_check"
+      IFS='/' read -ra _link_parts <<< "$CONTEXT_FILE"
+      for _link_part in "${_link_parts[@]}"; do
+        _walk="$_walk/$_link_part"
+        if [[ -L "$_walk" ]]; then
+          if [[ -d "$_walk" ]]; then
+            _link_target="$(cd "$_walk" && pwd -P)"
+          elif command -v realpath >/dev/null 2>&1; then
+            _link_target="$(realpath -m "$_walk")"
+          else
+            _link_target="$_root_physical"
+          fi
+          if [[ "${_root_physical,,}" != "${_link_target,,}" &&
+                "${_link_target,,}" != "${_root_physical,,}/"* ]]; then
+            echo "agent-context: context file path resolves outside the project root; got '$CONTEXT_FILE'." >&2
+            exit 1
+          fi
+        fi
+      done
+      ;;
+  esac
 done
 unset _cf_parts _seg
 
 [[ -z "$MARKER_START" ]] && MARKER_START="$DEFAULT_START"
 [[ -z "$MARKER_END"   ]] && MARKER_END="$DEFAULT_END"
 
-PLAN_PATH="${1:-}"
-if [[ -z "$PLAN_PATH" ]]; then
-  # Prefer .specify/feature.json (written by /speckit-specify) over mtime heuristic.
-  _feature_json="$PROJECT_ROOT/.specify/feature.json"
-  if [[ -f "$_feature_json" ]]; then
-    _feature_dir="$("$_python" - "$_feature_json" <<'PY'
-import sys, json
-try:
-    with open(sys.argv[1], encoding="utf-8") as fh:
-        d = json.load(fh)
-    val = d.get("feature_directory", "")
-    print(val if isinstance(val, str) else "")
-except Exception:
-    print("")
-PY
-)"
-    # Normalize backslashes (written by PS on Windows) to forward slashes before path ops.
-    _feature_dir="$(printf '%s' "$_feature_dir" | tr '\\' '/')"
-    _feature_dir="${_feature_dir%/}"
-    if [[ -n "$_feature_dir" ]]; then
-      # feature_directory may be relative or absolute (absolute paths outside PROJECT_ROOT
-      # are preserved as-is by _persist_feature_json in common.sh).
-      # Also match drive-qualified paths (C:/...) written by PowerShell on Windows.
-      if [[ "$_feature_dir" == /* ]] || [[ "$_feature_dir" =~ ^[A-Za-z]:/ ]]; then
-        _candidate="$_feature_dir/plan.md"
-      else
-        _candidate="$PROJECT_ROOT/$_feature_dir/plan.md"
-      fi
-      if [[ -f "$_candidate" ]]; then
-        # Resolve symlinks before comparing so paths like /var/… vs /private/var/…
-        # (macOS) are treated as equivalent. Mirrors the mtime-fallback approach.
-        PLAN_PATH="$("$_python" - "$PROJECT_ROOT" "$_candidate" <<'PY'
-import sys
-from pathlib import Path
-root = Path(sys.argv[1]).resolve()
-cand = Path(sys.argv[2]).resolve()
-try:
-    print(cand.relative_to(root).as_posix())
-except ValueError:
-    # Outside project root: emit the resolved path in POSIX form.
-    # as_posix() converts backslashes correctly on native Windows Python.
-    print(cand.as_posix())
-PY
-)"
-      fi
-    fi
-  fi
-
-  # Fall back to mtime only when feature.json is absent or its plan does not exist yet.
-  # Python emits a project-relative POSIX path directly to avoid bash prefix-strip
-  # issues with backslash paths on Windows (Git bash / MSYS2).
-  if [[ -z "$PLAN_PATH" ]]; then
-    _plan_rel="$("$_python" - "$PROJECT_ROOT" <<'PY'
+FEATURE_DIRECTORY="${1:-}"
+ARTIFACT_PATHS_JSON="$("$_python" - "$PROJECT_ROOT" "$FEATURE_DIRECTORY" <<'PY'
+import json
+import re
+import subprocess
 import sys
 from pathlib import Path
 from stat import S_ISREG
-root = Path(sys.argv[1]).resolve()
-specs = root / "specs"
 
-def _resolved_rel(p):
-    # Resolve symlinks before checking containment: relative_to() is lexical
-    # and would otherwise accept a plan reached through a specs/ symlink that
-    # points outside the project, emitting an in-project-looking path for an
-    # out-of-project file (or picking it as "most recent").
+project_root, explicit_feature = sys.argv[1:3]
+artifact_names = ("spec.md", "prototype.html", "quickstart.md", "tasks.md")
+root = Path(project_root).resolve()
+
+def feature_dir_from_value(value):
+    normalized = value.replace("\\", "/").rstrip("/")
+    if not normalized:
+        return None, ""
+    if sys.platform.startswith("win") and re.match(r"^/[A-Za-z]/", normalized):
+        normalized = normalized[1].upper() + ":/" + normalized[3:]
+    if sys.platform.startswith("win") and normalized.startswith("/"):
+        try:
+            converted = subprocess.run(
+                ["cygpath", "-w", normalized],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            if converted.returncode == 0 and converted.stdout.strip():
+                native = Path(converted.stdout.strip())
+                return native, normalized
+        except OSError:
+            pass
+    if normalized.startswith("/") or re.match(r"^[A-Za-z]:/", normalized):
+        return Path(normalized), normalized
+    return Path(project_root) / normalized, ""
+
+def display_path(candidate, contained):
+    resolved = candidate.resolve()
     try:
-        return p.resolve().relative_to(root)
-    except (OSError, ValueError):
-        return None
+        return resolved.relative_to(root).as_posix()
+    except ValueError:
+        return "" if contained else resolved.as_posix()
 
-# Recurse (rather than the old one-level specs/*/plan.md glob) so scoped layouts
-# created via SPECIFY_FEATURE_DIRECTORY, e.g. specs/<scope>/<feature>/plan.md,
-# are still discovered when feature.json is absent (#3024).
+def paths_for_feature(feature_dir, contained, display_root=""):
+    paths = []
+    for name in artifact_names:
+        candidate = feature_dir / name
+        try:
+            if not candidate.is_file():
+                continue
+            displayed = display_path(candidate, contained)
+            if display_root and not candidate.resolve().is_relative_to(root):
+                displayed = display_root.rstrip("/") + "/" + name
+        except (OSError, ValueError):
+            continue
+        if displayed:
+            paths.append(displayed)
+    return paths
+
+feature_value = explicit_feature
+if not feature_value:
+    feature_json = root / ".specify" / "feature.json"
+    if feature_json.is_file():
+        try:
+            with open(feature_json, "r", encoding="utf-8") as fh:
+                data = json.load(fh)
+            value = data.get("feature_directory", "") if isinstance(data, dict) else ""
+            feature_value = value if isinstance(value, str) else ""
+        except Exception:
+            feature_value = ""
+
+feature_dir, display_root = feature_dir_from_value(feature_value)
+if feature_dir is not None:
+    paths = paths_for_feature(feature_dir, False, display_root)
+    if any(Path(path).name == "spec.md" for path in paths):
+        print(json.dumps(paths))
+        raise SystemExit(0)
+
 candidates = []
-for p in specs.rglob("plan.md"):
-    rel = _resolved_rel(p)
-    if rel is None:
-        continue
-    # Follow file links without suppressing errors for contained candidates.
+for candidate in (root / "specs").rglob("spec.md"):
     try:
-        mode = p.stat().st_mode
+        resolved = candidate.resolve()
+        relative = resolved.relative_to(root)
+    except (OSError, ValueError):
+        continue
+    try:
+        mode = candidate.stat().st_mode
     except (FileNotFoundError, NotADirectoryError):
         continue
     if S_ISREG(mode):
-        candidates.append((p, rel))
-candidates.sort(key=lambda pr: pr[0].stat().st_mtime, reverse=True)
+        candidates.append((candidate, relative))
+candidates.sort(key=lambda pair: pair[0].stat().st_mtime, reverse=True)
+paths = []
 if candidates:
-    print(candidates[0][1].as_posix())
-else:
-    print("")
+    discovered, relative = candidates[0]
+    paths = [relative.as_posix()]
+    for name in artifact_names[1:]:
+        companion = discovered.parent / name
+        try:
+            displayed = display_path(companion, True) if companion.is_file() else ""
+        except (OSError, ValueError):
+            displayed = ""
+        if displayed:
+            paths.append(displayed)
+print(json.dumps(paths))
 PY
 )"
-    if [[ -n "$_plan_rel" ]]; then
-      PLAN_PATH="$_plan_rel"
-    fi
-  fi
-fi
-
-# Build the managed section
-TMP_SECTION="$(mktemp)"
-trap 'rm -f "$TMP_SECTION"' EXIT
-{
-  echo "$MARKER_START"
-  echo "For additional context about technologies to be used, project structure,"
-  echo "shell commands, and other important information, read the current plan"
-  if [[ -n "$PLAN_PATH" ]]; then
-    echo "at $PLAN_PATH"
-  fi
-  echo "$MARKER_END"
-} > "$TMP_SECTION"
 
 for CONTEXT_FILE in "${CONTEXT_FILES[@]}"; do
   CTX_PATH="$PROJECT_ROOT/$CONTEXT_FILE"
   mkdir -p "$(dirname "$CTX_PATH")"
 
-  "$_python" - "$CTX_PATH" "$MARKER_START" "$MARKER_END" "$TMP_SECTION" <<'PY'
+  "$_python" - "$CTX_PATH" "$MARKER_START" "$MARKER_END" "$ARTIFACT_PATHS_JSON" <<'PY'
+import json
 import os
 import re
 import sys
 
-ctx_path, start, end, section_path = sys.argv[1:5]
-with open(section_path, "r", encoding="utf-8") as fh:
-    section = fh.read().rstrip("\n") + "\n"
+ctx_path, start, end, artifact_paths_json = sys.argv[1:5]
+try:
+    artifact_paths = json.loads(artifact_paths_json)
+except Exception:
+    artifact_paths = []
+if not isinstance(artifact_paths, list):
+    artifact_paths = []
+section_lines = [
+    start,
+    "Use the active Spec Kit feature artifacts as the product contract:",
+]
+section_lines.extend(
+    f"- `{path}`" for path in artifact_paths if isinstance(path, str)
+)
+section_lines.append(end)
+section = "\n".join(section_lines) + "\n"
 
 
 def ensure_mdc_frontmatter(content):

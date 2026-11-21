@@ -111,22 +111,22 @@ The composed workflow will now run the full SDD cycle and execute `ruff check sr
 ## Example: Replacing a Gate
 
 ```yaml
-id: "skip-plan-review"
+id: "automate-spec-review"
 extends: "speckit"
 priority: 5
 edits:
-  - replace: review-plan
+  - replace: review-spec
     step:
-      id: review-plan
-      type: command
-      command: speckit.plan
-      input:
-        args: "{{ inputs.spec }}"
+      id: review-spec
+      type: prompt
+      prompt: "Review the frozen contract for requirement, prototype, and UAT conflicts."
+      capture: true
 ```
 
 Lower priority values have higher precedence. This overlay's `priority: 5`
-wins conflicts with a priority-10 overlay. It replaces the `review-plan` gate
-with another plan command, so the existing plan command still runs too.
+wins conflicts with a priority-10 overlay. It replaces the `review-spec` gate
+with an automated prompt. The base workflow still runs `tasks` and `implement`
+after the replacement step.
 
 ## Workflow slots (upstream extension points)
 

@@ -61,14 +61,15 @@ def _write_feature_json(
 
 def _minimal_feature(repo: Path) -> Path:
     """
-    Create a numbered branch-style feature directory with spec.md and plan.md
-    so all prerequisite checks in setup-tasks pass.
+    Create a numbered branch-style feature with the frozen Specify contract so
+    all prerequisite checks in setup-tasks pass.
     Returns the feature directory path.
     """
     feat = repo / "specs" / "001-my-feature"
     feat.mkdir(parents=True, exist_ok=True)
     (feat / "spec.md").write_text("# spec\n", encoding="utf-8")
-    (feat / "plan.md").write_text("# plan\n", encoding="utf-8")
+    (feat / "prototype.html").write_text("<!doctype html>\n", encoding="utf-8")
+    (feat / "quickstart.md").write_text("# UAT\n", encoding="utf-8")
     _write_feature_json(repo)
     return feat
 
@@ -527,10 +528,10 @@ def test_installed_bash_formatter_uses_dollar_prefix(tmp_path: Path) -> None:
     )
     _write_integration_state(project, "codex", "-")
 
-    result = _run_bash_format_command(project, "plan")
+    result = _run_bash_format_command(project, "tasks")
 
     assert result.returncode == 0, result.stderr
-    assert result.stdout.strip() == "$speckit-plan"
+    assert result.stdout.strip() == "$speckit-tasks"
 
 
 @requires_bash
@@ -545,10 +546,10 @@ def test_installed_bash_formatter_uses_skill_colon_prefix(tmp_path: Path) -> Non
     )
     _write_integration_state(project, "kimi", "-")
 
-    result = _run_bash_format_command(project, "plan")
+    result = _run_bash_format_command(project, "tasks")
 
     assert result.returncode == 0, result.stderr
-    assert result.stdout.strip() == "/skill:speckit-plan"
+    assert result.stdout.strip() == "/skill:speckit-tasks"
 
 
 def _install_broken_json_tool_stubs(repo: Path) -> Path:
@@ -600,7 +601,7 @@ def test_bash_command_hint_falls_back_to_awk_when_jq_and_python3_broken(
             'source "$1"; format_speckit_command "$2" "$PWD"',
             "bash",
             str(script),
-            "plan",
+            "tasks",
         ],
         cwd=tasks_repo,
         capture_output=True,
@@ -610,7 +611,7 @@ def test_bash_command_hint_falls_back_to_awk_when_jq_and_python3_broken(
     )
 
     assert result.returncode == 0, result.stderr
-    assert result.stdout.strip() == "/speckit-plan"
+    assert result.stdout.strip() == "/speckit-tasks"
 
 
 @requires_bash
@@ -628,7 +629,7 @@ def test_bash_command_hint_caches_invoke_separator_per_process(tasks_repo: Path)
         [
             "bash",
             "-c",
-            'source "$1"; format_speckit_command plan "$PWD"; printf "%s" "$2" > .specify/integration.json; format_speckit_command tasks "$PWD"',
+            'source "$1"; format_speckit_command specify "$PWD"; printf "%s" "$2" > .specify/integration.json; format_speckit_command tasks "$PWD"',
             "bash",
             str(script),
             json.dumps(dot_state),
@@ -641,11 +642,11 @@ def test_bash_command_hint_caches_invoke_separator_per_process(tasks_repo: Path)
     )
 
     assert result.returncode == 0, result.stderr
-    assert result.stdout.splitlines() == ["/speckit-plan", "/speckit-tasks"]
+    assert result.stdout.splitlines() == ["/speckit-specify", "/speckit-tasks"]
 
 
 @requires_bash
-def test_setup_tasks_bash_uses_invoke_separator_in_plan_hint(tasks_repo: Path) -> None:
+def test_setup_tasks_bash_uses_invoke_separator_in_specify_hint(tasks_repo: Path) -> None:
     _write_integration_state(tasks_repo, "claude", "-")
     feat = tasks_repo / "specs" / "001-my-feature"
     feat.mkdir(parents=True, exist_ok=True)
@@ -664,8 +665,8 @@ def test_setup_tasks_bash_uses_invoke_separator_in_plan_hint(tasks_repo: Path) -
     )
 
     assert result.returncode != 0
-    assert "Run /speckit-plan first" in result.stderr
-    assert "/speckit.plan" not in result.stderr
+    assert "Run /speckit-specify first" in result.stderr
+    assert "/speckit.specify" not in result.stderr
 
 
 @requires_bash
@@ -708,7 +709,8 @@ def test_setup_tasks_bash_passes_custom_branch_when_feature_json_valid(
     feat = tasks_repo / "specs" / "001-my-feature"
     feat.mkdir(parents=True, exist_ok=True)
     (feat / "spec.md").write_text("# spec\n", encoding="utf-8")
-    (feat / "plan.md").write_text("# plan\n", encoding="utf-8")
+    (feat / "prototype.html").write_text("<!doctype html>\n", encoding="utf-8")
+    (feat / "quickstart.md").write_text("# UAT\n", encoding="utf-8")
     _write_feature_json(tasks_repo)
 
     script = tasks_repo / ".specify" / "scripts" / "bash" / "setup-tasks.sh"
@@ -733,7 +735,6 @@ def test_setup_tasks_bash_errors_without_feature_context(
     main_feat = tasks_repo / "specs" / "main"
     main_feat.mkdir(parents=True, exist_ok=True)
     (main_feat / "spec.md").write_text("# spec\n", encoding="utf-8")
-    (main_feat / "plan.md").write_text("# plan\n", encoding="utf-8")
 
     script = tasks_repo / ".specify" / "scripts" / "bash" / "setup-tasks.sh"
 
@@ -845,8 +846,7 @@ def test_setup_tasks_ps_text_output_lists_available_docs(tasks_repo: Path) -> No
     call to `| Out-Null` discarded the boolean AND the report line, so
     `AVAILABLE_DOCS:` was emitted with nothing under it.
     """
-    feat = _minimal_feature(tasks_repo)
-    (feat / "research.md").write_text("# research\n", encoding="utf-8")
+    _minimal_feature(tasks_repo)
 
     script = tasks_repo / ".specify" / "scripts" / "powershell" / "setup-tasks.ps1"
     exe = "pwsh" if HAS_PWSH else _WINDOWS_POWERSHELL
@@ -862,11 +862,11 @@ def test_setup_tasks_ps_text_output_lists_available_docs(tasks_repo: Path) -> No
 
     assert result.returncode == 0, result.stderr + result.stdout
     assert "AVAILABLE_DOCS:" in result.stdout
-    for doc in ("research.md", "data-model.md", "contracts/", "quickstart.md"):
+    for doc in ("spec.md", "prototype.html", "quickstart.md"):
         assert doc in result.stdout, (doc, result.stdout)
     normalized = result.stdout.replace("\r\n", "\n")
-    assert "[OK] research.md" in normalized, normalized
-    assert "[FAIL] data-model.md" in normalized, normalized
+    assert "[OK] spec.md" in normalized, normalized
+    assert "[OK] prototype.html" in normalized, normalized
 
 
 @pytest.mark.skipif(not (HAS_PWSH or _WINDOWS_POWERSHELL), reason="no PowerShell available")
@@ -878,11 +878,8 @@ def test_setup_tasks_ps_handles_literal_bracketed_feature_directory(
     feat = tasks_repo / "specs" / feature_name
     feat.mkdir(parents=True)
     (feat / "spec.md").write_text("# spec\n", encoding="utf-8")
-    (feat / "plan.md").write_text("# plan\n", encoding="utf-8")
-    (feat / "research.md").write_text("# research\n", encoding="utf-8")
-    (feat / "data-model.md").write_text("# model\n", encoding="utf-8")
+    (feat / "prototype.html").write_text("<!doctype html>\n", encoding="utf-8")
     (feat / "quickstart.md").write_text("# quickstart\n", encoding="utf-8")
-    (feat / "contracts" / "v1").mkdir(parents=True)
     _write_feature_json(tasks_repo, f"specs/{feature_name}")
 
     script = tasks_repo / ".specify" / "scripts" / "powershell" / "setup-tasks.ps1"
@@ -900,15 +897,14 @@ def test_setup_tasks_ps_handles_literal_bracketed_feature_directory(
     assert json_result.returncode == 0, json_result.stderr + json_result.stdout
     data = json.loads(json_result.stdout)
     assert Path(data["FEATURE_DIR"]) == feat
-    assert "⚠️" in data["TASKS_TEMPLATE_CONTENT"]
+    assert "[UAT]" in data["TASKS_TEMPLATE_CONTENT"]
     assert data["AVAILABLE_DOCS"] == [
-        "research.md",
-        "data-model.md",
-        "contracts/",
+        "spec.md",
+        "prototype.html",
         "quickstart.md",
     ]
     assert text_result.returncode == 0, text_result.stderr + text_result.stdout
-    for document in ("research.md", "data-model.md", "contracts/", "quickstart.md"):
+    for document in ("spec.md", "prototype.html", "quickstart.md"):
         assert f"[OK] {document}" in text_result.stdout, text_result.stdout
 
 
@@ -921,13 +917,14 @@ def test_setup_tasks_ps_does_not_match_wildcard_shaped_neighbor(
     neighbor = tasks_repo / "specs" / "001-my-feature v"
     neighbor.mkdir(parents=True)
     (neighbor / "spec.md").write_text("# neighbor spec\n", encoding="utf-8")
-    (neighbor / "plan.md").write_text("# neighbor plan\n", encoding="utf-8")
+    (neighbor / "prototype.html").write_text("<!doctype html>\n", encoding="utf-8")
+    (neighbor / "quickstart.md").write_text("# neighbor UAT\n", encoding="utf-8")
     _write_feature_json(tasks_repo, f"specs/{feature_name}")
 
     result = _run_powershell_json_utf8(tasks_repo)
 
     assert result.returncode == 1
-    assert "plan.md not found" in result.stderr
+    assert "spec.md not found" in result.stderr
 
 
 @pytest.mark.skipif(not (HAS_PWSH or _WINDOWS_POWERSHELL), reason="no PowerShell available")
@@ -961,10 +958,10 @@ def test_installed_powershell_formatter_uses_dollar_prefix(tmp_path: Path) -> No
     )
     _write_integration_state(project, "codex", "-")
 
-    result = _run_powershell_format_command(project, "plan")
+    result = _run_powershell_format_command(project, "tasks")
 
     assert result.returncode == 0, result.stderr
-    assert result.stdout.strip() == "$speckit-plan"
+    assert result.stdout.strip() == "$speckit-tasks"
 
 
 @pytest.mark.skipif(not (HAS_PWSH or _WINDOWS_POWERSHELL), reason="no PowerShell available")
@@ -980,7 +977,7 @@ def test_powershell_command_hint_preserves_hyphens_inside_segments(
 
 
 @pytest.mark.skipif(not (HAS_PWSH or _WINDOWS_POWERSHELL), reason="no PowerShell available")
-def test_setup_tasks_ps_uses_invoke_separator_in_plan_hint(tasks_repo: Path) -> None:
+def test_setup_tasks_ps_uses_invoke_separator_in_specify_hint(tasks_repo: Path) -> None:
     _write_integration_state(tasks_repo, "claude", "-")
     feat = tasks_repo / "specs" / "001-my-feature"
     feat.mkdir(parents=True, exist_ok=True)
@@ -1001,8 +998,8 @@ def test_setup_tasks_ps_uses_invoke_separator_in_plan_hint(tasks_repo: Path) -> 
 
     output = result.stderr + result.stdout
     assert result.returncode != 0
-    assert "Run /speckit-plan first" in output
-    assert "/speckit.plan" not in output
+    assert "Run /speckit-specify first" in output
+    assert "/speckit.specify" not in output
 
 
 @pytest.mark.skipif(not (HAS_PWSH or _WINDOWS_POWERSHELL), reason="no PowerShell available")
@@ -1047,7 +1044,8 @@ def test_setup_tasks_ps_passes_custom_branch_when_feature_json_valid(
     feat = tasks_repo / "specs" / "001-my-feature"
     feat.mkdir(parents=True, exist_ok=True)
     (feat / "spec.md").write_text("# spec\n", encoding="utf-8")
-    (feat / "plan.md").write_text("# plan\n", encoding="utf-8")
+    (feat / "prototype.html").write_text("<!doctype html>\n", encoding="utf-8")
+    (feat / "quickstart.md").write_text("# UAT\n", encoding="utf-8")
     _write_feature_json(tasks_repo)
 
     result = _run_powershell_json_utf8(tasks_repo)
@@ -1063,7 +1061,6 @@ def test_setup_tasks_ps_errors_without_feature_context(
     main_feat = tasks_repo / "specs" / "main"
     main_feat.mkdir(parents=True, exist_ok=True)
     (main_feat / "spec.md").write_text("# spec\n", encoding="utf-8")
-    (main_feat / "plan.md").write_text("# plan\n", encoding="utf-8")
 
     script = tasks_repo / ".specify" / "scripts" / "powershell" / "setup-tasks.ps1"
     exe = "pwsh" if HAS_PWSH else _WINDOWS_POWERSHELL
@@ -1143,7 +1140,7 @@ def test_powershell_command_path_json(powershell_command_repo: Path) -> None:
     data = json.loads(result.stdout)
     assert Path(data["FEATURE_DIR"]) == feature
     assert Path(data["TASKS_TEMPLATE"]) == repo / ".specify" / "templates" / "tasks-template.md"
-    assert "⚠️" in data["TASKS_TEMPLATE_CONTENT"]
+    assert "[UAT]" in data["TASKS_TEMPLATE_CONTENT"]
 
 
 def test_powershell_command_path_format(powershell_command_repo: Path) -> None:
@@ -1199,12 +1196,12 @@ def test_powershell_json_utf8_preserves_status(
         assert "controlled failure" in result.stderr
 
 
-def test_powershell_command_path_missing_plan(powershell_command_repo: Path) -> None:
+def test_powershell_command_path_missing_prototype(powershell_command_repo: Path) -> None:
     feature = _minimal_feature(powershell_command_repo)
-    (feature / "plan.md").unlink()
+    (feature / "prototype.html").unlink()
 
     result = _run_powershell_json_utf8(powershell_command_repo)
 
     assert result.returncode == 1, result.stderr + result.stdout
-    assert "plan.md not found" in result.stderr
+    assert "prototype.html not found" in result.stderr
     assert not result.stdout.strip()

@@ -173,8 +173,8 @@ class TestIntegrationInstall(IntegrationCatalogCliTestBase):
         assert data["integration_settings"]["claude"]["invoke_separator"] == "-"
         assert data["integration_settings"]["codex"]["invoke_separator"] == "-"
 
-        assert (project / ".claude" / "skills" / "speckit-plan" / "SKILL.md").exists()
-        assert (project / ".agents" / "skills" / "speckit-plan" / "SKILL.md").exists()
+        assert (project / ".claude" / "skills" / "speckit-tasks" / "SKILL.md").exists()
+        assert (project / ".agents" / "skills" / "speckit-tasks" / "SKILL.md").exists()
 
     def test_install_non_default_refreshes_init_options_version_only(self, tmp_path, monkeypatch):
         project = _init_project(tmp_path, "claude")
@@ -307,7 +307,7 @@ class TestIntegrationInstall(IntegrationCatalogCliTestBase):
         assert (project / ".specify" / "integrations" / "claude.manifest.json").exists()
 
         # Claude uses skills directory (not commands)
-        assert (project / ".claude" / "skills" / "speckit-plan" / "SKILL.md").exists()
+        assert (project / ".claude" / "skills" / "speckit-tasks" / "SKILL.md").exists()
 
     def test_install_bare_project_gets_shared_infra(self, tmp_path):
         """Installing into a bare project should create shared scripts and templates."""
@@ -346,10 +346,10 @@ class TestIntegrationInstall(IntegrationCatalogCliTestBase):
         )
 
         assert result.exit_code == 0, result.output
-        plan = project / ".specify" / "templates" / "plan-template.md"
-        plan_content = plan.read_text(encoding="utf-8")
-        assert "$speckit-plan" in plan_content
-        assert "/speckit-plan" not in plan_content
+        quickstart = project / ".specify" / "templates" / "quickstart-template.md"
+        quickstart_content = quickstart.read_text(encoding="utf-8")
+        assert "$speckit-specify" in quickstart_content
+        assert "/speckit-specify" not in quickstart_content
 
     def test_install_defers_extension_commands_until_use(self, tmp_path):
         """Installing a second integration does not register enabled extensions.

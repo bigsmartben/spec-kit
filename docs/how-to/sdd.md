@@ -11,8 +11,10 @@ Spec-Driven Development is a structured process that emphasizes:
 - **Multi-step refinement** rather than one-shot code generation from prompts
 - **Heavy reliance** on advanced AI model capabilities for specification interpretation
 
-Spec Kit does not prescribe how teams preserve or mutate `spec.md`, `plan.md`,
-and `tasks.md` after requirements change. See
+Spec Kit does not prescribe how teams preserve or mutate `spec.md`,
+`prototype.html`, `quickstart.md`, and `tasks.md` after requirements change.
+Historical or user-owned `plan.md` files are preserved and remain outside the
+core three-stage workflow. See
 [Persisting Specifications](persisting-specs.md) for the concepts and
 [Evolving Specs in Existing Projects](evolving-specs.md) for the
 existing-project evolution workflows.
@@ -26,7 +28,7 @@ applies regardless of architecture or repository layout.
 
 | Phase | Focus | Key Activities |
 |-------|-------|----------------|
-| **0-to-1 Development** ("Greenfield") | Generate from scratch | <ul><li>Start with high-level requirements</li><li>Generate specifications</li><li>Plan implementation steps</li><li>Build production-ready applications</li></ul> |
+| **0-to-1 Development** ("Greenfield") | Generate from scratch | <ul><li>Start with high-level requirements</li><li>Freeze the product contract</li><li>Create independently deliverable work packages</li><li>Build and accept production-ready applications</li></ul> |
 | **Creative Exploration** | Parallel implementations | <ul><li>Explore diverse solutions</li><li>Support multiple technology stacks & architectures</li><li>Experiment with UX patterns</li></ul> |
 | **Iterative Enhancement** ("Brownfield") | Brownfield modernization | <ul><li>Add features iteratively</li><li>Modernize legacy systems</li><li>Adapt processes</li></ul> |
 

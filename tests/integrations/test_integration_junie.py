@@ -6,6 +6,7 @@ import pytest
 from specify_cli.integrations import get_integration
 from specify_cli.integrations.junie import format_junie_command_name
 from .test_integration_base_markdown import MarkdownIntegrationTests
+from tests.integrations.community_defaults import bundled_personal_default_files
 
 class TestJunieCommandNameFormatter:
     """Test the junie command name formatter."""
@@ -130,7 +131,7 @@ class TestJunieIntegration(MarkdownIntegrationTests):
         )
 
         assert result.exit_code == 0, result.output
-        assert "/speckit-plan" in result.output
+        assert "/speckit-tasks" in result.output
         assert "/speckit.plan" not in result.output
 
     def test_build_exec_args_passes_prompt_as_task(self):
@@ -219,7 +220,7 @@ class TestJunieIntegration(MarkdownIntegrationTests):
         )
         assert specify_file is not None
         specify_contents = specify_file.read_text(encoding="utf-8")
-        assert "/speckit-plan" in specify_contents
+        assert "/speckit-tasks" in specify_contents
         assert "/speckit.plan" not in specify_contents
 
     def test_integration_flag_creates_files(self, tmp_path):
@@ -282,7 +283,6 @@ class TestJunieIntegration(MarkdownIntegrationTests):
                 "create-new-feature.sh",
                 "markdown_sections.py",
                 "resolve-template.sh",
-                "setup-plan.sh",
                 "setup-tasks.sh",
             ]:
                 files.append(f".specify/scripts/bash/{name}")
@@ -293,7 +293,6 @@ class TestJunieIntegration(MarkdownIntegrationTests):
                 "create-new-feature.ps1",
                 "markdown_sections.py",
                 "resolve-template.ps1",
-                "setup-plan.ps1",
                 "setup-tasks.ps1",
             ]:
                 files.append(f".specify/scripts/powershell/{name}")
@@ -301,7 +300,8 @@ class TestJunieIntegration(MarkdownIntegrationTests):
         for name in [
             "checklist-template.md",
             "constitution-template.md",
-            "plan-template.md",
+            "prototype-template.md",
+            "quickstart-template.md",
             "spec-template.md",
             "tasks-template.md",
         ]:
@@ -313,4 +313,5 @@ class TestJunieIntegration(MarkdownIntegrationTests):
         files.append(".specify/workflows/speckit/workflow.yml")
         files.append(".specify/workflows/workflow-registry.json")
 
-        return sorted(files)
+        files.extend(bundled_personal_default_files(self.KEY))
+        return sorted(set(files))

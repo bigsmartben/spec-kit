@@ -101,7 +101,8 @@ class TestDshInitFlow:
         )
 
         assert result.exit_code == 0, f"init --integration dsh failed: {result.output}"
-        assert (target / ".dsh" / "skills" / "speckit-plan" / "SKILL.md").exists()
+        assert (target / ".dsh" / "skills" / "speckit-tasks" / "SKILL.md").exists()
+        assert not (target / ".dsh" / "skills" / "speckit-plan").exists()
 
 
 class TestDshSkillCompatibility:

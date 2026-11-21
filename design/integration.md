@@ -120,10 +120,10 @@ agent's configured root.
 
 | Flavor | Base class | Typical output | Arguments |
 |---|---|---|---|
-| Markdown commands | `MarkdownIntegration` | `commands/speckit.plan.md` | `$ARGUMENTS` |
-| TOML commands | `TomlIntegration` | `commands/speckit.plan.toml` | `{{args}}` |
-| YAML recipes | `YamlIntegration` | `recipes/speckit.plan.yaml` | `{{args}}` |
-| Agent skills | `SkillsIntegration` | `skills/speckit-plan/SKILL.md` | `$ARGUMENTS` |
+| Markdown commands | `MarkdownIntegration` | `commands/speckit.tasks.md` | `$ARGUMENTS` |
+| TOML commands | `TomlIntegration` | `commands/speckit.tasks.toml` | `{{args}}` |
+| YAML recipes | `YamlIntegration` | `recipes/speckit.tasks.yaml` | `{{args}}` |
+| Agent skills | `SkillsIntegration` | `skills/speckit-tasks/SKILL.md` | `$ARGUMENTS` |
 | Nonstandard or dual-mode | `IntegrationBase` or a targeted override of a format base | Agent-specific files, companions, or settings | Agent-specific |
 
 `registrar_config["args"]` selects the installed argument syntax;

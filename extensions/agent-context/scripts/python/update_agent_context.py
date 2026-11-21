@@ -7,13 +7,12 @@ Reads ``context_files`` or ``context_file``, plus ``context_markers.{start,end}`
 from the agent-context extension config:
     .specify/extensions/agent-context/agent-context-config.yml
 
-Usage: update_agent_context.py [plan_path]
+Usage: update_agent_context.py [feature_directory]
 
-When ``plan_path`` is omitted, the script derives it from
-``.specify/feature.json`` (written by /speckit-specify). Falls back to the most
-recently modified ``plan.md`` found anywhere under ``specs/`` — scoped layouts
-nest it as ``specs/<scope>/<feature>/plan.md`` — only when feature.json is
-absent or its plan does not exist yet.
+When ``feature_directory`` is omitted, the script derives it from
+``.specify/feature.json`` (written by /speckit-specify). It falls back to the
+most recently modified ``spec.md`` found safely under ``specs/`` when the
+recorded feature is absent or stale.
 """
 
 from __future__ import annotations
@@ -27,6 +26,7 @@ from stat import S_ISREG
 
 DEFAULT_START = "<!-- SPECKIT START -->"
 DEFAULT_END = "<!-- SPECKIT END -->"
+ARTIFACT_NAMES = ("spec.md", "prototype.html", "quickstart.md", "tasks.md")
 
 
 def _err(message: str) -> None:
@@ -139,84 +139,112 @@ def _validate_context_file(project_root: str, context_file: str) -> str | None:
     return None
 
 
-def _resolve_plan_path(project_root: str) -> str:
-    """Derive the plan path: feature.json first, then the mtime fallback."""
-    plan_path = ""
-    feature_json = Path(project_root) / ".specify" / "feature.json"
-    if feature_json.is_file():
-        feature_dir = ""
+def _display_path(project_root: str, candidate: Path, *, contained: bool) -> str:
+    """Return a POSIX display path, preserving valid external pinned features."""
+    root = Path(project_root).resolve()
+    resolved = candidate.resolve()
+    try:
+        return resolved.relative_to(root).as_posix()
+    except ValueError:
+        if contained:
+            return ""
+        return resolved.as_posix()
+
+
+def _feature_dir_from_value(project_root: str, value: str) -> Path | None:
+    normalized = value.replace("\\", "/").rstrip("/")
+    if not normalized:
+        return None
+    if sys.platform.startswith("win") and re.match(r"^/[A-Za-z]/", normalized):
+        normalized = normalized[1].upper() + ":/" + normalized[3:]
+    if normalized.startswith("/") or re.match(r"^[A-Za-z]:/", normalized):
+        return Path(normalized)
+    return Path(project_root) / normalized
+
+
+def _artifact_paths_for_dir(
+    project_root: str, feature_dir: Path, *, contained: bool
+) -> list[str]:
+    artifact_paths: list[str] = []
+    for name in ARTIFACT_NAMES:
+        candidate = feature_dir / name
         try:
-            with open(feature_json, "r", encoding="utf-8") as fh:
-                data = json.load(fh)
-            value = data.get("feature_directory", "")
-            feature_dir = value if isinstance(value, str) else ""
-        except Exception:
-            feature_dir = ""
-        # Normalize backslashes (written by PS on Windows) before path ops.
-        feature_dir = feature_dir.replace("\\", "/").rstrip("/")
-        if feature_dir:
-            # feature_directory may be relative or absolute (absolute paths
-            # outside the project root are preserved as-is), including
-            # drive-qualified paths (C:/...) written by PowerShell on Windows.
-            if feature_dir.startswith("/") or re.match(r"^[A-Za-z]:/", feature_dir):
-                candidate = Path(feature_dir) / "plan.md"
-            else:
-                candidate = Path(project_root) / feature_dir / "plan.md"
-            if candidate.is_file():
-                # Resolve symlinks before comparing so paths like /var/… vs
-                # /private/var/… (macOS) are treated as equivalent.
-                root = Path(project_root).resolve()
-                resolved = candidate.resolve()
-                try:
-                    plan_path = resolved.relative_to(root).as_posix()
-                except ValueError:
-                    plan_path = resolved.as_posix()
-
-    if not plan_path:
-        root = Path(project_root).resolve()
-        specs = root / "specs"
-
-        def _resolved_rel(p: Path) -> Path | None:
-            # Resolve symlinks before checking containment: relative_to() is
-            # lexical and would otherwise accept a plan reached through a specs/
-            # symlink that points outside the project, emitting an
-            # in-project-looking path for an out-of-project file (or picking it
-            # as "most recent").
-            try:
-                return p.resolve().relative_to(root)
-            except (OSError, ValueError):
-                return None
-
-        # Recurse (rather than the old one-level specs/*/plan.md glob) so scoped
-        # layouts created via SPECIFY_FEATURE_DIRECTORY, e.g.
-        # specs/<scope>/<feature>/plan.md, are still discovered when
-        # feature.json is absent (#3024). Mirrors the bash and PowerShell twins.
-        candidates = []
-        for p in specs.rglob("plan.md"):
-            rel = _resolved_rel(p)
-            if rel is None:
+            if not candidate.is_file():
                 continue
-            # Follow file links without suppressing errors for contained candidates.
+        except OSError:
+            continue
+        displayed = _display_path(project_root, candidate, contained=contained)
+        if displayed:
+            artifact_paths.append(displayed)
+    return artifact_paths
+
+
+def _resolve_artifact_paths(
+    project_root: str, feature_directory: str = ""
+) -> list[str]:
+    """Resolve active contract artifacts, preferring feature.json."""
+    feature_value = feature_directory
+    if not feature_value:
+        feature_json = Path(project_root) / ".specify" / "feature.json"
+        if feature_json.is_file():
             try:
-                mode = p.stat().st_mode
-            except (FileNotFoundError, NotADirectoryError):
+                with open(feature_json, "r", encoding="utf-8") as fh:
+                    data = json.load(fh)
+                value = data.get("feature_directory", "") if isinstance(data, dict) else ""
+                feature_value = value if isinstance(value, str) else ""
+            except Exception:
+                feature_value = ""
+
+    feature_dir = _feature_dir_from_value(project_root, feature_value)
+    if feature_dir is not None:
+        artifact_paths = _artifact_paths_for_dir(
+            project_root, feature_dir, contained=False
+        )
+        if "spec.md" in {Path(path).name for path in artifact_paths}:
+            return artifact_paths
+
+    root = Path(project_root).resolve()
+    specs = root / "specs"
+    candidates: list[tuple[Path, Path]] = []
+    for candidate in specs.rglob("spec.md"):
+        try:
+            resolved = candidate.resolve()
+            relative = resolved.relative_to(root)
+        except (OSError, ValueError):
+            continue
+        try:
+            mode = candidate.stat().st_mode
+        except (FileNotFoundError, NotADirectoryError):
+            continue
+        if S_ISREG(mode):
+            candidates.append((candidate, relative))
+    candidates.sort(key=lambda pair: pair[0].stat().st_mtime, reverse=True)
+    if not candidates:
+        return []
+
+    discovered, relative = candidates[0]
+    artifact_paths = [relative.as_posix()]
+    for name in ARTIFACT_NAMES[1:]:
+        companion = discovered.parent / name
+        try:
+            if not companion.is_file():
                 continue
-            if S_ISREG(mode):
-                candidates.append((p, rel))
-        candidates.sort(key=lambda pr: pr[0].stat().st_mtime, reverse=True)
-        if candidates:
-            plan_path = candidates[0][1].as_posix()
-    return plan_path
+            displayed = _display_path(project_root, companion, contained=True)
+        except OSError:
+            continue
+        if displayed:
+            artifact_paths.append(displayed)
+    return artifact_paths
 
 
-def _build_section(marker_start: str, marker_end: str, plan_path: str) -> str:
+def _build_section(
+    marker_start: str, marker_end: str, artifact_paths: list[str]
+) -> str:
     lines = [
         marker_start,
-        "For additional context about technologies to be used, project structure,",
-        "shell commands, and other important information, read the current plan",
+        "Use the active Spec Kit feature artifacts as the product contract:",
     ]
-    if plan_path:
-        lines.append(f"at {plan_path}")
+    lines.extend(f"- `{artifact_path}`" for artifact_path in artifact_paths)
     lines.append(marker_end)
     return "\n".join(lines) + "\n"
 
@@ -357,11 +385,10 @@ def main(argv: list[str] | None = None) -> int:
     marker_start = _get_str(data, "context_markers", "start") or DEFAULT_START
     marker_end = _get_str(data, "context_markers", "end") or DEFAULT_END
 
-    plan_path = args[0] if args else ""
-    if not plan_path:
-        plan_path = _resolve_plan_path(project_root)
+    feature_directory = args[0] if args else ""
+    artifact_paths = _resolve_artifact_paths(project_root, feature_directory)
 
-    section = _build_section(marker_start, marker_end, plan_path)
+    section = _build_section(marker_start, marker_end, artifact_paths)
 
     for context_file in context_files:
         ctx_path = os.path.join(project_root, context_file)

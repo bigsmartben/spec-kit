@@ -25,7 +25,7 @@ Spec Kit 是一个开源工具套件，为 AI 编码助手提供结构化流程�
 
 | 你的需求 | 流程 | 产出 |
 | --- | --- | --- |
-| 构建功能或应用 | [规范驱动开发](#规范驱动开发) | 从规范出发，完成规划、实现与收敛 |
+| 构建功能或应用 | [规范驱动开发](#规范驱动开发) | 将冻结的产品契约转化为工作包、实现与 UAT 证据 |
 | 排查并修复异常行为 | [缺陷修复](#缺陷修复) | 经评估的原因、范围明确的修复与验证记录 |
 | 判断一个想法是否值得投入 | [想法评估](#想法评估) | 基于证据决定推进、澄清或停止 |
 
@@ -74,23 +74,24 @@ CLI 只需安装一次，项目只需初始化一次；以下三种流程共用�
 
 ## 规范驱动开发
 
-先明确**做什么、为什么做**，再决定**怎么实现**。
-规范驱动开发（SDD）将需求转化为规范、技术方案和可执行任务，再依据这些制品指导实现。
+先明确**做什么、为什么做**，再冻结可观察的产品契约。
+规范驱动开发（SDD）将契约转化为独立可交付的需求级工作包，再由实现阶段决定技术方案。
 
-**每个项目先确立一次准则；每个功能依次完成：规范 → 方案 → 任务 → 实现 → 收敛。**
+**每个项目先确立一次准则；每个功能依次完成：规范（Specify）→ 任务（Task）→ 实现（Implement）。**
 
 在助手的聊天界面中调用以下技能：
 
 ```text
 /speckit-constitution Create principles focused on code quality, testing, and maintainability.
 /speckit-specify Build a photo organizer with albums grouped by date and a tile preview of each album.
-/speckit-plan Use Vite with vanilla JavaScript. Keep images local and store metadata in SQLite.
 /speckit-tasks
 /speckit-implement
-/speckit-converge
 ```
 
-反复执行 **implement → converge**，直到收敛报告给出 **Converged**。
+Specify 会冻结 `spec.md`、`prototype.html` 和 `quickstart.md` 中待执行的 UAT
+基线。Task 只读取该契约与项目准则，生成技术中立、覆盖完整且可独立交付的工作包；
+冲突或缺失映射必须返回 Specify 修正。Implement 负责技术选型与执行，并且只更新对应
+UAT 条目的 `Status`、`Actual Result`、`Evidence` 和 `Deviation`。
 需要额外的质量把关时，可加入需求澄清、检查清单和一致性分析。
 
 [SDD 实战指南](https://github.github.io/spec-kit/quickstart.html) ·

@@ -6,7 +6,7 @@ Step configuration selects executable behavior with `type`. Omitting `type` sele
 
 | Type         | Purpose                                          |
 | ------------ | ------------------------------------------------ |
-| `command`    | Invoke a Spec Kit command (e.g., `speckit.plan`) |
+| `command`    | Invoke a Spec Kit command (e.g., `speckit.tasks`) |
 | `prompt`     | Send an arbitrary prompt to the AI coding agent  |
 | `shell`      | Execute a shell command and capture output       |
 | `github`     | Add an explicit issue or pull-request label       |
@@ -70,8 +70,8 @@ where later steps can read it:
   type: if
   condition: "{{ steps.verdict.output.stdout | contains('READY') }}"
   then:
-    - id: plan
-      command: speckit.plan
+    - id: tasks
+      command: speckit.tasks
 ```
 
 | Field               | Applies to          | Meaning                                                                                             |
@@ -211,8 +211,8 @@ the integration CLI they invoke. `workflow.reasoning_effort` and
 
 ```yaml
 workflow:
-  id: plan-and-review
-  name: Plan and review
+  id: tasks-and-review
+  name: Package and review
   reasoning_effort: "medium"   # Default for command and prompt steps
 
 inputs:
@@ -221,15 +221,15 @@ inputs:
     default: ""                # Empty: the review step sends no effort
 
 steps:
-  - id: plan
-    command: speckit.plan
+  - id: tasks
+    command: speckit.tasks
     integration: codex         # Codex takes context_size as a token count
     reasoning_effort: "high"   # Overrides the workflow default
     context_size: "200000"     # Quoted: values are strings
 
   - id: review
     type: prompt
-    prompt: "Review the plan for gaps"
+    prompt: "Review the task packages for missing contract coverage"
     reasoning_effort: "{{ inputs.review_effort }}"
 ```
 
@@ -307,7 +307,7 @@ source. For example, on POSIX:
   type: shell
   strict: true
   env:
-    RESULT: "{{ steps.plan.output.stdout }}"
+    RESULT: "{{ steps.tasks.output.stdout }}"
   run: 'printf "%s\n" "$RESULT"'
 ```
 
@@ -463,7 +463,7 @@ Prompt for human review on an interactive terminal, or pause for a later
 ```yaml
 - id: review-spec
   type: gate
-  message: "Review the generated spec before planning."
+  message: "Review the generated contract before task generation."
   options: [approve, edit, reject]
   on_reject: abort
 ```
@@ -537,13 +537,15 @@ Conditional branching based on an expression:
   type: if
   condition: "{{ inputs.scope == 'full' }}"
   then:
-    - id: full-plan
-      command: speckit.plan
+    - id: full-tasks
+      command: speckit.tasks
+      input:
+        args: "Package the complete frozen contract"
   else:
-    - id: quick-plan
-      command: speckit.plan
-      options:
-        quick: true
+    - id: focused-tasks
+      command: speckit.tasks
+      input:
+        args: "Package the requested bounded slice of the frozen contract"
 ```
 
 ## Switch Steps
@@ -556,8 +558,8 @@ Multi-branch dispatch on an expression value:
   expression: "{{ steps.review.output.choice }}"
   cases:
     approve:
-      - id: plan
-        command: speckit.plan
+      - id: tasks
+        command: speckit.tasks
     reject:
       - id: log
         type: shell

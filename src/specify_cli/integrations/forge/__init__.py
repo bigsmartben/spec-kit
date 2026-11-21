@@ -27,12 +27,12 @@ def format_forge_command_name(cmd_name: str) -> str:
     The function is idempotent: already-formatted names are returned unchanged.
 
     Examples:
-        >>> format_forge_command_name("plan")
-        'speckit-plan'
-        >>> format_forge_command_name("speckit.plan")
-        'speckit-plan'
-        >>> format_forge_command_name("speckit-plan")
-        'speckit-plan'
+        >>> format_forge_command_name("tasks")
+        'speckit-tasks'
+        >>> format_forge_command_name("speckit.tasks")
+        'speckit-tasks'
+        >>> format_forge_command_name("speckit-tasks")
+        'speckit-tasks'
         >>> format_forge_command_name("speckit.my-extension.example")
         'speckit-my-extension-example'
         >>> format_forge_command_name("speckit-my-extension-example")

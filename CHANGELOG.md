@@ -2,6 +2,15 @@
 
 <!-- insert new changelog below this comment -->
 
+## [1.4.4] - 2026-11-21
+
+### Changed
+
+- Rebuild the personal distribution on current upstream with the recent
+  constitution, specify, tasks, implement, and core workflow changes
+- Keep the `bug` extension as the only default extension; Git remains opt-in
+- Remove the historical bundled `workflow-preset` from the current tree
+
 ## [1.4.3] - 2026-11-19
 
 ### Changed

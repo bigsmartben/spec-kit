@@ -43,7 +43,7 @@ class KimiIntegration(SkillsIntegration):
         """Build Kimi's native skill invocation: ``/skill:speckit-<stem>``.
 
         Kimi Code CLI invokes installed skills with a ``/skill:<name>``
-        slash command (e.g. ``/skill:speckit-plan``), not the bare
+        slash command (e.g. ``/skill:speckit-tasks``), not the bare
         ``/speckit-<name>`` form produced by the generic skills base
         class. Overriding here keeps ``dispatch_command()`` and workflow
         command steps aligned with the ``/skill:`` guidance shown at init

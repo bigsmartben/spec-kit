@@ -71,4 +71,5 @@ class TestDevinInitFlow:
         )
 
         assert result.exit_code == 0, f"init --integration devin failed: {result.output}"
-        assert (target / ".devin" / "skills" / "speckit-plan" / "SKILL.md").exists()
+        assert (target / ".devin" / "skills" / "speckit-tasks" / "SKILL.md").exists()
+        assert not (target / ".devin" / "skills" / "speckit-plan").exists()

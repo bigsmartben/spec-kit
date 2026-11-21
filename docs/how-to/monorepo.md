@@ -49,7 +49,7 @@ slash commands. Root resolution finds the nearest `.specify/`.
 
 ```bash
 cd apps/web
-# then run /speckit.specify, /speckit.plan, … in your agent
+# then run /speckit.specify, /speckit.tasks, and /speckit.implement in your agent
 ```
 
 ## Targeting a member project from the repo root

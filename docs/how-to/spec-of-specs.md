@@ -1,11 +1,11 @@
 # How to break a large feature into smaller specifications
 
 When a feature is too large to run through a single
-`/speckit.specify` → `/speckit.plan` → `/speckit.tasks` → `/speckit.implement`
+`/speckit.specify` → `/speckit.tasks` → `/speckit.implement`
 cycle without the model losing track mid-implementation, you can break it into a
 **roadmap** of smaller, independently-specified sub-features. This is the "spec of
 specs" approach: one up-front pass decomposes a massive feature into self-contained
-specs, and each of those runs through its own specify/plan/tasks/implement cycle.
+specs, and each of those runs through its own specify/tasks/implement cycle.
 
 > **When to reach for this.** Decomposition adds the most overhead of any strategy
 > in [Handling Complex Features](complex-features.md). Use it **only when the lighter
@@ -79,14 +79,14 @@ Spec Kit flow — nothing new to learn:
 
 1. Pick the next roadmap entry whose dependencies are already `done` (or have none).
 2. Run `/speckit.specify` for just that slice, describing only its intent and scope
-   from the roadmap entry. Because the slice is bounded, its spec, plan, and tasks
-   stay well within the context window.
-3. Run `/speckit.plan`, `/speckit.tasks`, and `/speckit.implement` for that slice as
-   usual.
+   from the roadmap entry. Because the slice is bounded, its frozen contract
+   and task packages stay well within the context window.
+3. Run `/speckit.tasks` and `/speckit.implement` for that slice as usual.
 4. Mark the roadmap entry `done` and move to the next one.
 
 Each slice is a complete, independent Spec Kit feature with its own
-`spec.md`/`plan.md`/`tasks.md`. The roadmap is what ties them together.
+`spec.md`/`prototype.html`/`quickstart.md`/`tasks.md`. The roadmap is what
+ties them together.
 
 ## Linking sub-specs to the roadmap
 

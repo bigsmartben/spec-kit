@@ -547,8 +547,8 @@ def test_round8_upgrade_persists_only_after_regenerating_files(tmp_path, server,
     else:
         assert "Nothing to upgrade" not in result.output
         assert read_records(project)[KEY]["version"] == "2.0.0"
-        assert (project / ".sample-next/skills/speckit-plan/SKILL.md").is_file()
-        assert not (project / ".sample-agent/skills/speckit-plan/SKILL.md").exists()
+        assert (project / ".sample-next/skills/speckit-tasks/SKILL.md").is_file()
+        assert not (project / ".sample-agent/skills/speckit-tasks/SKILL.md").exists()
         assert INTEGRATION_REGISTRY[KEY].config["folder"] == ".sample-next"
         assert CommandRegistrar(project).AGENT_CONFIGS[KEY]["dir"] == ".sample-next/skills"
 
@@ -590,7 +590,7 @@ def test_round8_recovery_retains_effective_registrar_settings(
     assert recovery_metadata(project, KEY, read_records(project)[KEY])["registrar_config"] == expected
     removed = run(project, ["integration", "uninstall", KEY, "--force"])
     assert removed.exit_code == 0, removed.output
-    assert not (project / ".sample-agent/skills/speckit-plan/SKILL.md").exists()
+    assert not (project / ".sample-agent/skills/speckit-tasks/SKILL.md").exists()
     assert KEY not in read_records(project)
     assert KEY not in INTEGRATION_REGISTRY
 
@@ -906,7 +906,7 @@ def test_round6_failed_install_preserves_original_empty_output_directories(
 
 @pytest.mark.parametrize("integration,relative,home_scoped", [
     ("copilot", ".vscode", False),
-    ("hermes", ".hermes/skills/speckit-plan", True),
+    ("hermes", ".hermes/skills/speckit-tasks", True),
 ])
 @pytest.mark.parametrize("existing", [False, True])
 def test_round6_failed_switch_preserves_directory_ownership_outside_adapter_root(
@@ -1055,7 +1055,7 @@ def test_round4_failed_switch_restores_builtin_global_and_legacy_outputs(tmp_pat
     install(project)
     if target == "hermes":
         scope = Path.home() / ".hermes/skills"
-        managed = scope / "speckit-plan/SKILL.md"
+        managed = scope / "speckit-tasks/SKILL.md"
     else:
         scope = project / ".kimi/skills"
         managed = scope / "speckit.sample/SKILL.md"
@@ -1149,13 +1149,13 @@ def test_round4_failed_switch_restores_preset_composition_cache(tmp_path, server
         "preset": {"id": "sample-preset", "name": "Sample Preset", "version": "1.0.0", "description": "Sample wrapper"},
         "requires": {"speckit_version": ">=0.1"},
         "provides": {"templates": [{
-            "type": "command", "name": "speckit.plan", "file": "commands/sample.md",
+            "type": "command", "name": "speckit.tasks", "file": "commands/sample.md",
             "strategy": "wrap",
         }]},
     }))
     added = run(project, ["preset", "add", "--dev", str(preset)])
     assert added.exit_code == 0, added.output
-    cache = project / ".specify/presets/sample-preset/.composed/speckit.plan.md"
+    cache = project / ".specify/presets/sample-preset/.composed/speckit.tasks.md"
     cache.write_text("previous cache bytes")
     settings = project / ".vscode/settings.json"
     settings.parent.mkdir()
@@ -1312,7 +1312,7 @@ def test_round5_legacy_recovery_binding_remains_supported(tmp_path, server):
     (project / f".specify/integrations/packages/{KEY}/__init__.py").unlink()
     result = run(project, ["integration", "uninstall", KEY, "--force"])
     assert result.exit_code == 0, result.output
-    assert not (project / ".sample-agent/skills/speckit-plan/SKILL.md").exists()
+    assert not (project / ".sample-agent/skills/speckit-tasks/SKILL.md").exists()
 
 
 def test_round5_revoked_package_grant_preserves_generated_files_on_forced_cleanup(tmp_path, server):
@@ -1326,7 +1326,7 @@ def test_round5_revoked_package_grant_preserves_generated_files_on_forced_cleanu
     result = run(project, ["integration", "uninstall", KEY, "--force"])
     assert result.exit_code == 0, result.output
     assert "No local recovery ownership record" in " ".join(result.output.split())
-    assert (project / ".sample-agent/skills/speckit-plan/SKILL.md").exists()
+    assert (project / ".sample-agent/skills/speckit-tasks/SKILL.md").exists()
     assert not (project / f".specify/integrations/packages/{KEY}").exists()
 
 
@@ -1388,12 +1388,12 @@ def test_catalog_install_renders_host_templates_and_fresh_process(tmp_path, serv
     package = project / ".specify/integrations/packages" / KEY
     assert set(records[KEY]["files"]) == {"integration.yml", "__init__.py"}
     assert not (package / "templates").exists()
-    skill = project / ".sample-agent/skills/speckit-plan/SKILL.md"
+    skill = project / ".sample-agent/skills/speckit-tasks/SKILL.md"
     assert skill.is_file()
     rendered = skill.read_text(encoding="utf-8")
-    assert ".specify/scripts/python/setup_plan.py" in rendered
+    assert ".specify/scripts/python/setup_tasks.py" in rendered
     assert "{SCRIPT}" not in rendered and "__AGENT__" not in rendered
-    assert "speckit-plan" in rendered
+    assert "speckit-tasks" in rendered
     manifest = json.loads((project / f".specify/integrations/{KEY}.manifest.json").read_text())
     assert not any("packages/" in name for name in manifest["files"])
     process = subprocess.run(
@@ -1449,7 +1449,7 @@ def test_markdown_adapter_renders_host_commands(tmp_path, server):
     publish(server, code=implementation(flavor="markdown"))
     project = catalog_project(tmp_path, server)
     install(project)
-    command = project / ".sample-agent/commands/speckit.plan.md"
+    command = project / ".sample-agent/commands/speckit.tasks.md"
     assert command.is_file()
     assert "{SCRIPT}" not in command.read_text(encoding="utf-8")
     assert not (project / ".sample-agent/skills").exists()
@@ -1580,7 +1580,7 @@ def test_upgrade_and_uninstall_preserve_edits_and_remove_package(tmp_path, serve
     publish(server)
     project = catalog_project(tmp_path, server)
     install(project)
-    skill = project / ".sample-agent/skills/speckit-plan/SKILL.md"
+    skill = project / ".sample-agent/skills/speckit-tasks/SKILL.md"
     skill.write_text(skill.read_text(encoding="utf-8") + "\nUser customization\n", encoding="utf-8")
     before = snapshot(project)
     publish(server, version="2.0.0")
@@ -1694,7 +1694,7 @@ def test_new_project_init_from_catalog_environment(tmp_path, server, monkeypatch
         "--integration", KEY, "--trust-integration",
     ], catch_exceptions=False)
     assert result.exit_code == 0, result.output
-    assert (project / ".sample-agent/skills/speckit-plan/SKILL.md").is_file()
+    assert (project / ".sample-agent/skills/speckit-tasks/SKILL.md").is_file()
     assert KEY in read_records(project)
 
 
@@ -1823,8 +1823,8 @@ def test_builtin_generic_can_coexist_with_external_adapter(tmp_path, server):
     assert blocked.exit_code == 1 and "multi-install" in blocked.output
     forced = run(project, ["integration", "install", KEY, "--trust-integration", "--force"])
     assert forced.exit_code == 0, forced.output
-    assert (project / ".sample-generic/commands/speckit.plan.md").is_file()
-    assert (project / ".sample-agent/skills/speckit-plan/SKILL.md").is_file()
+    assert (project / ".sample-generic/commands/speckit.tasks.md").is_file()
+    assert (project / ".sample-agent/skills/speckit-tasks/SKILL.md").is_file()
     assert run(project, ["integration", "use", KEY]).exit_code == 0
 
 
@@ -1835,12 +1835,12 @@ def test_switch_to_and_from_external_adapter_removes_durable_code(tmp_path, serv
     switched = run(project, ["integration", "switch", KEY, "--trust-integration"])
     assert switched.exit_code == 0, switched.output
     assert KEY in read_records(project)
-    assert not (project / ".claude/skills/speckit-plan/SKILL.md").exists()
+    assert not (project / ".claude/skills/speckit-tasks/SKILL.md").exists()
     switched_back = run(project, ["integration", "switch", "claude"])
     assert switched_back.exit_code == 0, switched_back.output
     assert not (project / f".specify/integrations/packages/{KEY}").exists()
-    assert not (project / ".sample-agent/skills/speckit-plan/SKILL.md").exists()
-    assert (project / ".claude/skills/speckit-plan/SKILL.md").is_file()
+    assert not (project / ".sample-agent/skills/speckit-tasks/SKILL.md").exists()
+    assert (project / ".claude/skills/speckit-tasks/SKILL.md").is_file()
 
 @pytest.mark.parametrize("operation", ["uninstall", "switch"])
 @pytest.mark.parametrize("force", [False, True])
@@ -1862,11 +1862,11 @@ def test_legacy_remove_events_adapter_lifecycle(tmp_path, server, operation, for
 
     assert result.exit_code == 0, result.output
     assert (project / "legacy-cleanup-called").read_text(encoding="utf-8") == "called"
-    assert not (project / ".sample-agent/skills/speckit-plan/SKILL.md").exists()
+    assert not (project / ".sample-agent/skills/speckit-tasks/SKILL.md").exists()
     assert not (project / f".specify/integrations/{KEY}.manifest.json").exists()
     assert KEY not in read_records(project)
     if operation == "switch":
-        assert (project / ".claude/skills/speckit-plan/SKILL.md").exists()
+        assert (project / ".claude/skills/speckit-tasks/SKILL.md").exists()
 
 
 @pytest.mark.parametrize("step_type", ["command", "prompt"])
@@ -1898,7 +1898,7 @@ def test_public_workflow_dispatch_loads_adapter_and_uses_process_double(tmp_path
     monkeypatch.setattr(subprocess, "run", process_double)
     step = {"id": "sample-dispatch", "type": step_type, "integration": KEY}
     if step_type == "command":
-        step["command"] = "speckit.plan"
+        step["command"] = "speckit.tasks"
     else:
         step["prompt"] = "Sample prompt"
     path = project / "sample-workflow.yml"
@@ -1912,7 +1912,7 @@ def test_public_workflow_dispatch_loads_adapter_and_uses_process_double(tmp_path
     report = json.loads(executed.stdout)
     assert report["status"] == "completed"
     assert calls[0][0][:2] == ["/sample-agent-process", "-p"]
-    assert calls[0][0][2] == ("/speckit-plan" if step_type == "command" else "Sample prompt")
+    assert calls[0][0][2] == ("/speckit-tasks" if step_type == "command" else "Sample prompt")
     assert calls[0][1]["cwd"] == str(project)
     state = engine.RunState.load(report["run_id"], project)
     assert state.step_results["sample-dispatch"]["output"]["dispatched"] is True
@@ -1974,7 +1974,7 @@ def test_force_uninstall_removes_modified_generated_files(tmp_path, server):
     publish(server)
     project = catalog_project(tmp_path, server)
     install(project)
-    skill = project / ".sample-agent/skills/speckit-plan/SKILL.md"
+    skill = project / ".sample-agent/skills/speckit-tasks/SKILL.md"
     skill.write_text("User customization")
     result = run(project, ["integration", "uninstall", KEY, "--force"])
     assert result.exit_code == 0, result.output
@@ -2429,7 +2429,7 @@ def test_force_recovery_does_not_require_a_loadable_old_adapter(tmp_path, server
     assert "without loading its failed implementation" in " ".join(result.output.split())
     if operation == "upgrade":
         assert read_records(project)[KEY]["version"] == "2.0.0"
-        assert (project / ".sample-agent/skills/speckit-plan/SKILL.md").is_file()
+        assert (project / ".sample-agent/skills/speckit-tasks/SKILL.md").is_file()
     else:
         assert KEY not in read_records(project)
         assert not path.parent.exists()
@@ -2716,7 +2716,7 @@ def test_round2_leaf_symlink_never_redirects_transaction_writes(tmp_path, server
         relative = f".specify/integrations/{KEY}/scripts/sample.py"
     else:
         body = ""
-        relative = ".sample-agent/skills/speckit-plan/SKILL.md"
+        relative = ".sample-agent/skills/speckit-tasks/SKILL.md"
     publish(
         server, code=implementation(body=body),
         members={"scripts/sample.py": b"print('sample')"} if writer == "script" else None,
@@ -2759,7 +2759,7 @@ def test_round2_forced_removal_unlinks_owned_leaf_without_following_it(tmp_path,
     install(project)
     outside = tmp_path / "outside.txt"
     outside.write_text("preserve outside data")
-    leaf = project / ".sample-agent/skills/speckit-plan/SKILL.md"
+    leaf = project / ".sample-agent/skills/speckit-tasks/SKILL.md"
     leaf.unlink()
     try:
         leaf.symlink_to(outside)
@@ -2855,7 +2855,7 @@ def test_round2_recovery_without_local_ownership_preserves_old_outputs(tmp_path,
     manifest = json.loads(manifest_path.read_text())
     manifest["files"][marker.relative_to(project).as_posix()] = hashlib.sha256(marker.read_bytes()).hexdigest()
     manifest_path.write_text(json.dumps(manifest))
-    skill = project / ".sample-agent/skills/speckit-plan/SKILL.md"
+    skill = project / ".sample-agent/skills/speckit-tasks/SKILL.md"
     skill.write_text("preserve previous layout customization")
     (project / f".specify/integrations/packages/{KEY}/__init__.py").unlink()
     arguments = ["integration", operation, KEY, "--force"]
@@ -2868,7 +2868,7 @@ def test_round2_recovery_without_local_ownership_preserves_old_outputs(tmp_path,
     assert marker.read_text() == "preserve unrelated data"
     assert skill.read_text() == "preserve previous layout customization"
     if operation == "upgrade":
-        assert (project / ".sample-new/skills/speckit-plan/SKILL.md").is_file()
+        assert (project / ".sample-new/skills/speckit-tasks/SKILL.md").is_file()
         assert read_records(project)[KEY]["version"] == "2.0.0"
     else:
         assert not (project / f".specify/integrations/packages/{KEY}").exists()
@@ -3031,7 +3031,7 @@ def test_round2_workflow_dispatch_keeps_project_adapter_after_registry_switch(tm
 
     monkeypatch.setattr(subprocess, "run", harmless_process)
     step = {"id": "sample-dispatch", "type": kind, "integration": KEY}
-    step["prompt" if kind == "prompt" else "command"] = "Sample prompt" if kind == "prompt" else "speckit.plan"
+    step["prompt" if kind == "prompt" else "command"] = "Sample prompt" if kind == "prompt" else "speckit.tasks"
     source = first / "sample-workflow.yml"
     source.write_text(yaml.safe_dump({
         "schema_version": "1.0",
@@ -3077,7 +3077,7 @@ def test_round2_overlapping_dispatch_pins_lazy_imports_and_project_lookup(
     for root in (first, second):
         step = {"id": "sample-dispatch", "type": kind, "integration": KEY}
         step["prompt" if kind == "prompt" else "command"] = (
-            "Sample prompt" if kind == "prompt" else "speckit.plan"
+            "Sample prompt" if kind == "prompt" else "speckit.tasks"
         )
         source = root / "sample-workflow.yml"
         source.write_text(yaml.safe_dump({
@@ -3152,7 +3152,7 @@ def test_round3_valid_legacy_destination_remains_supported(tmp_path, server):
     project = catalog_project(tmp_path, server)
     install(project)
     assert CommandRegistrar(project).AGENT_CONFIGS[KEY]["legacy_dir"] == ".sample-previous/skills"
-    assert (project / ".sample-agent/skills/speckit-plan/SKILL.md").is_file()
+    assert (project / ".sample-agent/skills/speckit-tasks/SKILL.md").is_file()
 
 
 @pytest.mark.parametrize("directory", ["primary", "legacy"])
@@ -3387,7 +3387,7 @@ def test_failed_operation_preserves_concurrent_edits_to_a_managed_file(tmp_path,
     publish(server)
     project = catalog_project(tmp_path, server)
     install(project)
-    path = project / ".sample-agent/skills/speckit-plan/SKILL.md"
+    path = project / ".sample-agent/skills/speckit-tasks/SKILL.md"
     publish(server, version="2.0.0")
     original_mkdtemp = _lifecycle.tempfile.mkdtemp
     backups = []
@@ -3435,10 +3435,10 @@ def test_catalog_init_checks_required_tools_and_scaffolds_host_skills(tmp_path, 
     monkeypatch.setenv("PATH", str(tools))
     result = run(project, arguments)
     assert result.exit_code == 0, result.output
-    skill = project / ".sample-agent/skills/speckit-plan/SKILL.md"
+    skill = project / ".sample-agent/skills/speckit-tasks/SKILL.md"
     content = skill.read_text(encoding="utf-8")
     assert "{SCRIPT}" not in content and "__SPECKIT_COMMAND_" not in content
-    assert yaml.safe_load(content.split("---", 2)[1])["name"] == "speckit-plan"
+    assert yaml.safe_load(content.split("---", 2)[1])["name"] == "speckit-tasks"
     assert (project / f".specify/scripts/{'python' if script == 'py' else 'bash' if script == 'sh' else 'powershell'}").is_dir()
 
 
@@ -3471,7 +3471,7 @@ def test_adapter_cannot_overwrite_a_concurrent_managed_edit_with_a_second_write(
     def setup(self, project_root, manifest, **kwargs):
         from threading import Thread
         created = super().setup(project_root, manifest, **kwargs)
-        path = manifest.project_root / ".sample-agent/skills/speckit-plan/SKILL.md"
+        path = manifest.project_root / ".sample-agent/skills/speckit-tasks/SKILL.md"
         thread = Thread(target=lambda: path.write_text("concurrent managed edit"))
         thread.start()
         thread.join()
@@ -3494,7 +3494,7 @@ def test_adapter_cannot_overwrite_a_concurrent_managed_edit_with_a_second_write(
         result = run(project, ["integration", "install", KEY, "--trust-integration", "--script", "py"])
         assert result.exit_code == 1, result.output
         assert "refusing to overwrite" in " ".join(result.output.split())
-        assert (project / ".sample-agent/skills/speckit-plan/SKILL.md").read_text() == "concurrent managed edit"
+        assert (project / ".sample-agent/skills/speckit-tasks/SKILL.md").read_text() == "concurrent managed edit"
         assert KEY not in read_records(project)
     finally:
         for backup in backups:
@@ -4329,9 +4329,9 @@ def test_damaged_event_adapter_recovery_preserves_shared_and_user_files(
     assert dispatcher.read_bytes() == dispatcher_bytes
     assert "shared" in removed.output.lower()
     assert (KEY in read_records(project)) == (operation == "upgrade")
-    assert (project / ".sample-agent/skills/speckit-plan/SKILL.md").exists() == (operation == "upgrade")
+    assert (project / ".sample-agent/skills/speckit-tasks/SKILL.md").exists() == (operation == "upgrade")
     if other:
-        assert (project / ".claude/skills/speckit-plan/SKILL.md").exists()
+        assert (project / ".claude/skills/speckit-tasks/SKILL.md").exists()
 
 
 def test_event_refresh_updates_local_recovery_paths_and_revokes_removed_claims(tmp_path, server):
@@ -4380,7 +4380,7 @@ def test_recovery_without_ownership_modes_preserves_unproven_paths(tmp_path, ser
     data = json.loads(trust.read_text())
     data["recovery"][installer._recovery_identity(project, KEY)].pop("ownership_modes", None)
     trust.write_text(json.dumps(data))
-    core = project / ".sample-agent/skills/speckit-plan/SKILL.md"
+    core = project / ".sample-agent/skills/speckit-tasks/SKILL.md"
     (project / f".specify/integrations/packages/{KEY}/__init__.py").unlink()
     removed = run(project, ["integration", "uninstall", KEY, "--force"])
     assert removed.exit_code == 0, removed.output
@@ -4471,7 +4471,7 @@ def test_preserved_event_settings_may_share_another_integration_root(tmp_path, s
     assert removed.exit_code == 0, removed.output
     assert settings.read_bytes() == original
     assert (project / ".specify/events.py").exists()
-    assert (project / ".claude/skills/speckit-plan/SKILL.md").exists()
+    assert (project / ".claude/skills/speckit-tasks/SKILL.md").exists()
 
 
 @pytest.mark.parametrize("modes", [None, [], {"unowned.txt": "whole"}, {".specify/events.py": "invalid"}])
@@ -4503,7 +4503,7 @@ def test_external_names_render_literally_without_breaking_committed_operations(t
     if operation not in {"install", "switch"}:
         run(project, ["integration", "install", KEY, "--trust-integration", "--script", "py"])
         assert KEY in read_records(project)
-        assert (project / ".sample-agent/skills/speckit-plan/SKILL.md").exists()
+        assert (project / ".sample-agent/skills/speckit-tasks/SKILL.md").exists()
     arguments = {
         "install": ["integration", "install", KEY, "--trust-integration", "--script", "py"],
         "switch": ["integration", "switch", KEY, "--trust-integration", "--script", "py"],
@@ -4521,7 +4521,7 @@ def test_external_names_render_literally_without_breaking_committed_operations(t
     assert result.exit_code == 0, result.output
     assert name in " ".join(result.output.split())
     assert (KEY in read_records(project)) == (operation != "uninstall")
-    assert (project / ".sample-agent/skills/speckit-plan/SKILL.md").exists() == (operation != "uninstall")
+    assert (project / ".sample-agent/skills/speckit-tasks/SKILL.md").exists() == (operation != "uninstall")
 
 
 @pytest.mark.parametrize("force", [False, True])
@@ -4548,7 +4548,7 @@ def test_builtin_manifest_cleanup_does_not_follow_symlinked_stale_parent(tmp_pat
     assert victim.read_text() == "old generated content"
     assert path.parent.is_symlink()
     if operation == "upgrade":
-        assert (project / ".claude/skills/speckit-plan/SKILL.md").exists()
+        assert (project / ".claude/skills/speckit-tasks/SKILL.md").exists()
     assert read_records(project) == {}
 
 
@@ -4831,7 +4831,7 @@ def test_builtin_init_keeps_optional_install_failures_best_effort(tmp_path, monk
     assert attempted == [True]
     if package_kind == "preset":
         assert "sample optional builtin install failure" in " ".join(result.output.split())
-    assert (project / ".github/skills/speckit-plan/SKILL.md").exists()
+    assert (project / ".github/skills/speckit-tasks/SKILL.md").exists()
 
 
 @pytest.mark.parametrize("operation", ["upgrade", "uninstall"])
@@ -5006,9 +5006,9 @@ def test_declared_dispatch_settings_reach_installed_adapter_on_run_and_resume(tm
     project = catalog_project(tmp_path, server)
     install(project)
     workflow = str(write_dispatch_workflow(project, [
-        {"id": "plan", "type": "command", "command": "speckit.plan",
+        {"id": "tasks", "type": "command", "command": "speckit.tasks",
          "reasoning_effort": "{{ inputs.effort }}"},
-        {"id": "review", "type": "prompt", "prompt": "Review the plan", "context_size": "200000"},
+        {"id": "review", "type": "prompt", "prompt": "Review the tasks", "context_size": "200000"},
     ], inputs={"effort": {"type": "string", "default": "high"}}))
 
     completed = run_fresh_process(project, ["workflow", "run", workflow, "--json"])
@@ -5016,19 +5016,19 @@ def test_declared_dispatch_settings_reach_installed_adapter_on_run_and_resume(tm
     report = json.loads(completed.stdout)
     assert report["status"] == "completed"
     assert dispatched(cli) == [
-        ["/speckit-plan", "--effort", "high"],
-        ["Review the plan", "--context", "200000"],
+        ["/speckit-tasks", "--effort", "high"],
+        ["Review the tasks", "--context", "200000"],
     ]
     assert dispatch_outputs(project, report["run_id"]) == {
-        "plan": ("high", None), "review": (None, "200000"),
+        "tasks": ("high", None), "review": (None, "200000"),
     }
 
     cli.fail.touch()
     failed = run_fresh_process(project, ["workflow", "run", workflow, "--json"])
     assert failed.returncode == 1, failed.stdout + failed.stderr
     failed_run = json.loads(failed.stdout)
-    assert (failed_run["status"], failed_run["current_step_id"]) == ("failed", "plan")
-    assert dispatched(cli)[2:] == [["/speckit-plan", "--effort", "high"]]
+    assert (failed_run["status"], failed_run["current_step_id"]) == ("failed", "tasks")
+    assert dispatched(cli)[2:] == [["/speckit-tasks", "--effort", "high"]]
 
     cli.fail.unlink()
     resumed = run_fresh_process(
@@ -5037,11 +5037,11 @@ def test_declared_dispatch_settings_reach_installed_adapter_on_run_and_resume(tm
     assert resumed.returncode == 0, resumed.stdout + resumed.stderr
     assert json.loads(resumed.stdout)["status"] == "completed"
     assert dispatched(cli)[3:] == [
-        ["/speckit-plan", "--effort", "low"],
-        ["Review the plan", "--context", "200000"],
+        ["/speckit-tasks", "--effort", "low"],
+        ["Review the tasks", "--context", "200000"],
     ]
     assert dispatch_outputs(project, failed_run["run_id"]) == {
-        "plan": ("low", None), "review": (None, "200000"),
+        "tasks": ("low", None), "review": (None, "200000"),
     }
 
 
@@ -5071,13 +5071,13 @@ def test_legacy_installed_adapter_fails_only_steps_requesting_dispatch_settings(
     if kind == "command":
         requesting["command"] = "speckit.tasks"
     else:
-        requesting["prompt"] = "Summarize the plan"
+        requesting["prompt"] = "Summarize the tasks"
     if continue_on_error:
         requesting["continue_on_error"] = True
     workflow = write_dispatch_workflow(project, [
-        {"id": "plan", "type": "command", "command": "speckit.plan"},
+        {"id": "tasks", "type": "command", "command": "speckit.tasks"},
         requesting,
-        {"id": "review", "type": "prompt", "prompt": "Review the plan"},
+        {"id": "review", "type": "prompt", "prompt": "Review the tasks"},
     ])
 
     result = run_fresh_process(project, ["workflow", "run", str(workflow), "--json"])
@@ -5087,10 +5087,10 @@ def test_legacy_installed_adapter_fails_only_steps_requesting_dispatch_settings(
     report = json.loads(result.stdout)
     assert report["status"] == ("completed" if continue_on_error else "failed")
     assert dispatched(cli) == (
-        [["/speckit-plan"], ["Review the plan"]] if continue_on_error else [["/speckit-plan"]]
+        [["/speckit-tasks"], ["Review the tasks"]] if continue_on_error else [["/speckit-tasks"]]
     )
     results = RunState.load(report["run_id"], project).step_results
-    assert results["plan"]["status"] == "completed"
+    assert results["tasks"]["status"] == "completed"
     assert results["effort"]["status"] == "failed"
     assert results["effort"]["output"]["dispatched"] is False
     error = results["effort"]["error"]
@@ -5111,8 +5111,8 @@ def test_installed_adapter_receives_no_dispatch_settings_when_unset(tmp_path, se
     project = catalog_project(tmp_path, server)
     install(project)
     workflow = write_dispatch_workflow(project, [
-        {"id": "plan", "type": "command", "command": "speckit.plan", **unset},
-        {"id": "review", "type": "prompt", "prompt": "Review the plan", **unset},
+        {"id": "tasks", "type": "command", "command": "speckit.tasks", **unset},
+        {"id": "review", "type": "prompt", "prompt": "Review the tasks", **unset},
     ], **unset)
 
     result = run_fresh_process(project, ["workflow", "run", str(workflow), "--json"])
@@ -5120,7 +5120,7 @@ def test_installed_adapter_receives_no_dispatch_settings_when_unset(tmp_path, se
     assert result.returncode == 0, result.stdout + result.stderr
     report = json.loads(result.stdout)
     assert report["status"] == "completed"
-    assert dispatched(cli) == [["/speckit-plan"], ["Review the plan"]]
+    assert dispatched(cli) == [["/speckit-tasks"], ["Review the tasks"]]
     assert dispatch_outputs(project, report["run_id"]) == {
-        "plan": (None, None), "review": (None, None),
+        "tasks": (None, None), "review": (None, None),
     }

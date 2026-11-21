@@ -103,7 +103,6 @@ class TestListArtifactsContract:
         assert {row.name for row in scripts} == {
             "check-prerequisites",
             "resolve-template",
-            "setup-plan",
             "setup-tasks",
         }
         selected_paths = catalog._selected_core_script_paths()
@@ -848,8 +847,8 @@ class TestKindHint:
         the same — ``id`` is the source-agnostic round-trip key.
         """
         cat = ArtifactCatalog(spec_kit_project)
-        by_bare = cat.get_artifact_info("speckit.plan")
-        by_id = cat.get_artifact_info("command:speckit.plan")
+        by_bare = cat.get_artifact_info("speckit.tasks")
+        by_id = cat.get_artifact_info("command:speckit.tasks")
         assert by_id == by_bare
 
     def test_id_form_resolves_template_despite_same_named_command(

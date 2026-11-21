@@ -1,8 +1,11 @@
 # How to persist specifications after delivery
 
 Spec Kit intentionally leaves teams in control of what happens to `spec.md`,
-`plan.md`, and `tasks.md` after a feature is delivered. The toolkit gives you a
-repeatable workflow, but it does not force one artifact maintenance strategy.
+`prototype.html`, `quickstart.md`, and `tasks.md` after a feature is delivered.
+The toolkit gives you a repeatable workflow, but it does not force one artifact
+maintenance strategy. Existing `plan.md` files from earlier Spec Kit versions,
+and any other user-owned technical records, are historical or team-owned
+content: the core migration does not delete, rewrite, or require them.
 
 This page describes four models so teams can make that choice explicit.
 None is the default, and none is required by Spec Kit.
@@ -40,20 +43,21 @@ change? The models below describe that retention and maintenance strategy.
 
 ## Flow-Back Spec
 
-Use flow-back when `spec.md`, `plan.md`, `tasks.md`, and the implementation are
-all allowed to inform each other.
+Use flow-back when `spec.md`, `prototype.html`, `quickstart.md`, `tasks.md`, and
+the implementation are all allowed to inform each other.
 
 After delivery, accepted discoveries can inform maintenance edits to any
 artifact. The team decides what those discoveries mean for intended behavior,
-technical approach, or task breakdown. The team can reconcile `spec.md`,
-`plan.md`, and `tasks.md` itself or use an extension whose documented behavior
-does so. The implementation is evidence for that discussion, not a replacement
-source of intent.
+the observable prototype, UAT expectations, technical choices, or work-package
+boundaries. Reconcile the owning artifacts directly or use an extension whose
+documented behavior does so. A retained `plan.md` can participate only if the
+team deliberately chooses it as a user-owned record. The implementation is
+evidence for that discussion, not a replacement source of intent.
 
 Flow-back works well when:
 
 - the team is small enough to notice and reconcile drift quickly
-- implementation discoveries are expected to reshape the original plan
+- implementation discoveries are expected to reshape the initial technical choices
 - speed matters more than preserving each intermediate decision as immutable
   history
 
@@ -67,8 +71,10 @@ Use flow-forward when each feature directory should remain a historical record.
 
 In this model, completed artifacts are treated as immutable. When requirements
 change, the team creates a new feature directory instead of mutating the
-existing `spec.md`, `plan.md`, or `tasks.md`. The older directory remains useful
-for audit, comparison, or explaining how the project reached its current state.
+existing `spec.md`, `prototype.html`, `quickstart.md`, or `tasks.md`. The older
+directory remains useful for audit, comparison, or explaining how the project
+reached its current state. Preserve any historical `plan.md` in that older
+directory as-is.
 
 Flow-forward works well when:
 
@@ -83,35 +89,37 @@ when a new directory supersedes or extends earlier work.
 
 ## Living Spec
 
-Use living spec when `spec.md` is the contract and the other artifacts are
-derived from it.
+Use living spec when `spec.md`, `prototype.html`, and the pending or executed
+UAT baseline in `quickstart.md` form the contract, and task packages are
+derived from them.
 
-After delivery, teams maintain `spec.md` as the contract, updating it first when
-intended behavior changes, then regenerating or revising `plan.md` and
-`tasks.md` from that source. The plan and task list are still valuable, but they
-are treated as disposable derivations rather than permanent sources of truth.
+After delivery, teams maintain those contract artifacts first when intended
+behavior changes, keeping requirements, prototype anchors, and UAT references
+aligned, then regenerate `tasks.md`. Technical rationale can remain in
+user-owned architecture or decision records; core no longer treats a `plan.md`
+as a required derivation.
 
 Living spec works well when:
 
 - the product contract is stable enough to own the workflow
-- the team is comfortable regenerating derived artifacts after spec changes
+- the team is comfortable regenerating derived task packages after contract changes
 - consistency between requirements and implementation matters more than keeping
-  every intermediate plan intact
+  every intermediate technical record intact
 
-The main risk is losing useful implementation rationale if derived artifacts are
-discarded without preserving important decisions elsewhere.
+The main risk is losing useful implementation rationale if implementation-owned
+decisions are discarded without preserving them elsewhere.
 
 ## Constitution-Only
 
 Use constitution-only when the constitution should be the only long-lived
 document from the Spec Kit delivery artifact set in version control.
 
-Feature artifacts still support specification, planning, implementation, and
-review through the shared delivery process. After delivery, the team retires
-them from the repository's maintained content. They may be archived externally,
-such as with a pull request or in time-limited artifact storage, or discarded
-under the team's retention policy. This is a spec-first lifecycle choice, not
-a way to skip feature specifications during delivery.
+Feature artifacts still support specification, work packaging, implementation,
+UAT execution, and review through the shared delivery process. After delivery,
+the team retires them from the repository's maintained content. They may be
+archived externally, such as with a pull request or in time-limited artifact
+storage, or discarded under the team's retention policy. This is a spec-first
+lifecycle choice, not a way to skip the frozen contract during delivery.
 
 The constitution remains the overarching project specification, but it does not
 replace feature requirements, acceptance criteria, or implementation rationale.
@@ -140,7 +148,7 @@ policies, not automatic Spec Kit behavior.
 
 After delivery and review are complete:
 
-1. Preserve enduring requirements, acceptance criteria, and decisions in their
+1. Preserve enduring requirements, acceptance criteria, UAT evidence, and decisions in their
    agreed home. Amend the constitution only when governing principles or
    constraints change; do not turn it into a collection of feature specifications.
 2. Archive feature artifacts externally or discard them according to the team's
@@ -160,7 +168,7 @@ applies.
 |---|---|---|---|
 | Flow-back spec | Reflect accepted discoveries in any artifact, then reconcile | Fast iteration and close collaboration | Silent drift between artifacts |
 | Flow-forward spec | Create a new feature directory for new requirements | Audit trails and historical clarity | Duplicate or fragmented context |
-| Living spec | Edit `spec.md`; regenerate derived artifacts | Spec as contract | Lost rationale in regenerated files |
+| Living spec | Edit the frozen contract; regenerate task packages | Contract as source | Lost rationale in regenerated files |
 | Constitution-only | Retain the constitution; retire completed feature artifacts from the repository | Delivery artifacts with enduring knowledge maintained elsewhere | Lost requirements or rationale without a lasting home |
 
 If your team has not chosen a model yet, start by answering three questions:
@@ -170,8 +178,8 @@ If your team has not chosen a model yet, start by answering three questions:
    or discarded?
 2. If retained, should completed feature directories be historical records or
    editable work areas?
-3. Is a retained `spec.md` the single source of truth, or are `plan.md` and
-   `tasks.md` allowed to become co-equal sources?
+3. Is the retained `spec.md`/prototype/UAT set the source of truth, or may
+   `tasks.md` and user-owned technical records become co-equal sources?
 
 Once those answers are clear, document the convention in your project
 constitution or team onboarding notes so future contributors know how to handle

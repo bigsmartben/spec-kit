@@ -37,7 +37,7 @@ def bundled_review(monkeypatch, project_dir):
 
     def start(workflow_id: str, gate_id: str):
         commands: list[str] = []
-        tty = gate_id == "review-plan"
+        tty = False
 
         def execute_command(self, config, context):
             commands.append(config["command"])

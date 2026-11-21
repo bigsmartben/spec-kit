@@ -1,6 +1,6 @@
 # Idea Assessment Pipeline Extension
 
-A five-stage assessment pipeline for Spec Kit that turns **any idea** into a defensible **go / needs-clarification / kill** decision *before* it enters Spec-Driven Development. It is the missing **discovery track** that sits in front of the SDD **delivery track** (`specify → clarify → plan → tasks → analyze → implement`).
+A five-stage assessment pipeline for Spec Kit that turns **any idea** into a defensible **go / needs-clarification / kill** decision *before* it enters Spec-Driven Development. It is the missing **discovery track** that sits in front of the SDD **delivery track** (`specify → clarify → tasks → analyze → implement`).
 
 Discovery answers *"is this worth building?"* Delivery answers *"how do we build it?"* Only ideas that survive assessment hand off to `/speckit-specify`.
 

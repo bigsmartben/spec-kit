@@ -8,6 +8,29 @@
 
 **Input**: User description: "$ARGUMENTS"
 
+## Prototype Contract *(mandatory)*
+
+- **Prototype**: [prototype.html](./prototype.html)
+- **Construction authority**: The prototype is the binding source for visible
+  layout, information hierarchy, component structure, interaction order,
+  responsive behavior, and applicable UI states. Implementation must reproduce
+  those behaviors rather than reinterpret the prototype as visual inspiration.
+- **Traceability**: List each material user story and requirement with the
+  `data-spec-ref` values it constrains.
+
+| Requirement | Prototype Reference | Covered Behavior / State |
+|-------------|---------------------|--------------------------|
+| [US1 / FR-001] | [data-spec-ref] | [What is fixed by the prototype] |
+
+## User Acceptance Contract *(mandatory)*
+
+- **Acceptance baseline**: [quickstart.md](./quickstart.md)
+- The baseline defines stable `UAT-*` scenarios before implementation.
+- Every UAT must map to one or more requirements and to one or more existing
+  `data-spec-ref` values in the prototype.
+- UAT scenarios are initially `PENDING`; this specification phase does not
+  execute or record acceptance results.
+
 ## User Scenarios & Testing *(mandatory)*
 
 <!--

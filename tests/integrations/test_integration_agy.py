@@ -58,7 +58,8 @@ class TestAgyInitFlow:
         )
 
         assert result.exit_code == 0, f"init --integration agy failed: {result.output}"
-        assert (target / ".agents" / "skills" / "speckit-plan" / "SKILL.md").exists()
+        assert (target / ".agents" / "skills" / "speckit-tasks" / "SKILL.md").exists()
+        assert not (target / ".agents" / "skills" / "speckit-plan").exists()
 
     def test_agy_setup_warning(self, tmp_path):
         """Agy integration should print a warning about CLI v1.0.0+ / IDE v2.0.0+ requirement during setup."""

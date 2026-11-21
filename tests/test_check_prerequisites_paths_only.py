@@ -243,7 +243,6 @@ def test_normal_mode_still_persists_feature_json(prereq_repo: Path) -> None:
     (prereq_repo / "specs" / "001-my-feature").mkdir(parents=True, exist_ok=True)
     feat = prereq_repo / "specs" / "002-other"
     feat.mkdir(parents=True, exist_ok=True)
-    (feat / "plan.md").write_text("# plan\n", encoding="utf-8")
     _write_feature_json(prereq_repo, "specs/001-my-feature")
     fj = prereq_repo / ".specify" / "feature.json"
 
@@ -414,15 +413,15 @@ def test_ps_normal_mode_still_validates_branch(prereq_repo: Path) -> None:
 
 
 @pytest.mark.skipif(not (HAS_PWSH or _WINDOWS_POWERSHELL), reason="no PowerShell available")
-def test_ps_missing_plan_error_goes_to_stderr(prereq_repo: Path) -> None:
-    """A missing plan.md must report on stderr, not stdout (#3122)."""
+def test_ps_missing_contract_error_goes_to_stderr(prereq_repo: Path) -> None:
+    """A missing frozen contract must report on stderr, not stdout (#3122)."""
     feat = prereq_repo / "specs" / "001-my-feature"
     feat.mkdir(parents=True, exist_ok=True)
     _write_feature_json(prereq_repo)
     script = prereq_repo / ".specify" / "scripts" / "powershell" / "check-prerequisites.ps1"
     exe = "pwsh" if HAS_PWSH else _WINDOWS_POWERSHELL
     result = subprocess.run(
-        [exe, "-NoProfile", "-File", str(script), "-Json"],
+        [exe, "-NoProfile", "-File", str(script), "-Json", "-RequireContract"],
         cwd=prereq_repo,
         capture_output=True,
         text=True,
@@ -430,8 +429,8 @@ def test_ps_missing_plan_error_goes_to_stderr(prereq_repo: Path) -> None:
         env=_clean_env(),
     )
     assert result.returncode != 0
-    assert "plan.md not found" in result.stderr
-    assert "plan.md not found" not in result.stdout
+    assert "spec.md not found" in result.stderr
+    assert "spec.md not found" not in result.stdout
     assert result.stdout.strip() == ""
 
 
@@ -440,7 +439,6 @@ def test_ps_missing_tasks_error_goes_to_stderr(prereq_repo: Path) -> None:
     """With -RequireTasks, a missing tasks.md must report on stderr only (#3122)."""
     feat = prereq_repo / "specs" / "001-my-feature"
     feat.mkdir(parents=True, exist_ok=True)
-    (feat / "plan.md").write_text("# plan\n", encoding="utf-8")
     _write_feature_json(prereq_repo)
     script = prereq_repo / ".specify" / "scripts" / "powershell" / "check-prerequisites.ps1"
     exe = "pwsh" if HAS_PWSH else _WINDOWS_POWERSHELL
@@ -499,7 +497,6 @@ def test_ps_normal_mode_still_persists_feature_json(prereq_repo: Path) -> None:
     (prereq_repo / "specs" / "001-my-feature").mkdir(parents=True, exist_ok=True)
     feat = prereq_repo / "specs" / "002-other"
     feat.mkdir(parents=True, exist_ok=True)
-    (feat / "plan.md").write_text("# plan\n", encoding="utf-8")
     _write_feature_json(prereq_repo, "specs/001-my-feature")
     fj = prereq_repo / ".specify" / "feature.json"
 

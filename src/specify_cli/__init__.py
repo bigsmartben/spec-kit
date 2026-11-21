@@ -386,11 +386,10 @@ def _print_cli_warning(
 DEFAULT_SKILLS_DIR = ".agents/skills"
 SKILL_DESCRIPTIONS = {
     "specify": "Create or update feature specifications from natural language descriptions.",
-    "plan": "Generate technical implementation plans from feature specifications.",
-    "tasks": "Break down implementation plans into actionable task lists.",
-    "implement": "Execute all tasks from the task breakdown to build the feature.",
-    "converge": "Assess the codebase against spec.md, plan.md, and tasks.md and append remaining work as new tasks.",
-    "analyze": "Perform cross-artifact consistency analysis across spec.md, plan.md, and tasks.md.",
+    "tasks": "Translate the frozen Specify contract into traceable, independently deliverable work packages.",
+    "implement": "Implement task work packages, choose the technical approach, and execute UAT.",
+    "converge": "Assess the codebase against the frozen Specify contract and tasks, then append remaining work.",
+    "analyze": "Analyze consistency and coverage across the frozen Specify contract and task work packages.",
     "clarify": "Structured clarification workflow for underspecified requirements.",
     "constitution": "Create or update project governing principles and development guidelines.",
     "checklist": "Generate custom quality checklists for validating requirements completeness and clarity.",

@@ -246,7 +246,7 @@ class TestBobDefaultSkillsMode:
 
         expected_commands = {
             "analyze", "clarify", "constitution", "converge", "implement",
-            "plan", "checklist", "specify", "tasks",
+            "checklist", "specify", "tasks",
         }
         actual_commands = {f.parent.name.removeprefix("speckit-") for f in created}
         assert actual_commands == expected_commands
@@ -388,7 +388,8 @@ class TestBobInitFlowDefault:
             "--ignore-agent-tools", "--script", "sh",
         ])
         assert result.exit_code == 0, f"init --integration bob failed: {result.output}"
-        assert (target / ".bob" / "skills" / "speckit-plan" / "SKILL.md").exists()
+        assert (target / ".bob" / "skills" / "speckit-tasks" / "SKILL.md").exists()
+        assert not (target / ".bob" / "skills" / "speckit-plan").exists()
         assert not (target / ".bob" / "commands").exists()
 
     def test_init_default_complete_file_inventory_sh(self, tmp_path):
@@ -411,7 +412,7 @@ class TestBobInitFlowDefault:
 
         commands = [
             "analyze", "clarify", "constitution", "converge", "implement",
-            "plan", "checklist", "specify", "tasks",
+            "checklist", "specify", "tasks",
         ]
         for cmd in commands:
             assert (project / ".bob" / "skills" / f"speckit-{cmd}" / "SKILL.md").exists(), (
@@ -434,7 +435,8 @@ class TestBobInitFlowLegacy:
             "--ignore-agent-tools", "--script", "sh",
         ])
         assert result.exit_code == 0, f"init --integration bob --legacy-commands failed: {result.output}"
-        assert (target / ".bob" / "commands" / "speckit.plan.md").exists()
+        assert (target / ".bob" / "commands" / "speckit.tasks.md").exists()
+        assert not (target / ".bob" / "commands" / "speckit.plan.md").exists()
         assert not (target / ".bob" / "skills").exists()
 
     def test_init_legacy_does_not_set_ai_skills(self, tmp_path):
@@ -668,9 +670,9 @@ class TestBobUseFlowPreservesLegacyLayout:
         ])
         assert result.exit_code == 0, f"init failed: {result.output}"
 
-        template = target / ".specify" / "templates" / "plan-template.md"
-        assert template.is_file(), "expected a rendered shared plan template"
-        assert "/speckit.plan" in template.read_text(encoding="utf-8")
+        template = target / ".specify" / "templates" / "quickstart-template.md"
+        assert template.is_file(), "expected a rendered shared UAT template"
+        assert "/speckit.specify" in template.read_text(encoding="utf-8")
 
         # Simulate a pre-PR Bob 1.x install: no stored options/separator.
         integ_json = target / ".specify" / "integration.json"
@@ -693,11 +695,11 @@ class TestBobUseFlowPreservesLegacyLayout:
         assert result.exit_code == 0, f"use failed: {result.output}"
 
         rendered = template.read_text(encoding="utf-8")
-        assert "/speckit.plan" in rendered, (
-            "legacy Bob project must keep /speckit.plan (dot) after refresh"
+        assert "/speckit.specify" in rendered, (
+            "legacy Bob project must keep /speckit.specify (dot) after refresh"
         )
-        assert "/speckit-plan" not in rendered, (
-            "shared templates must not be rewritten to the skills /speckit-plan"
+        assert "/speckit-specify" not in rendered, (
+            "shared templates must not be rewritten to skills-style /speckit-specify"
         )
         # And the persisted separator must reflect the legacy layout.
         data = json.loads(integ_json.read_text(encoding="utf-8"))

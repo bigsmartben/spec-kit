@@ -1,6 +1,7 @@
 """The ``specify integration upgrade`` command and its layout guards."""
 from __future__ import annotations
 
+import json
 import os
 from pathlib import PurePath
 
@@ -25,6 +26,103 @@ from ._command_upgrade_layout import (
 from ._commands import integration_app
 from ._lifecycle import builtin_journal, external_lifecycle, lifecycle_success
 from ._helpers import _MANIFEST_READ_ERRORS, _SharedTemplateRefreshError, _cli_error_detail, _cli_phase_label, _get_speckit_version, _preflight_setup_or_exit, _read_integration_json, _refresh_init_options_speckit_version, _register_extensions_for_agent, _register_presets_for_agent, _resolve_integration_options, _resolve_integration_script_type, _resync_manifest_after_registration, _unregister_enabled_extension_commands_for_agent, _update_init_options_for_integration, _write_integration_json
+
+
+def _path_targets_registered_name(relative_path: str, names: set[str]) -> bool:
+    path = PurePath(relative_path)
+    parts = set(path.parts)
+    filename = path.name
+    for name in names:
+        variants = {name, name.replace(".", "-")}
+        if name.startswith("speckit."):
+            short = name.removeprefix("speckit.")
+            variants.add(short.replace(".", "-"))
+        for variant in variants:
+            if variant in parts or filename == variant or filename.startswith(f"{variant}."):
+                return True
+    return False
+
+
+def _registered_addon_stale_paths(
+    project_root,
+    integration_key: str,
+    stale_paths: set[str],
+) -> set[str]:
+    """Protect stale integration artifacts still owned by presets/extensions."""
+    names: set[str] = set()
+    unknown_ownership = False
+    registries = (
+        (
+            project_root / ".specify" / "presets" / ".registry",
+            "presets",
+            True,
+        ),
+        (
+            project_root / ".specify" / "extensions" / ".registry",
+            "extensions",
+            False,
+        ),
+    )
+
+    for registry_path, root_key, agent_scoped_skills in registries:
+        if not os.path.lexists(registry_path):
+            continue
+        if registry_path.is_symlink() or not registry_path.is_file():
+            unknown_ownership = True
+            continue
+        try:
+            data = json.loads(registry_path.read_text(encoding="utf-8"))
+            entries = data[root_key]
+            if not isinstance(entries, dict):
+                raise ValueError(f"{root_key} must be a mapping")
+            for metadata in entries.values():
+                if not isinstance(metadata, dict):
+                    unknown_ownership = True
+                    continue
+                registered_commands = metadata.get("registered_commands", {})
+                if not isinstance(registered_commands, dict):
+                    unknown_ownership = True
+                else:
+                    command_names = registered_commands.get(integration_key, [])
+                    if not isinstance(command_names, list):
+                        unknown_ownership = True
+                    else:
+                        names.update(
+                            name for name in command_names if isinstance(name, str)
+                        )
+
+                raw_skills = metadata.get("registered_skills", [])
+                if isinstance(raw_skills, dict):
+                    skill_names = raw_skills.get(integration_key, [])
+                    if agent_scoped_skills and not isinstance(skill_names, list):
+                        unknown_ownership = True
+                        continue
+                    if isinstance(skill_names, list):
+                        names.update(
+                            name for name in skill_names if isinstance(name, str)
+                        )
+                elif isinstance(raw_skills, list):
+                    # Legacy preset skill lists and extension skill lists are
+                    # flat; conservatively preserve their known artifact names.
+                    names.update(
+                        name for name in raw_skills if isinstance(name, str)
+                    )
+                else:
+                    unknown_ownership = True
+        except (OSError, UnicodeError, ValueError, KeyError, json.JSONDecodeError):
+            unknown_ownership = True
+
+    preserved = {
+        rel for rel in stale_paths if _path_targets_registered_name(rel, names)
+    }
+    if unknown_ownership:
+        preserved.update(stale_paths)
+        if preserved:
+            console.print(
+                "[yellow]Warning:[/yellow] Add-on ownership registry is "
+                "unreadable; preserving all stale command artifacts."
+            )
+    return preserved
 
 
 @integration_app.command("upgrade")
@@ -310,7 +408,18 @@ def integration_upgrade(
     # in POSIX form, so normalize the exclusions the same way before subtracting
     # (an integration may build paths with os.path.join / backslashes).
     exclusions = {PurePath(p).as_posix() for p in integration.stale_cleanup_exclusions()}
-    stale_keys = (set(old_files) - set(new_files)) - exclusions
+    candidate_stale_keys = (set(old_files) - set(new_files)) - exclusions
+    addon_owned_stale_keys = _registered_addon_stale_paths(
+        project_root,
+        key,
+        candidate_stale_keys,
+    )
+    if addon_owned_stale_keys:
+        console.print(
+            "Preserving stale command artifact(s) still owned by installed "
+            f"presets or extensions: {', '.join(sorted(addon_owned_stale_keys))}"
+        )
+    stale_keys = candidate_stale_keys - addon_owned_stale_keys
     if stale_keys:
         stale_manifest = IntegrationManifest(key, project_root, version="stale-cleanup")
         stale_manifest._files = {k: old_files[k] for k in stale_keys}

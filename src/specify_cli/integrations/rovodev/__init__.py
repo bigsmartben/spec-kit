@@ -109,7 +109,7 @@ class RovodevIntegration(SkillsIntegration):
         """Create thin prompt wrappers for each SKILL.md.
 
         Skill name is derived from the parent directory name
-        (e.g. ``.rovodev/skills/speckit-plan/SKILL.md`` → ``speckit-plan``).
+        (e.g. ``.rovodev/skills/speckit-tasks/SKILL.md`` → ``speckit-tasks``).
 
         Returns (created_files, prompt_entries) where prompt_entries are
         dicts suitable for inclusion in ``prompts.yml``.

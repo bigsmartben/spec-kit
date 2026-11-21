@@ -235,12 +235,9 @@ function Get-FeaturePathsEnv {
         CURRENT_BRANCH = $currentBranch
         FEATURE_DIR   = $featureDir
         FEATURE_SPEC  = Join-Path $featureDir 'spec.md'
-        IMPL_PLAN     = Join-Path $featureDir 'plan.md'
+        PROTOTYPE     = Join-Path $featureDir 'prototype.html'
         TASKS         = Join-Path $featureDir 'tasks.md'
-        RESEARCH      = Join-Path $featureDir 'research.md'
-        DATA_MODEL    = Join-Path $featureDir 'data-model.md'
         QUICKSTART    = Join-Path $featureDir 'quickstart.md'
-        CONTRACTS_DIR = Join-Path $featureDir 'contracts'
     }
 }
 
@@ -344,14 +341,42 @@ function Get-Python3Command {
             if ($LASTEXITCODE -eq 0) { return @($override) }
         }
     }
-    if (Get-Command python3 -ErrorAction SilentlyContinue) { return @('python3') }
-    if (Get-Command python -ErrorAction SilentlyContinue) {
-        $ver = & python --version 2>&1
-        if ($ver -match 'Python 3') { return @('python') }
-    }
-    if (Get-Command py -ErrorAction SilentlyContinue) {
-        $ver = & py -3 --version 2>&1
-        if ($ver -match 'Python 3') { return @('py', '-3') }
+    $candidates = @()
+    $candidates += ,@('python3')
+    $candidates += ,@('python')
+    $candidates += ,@('py', '-3')
+    foreach ($candidate in $candidates) {
+        $exe = $candidate[0]
+        $resolvedCommand = Get-Command $exe -ErrorAction SilentlyContinue | Select-Object -First 1
+        if (-not $resolvedCommand) {
+            continue
+        }
+        # A .cmd wrapper cannot reliably receive the multiline -c programs used
+        # for manifest and section parsing through Windows PowerShell 5.1.
+        # Prefer a real executable later in the candidate list instead.
+        $resolvedPath = $resolvedCommand.Path
+        if (-not $resolvedPath) {
+            $resolvedPath = $resolvedCommand.Source
+        }
+        $resolvedExtension = [System.IO.Path]::GetExtension([string]$resolvedPath)
+        if ($resolvedExtension -in @('.cmd', '.bat')) {
+            continue
+        }
+        $args = if ($candidate.Count -gt 1) { @($candidate[1..($candidate.Count - 1)]) } else { @() }
+        $savedErrorActionPreference = $ErrorActionPreference
+        try {
+            $ErrorActionPreference = 'Continue'
+            $ver = & $exe @args --version 2>$null
+            if ($LASTEXITCODE -ne 0 -or -not ($ver -match 'Python 3')) {
+                continue
+            }
+            & $exe @args -c 'import yaml' *> $null
+            if ($LASTEXITCODE -eq 0) {
+                return @($candidate)
+            }
+        } finally {
+            $ErrorActionPreference = $savedErrorActionPreference
+        }
     }
     return $null
 }

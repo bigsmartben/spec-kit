@@ -65,7 +65,7 @@ provides:
       required: boolean  # Default: false
 
 hooks:                   # Optional, event hooks. Each event accepts either form below.
-  event_name:            # e.g., "after_specify", "after_plan", "after_tasks", "after_implement"
+  event_name:            # Core example: "after_tasks"; custom names are also accepted
     command: string      # Command to execute
     priority: integer    # Optional, >= 1, default 10 (HookExecutor sort metadata)
     optional: boolean    # Default: true
@@ -170,10 +170,13 @@ extensions, plus normalized output-name collisions with core commands.
 #### `hooks`
 
 - **Type**: object
-- **Keys**: Event names (e.g., `after_specify`, `after_plan`, `after_tasks`, `after_implement`, `before_analyze`)
+- **Keys**: Event names (for example, `after_specify`, `after_tasks`,
+  `after_implement`, or an extension-defined custom name)
 - **Value**: A single hook mapping, or a list of hook mappings to register multiple commands on one event
 - **Description**: Hooks that execute at lifecycle events
-- **Events**: Defined by core spec-kit commands
+- **Events**: Core command events are enumerated below. The hook engine also
+  accepts arbitrary extension-defined names, but core commands do not emit
+  custom names automatically.
 - **Ordering**: Current command templates surface hooks in configured YAML order.
   `HookExecutor.get_hooks_for_event()` instead returns ascending `priority`
   (integer ≥ 1, default 10), with stable authoring order for ties. See
@@ -657,16 +660,16 @@ hooks:
 
 ```yaml
 hooks:
-  after_plan:
+  after_tasks:
     - command: "speckit.my-ext.verify"
       priority: 5
       optional: false
-      description: "Verify the plan"
+      description: "Verify task coverage"
     - command: "speckit.my-ext.report"
       priority: 10
       optional: true
       prompt: "Generate the report?"
-      description: "Generate a report from the plan"
+      description: "Report task-package coverage"
 ```
 
 Within a single manifest list, a repeated `command` is deduped as "last wins" and moved to the end, so it also breaks equal-priority ties in authoring order.
@@ -677,8 +680,6 @@ Standard events (defined by core):
 
 - `before_specify` - Before specification generation
 - `after_specify` - After specification generation
-- `before_plan` - Before implementation planning
-- `after_plan` - After implementation planning
 - `before_tasks` - Before task generation
 - `after_tasks` - After task generation
 - `before_implement` - Before implementation
@@ -693,6 +694,11 @@ Standard events (defined by core):
 - `after_constitution` - After constitution update
 - `before_converge` - Before convergence assessment
 - `after_converge` - After convergence assessment
+
+The hook engine accepts arbitrary extension-defined event keys for storage and
+lookup. A core command emits only the events listed above that it actually
+implements. To use a custom event, an extension-defined command or other
+explicit caller must query and dispatch it.
 
 #### Bundled `bug` extension events (available when the extension is installed)
 
@@ -815,7 +821,7 @@ agent's lifecycle and execute the referenced command template's `scripts`
 entry directly. The referenced command must therefore provide a runnable
 script; its Markdown instructions are not sent to the coding agent. Hooks
 instead surface extension commands before or after Spec Kit commands such as
-`plan`, `tasks`, and `implement`.
+`specify`, `tasks`, and `implement`.
 
 ---
 

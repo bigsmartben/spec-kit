@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "updated_at": "2026-11-11T00:00:00Z",
+  "updated_at": "2026-11-20T00:00:00Z",
   "catalog_url": "https://raw.githubusercontent.com/github/spec-kit/main/bundles/catalog.json",
   "bundles": {
     "bugfix": {
@@ -28,7 +28,7 @@
     "assess": {
       "id": "assess",
       "name": "Idea Assessment Pipeline",
-      "version": "1.0.0",
+      "version": "1.0.1",
       "role": "developer",
       "description": "Idea triage before Spec-Driven Development: intake, research, define, shape, decide with a verdict review gate; surviving ideas hand off manually to specify.",
       "author": "GitHub",

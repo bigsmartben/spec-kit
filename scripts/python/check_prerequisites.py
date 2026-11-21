@@ -39,6 +39,7 @@ Consolidated prerequisite checking for Spec-Driven Development workflow.
 OPTIONS:
   --json              Output in JSON format
   --require-spec      Require spec.md to exist (for analysis phase)
+  --require-contract  Require spec.md, prototype.html, and quickstart.md
   --require-tasks     Require tasks.md to exist (for implementation phase)
   --include-tasks     Include tasks.md in AVAILABLE_DOCS list
   --paths-only        Only output path variables (no prerequisite validation)
@@ -46,11 +47,11 @@ OPTIONS:
   --help, -h          Show this help message
 
 EXAMPLES:
-  # Check task prerequisites (plan.md required)
-  ./check_prerequisites.py --json
+  # Check the frozen Specify contract
+  ./check_prerequisites.py --json --require-contract
 
-  # Check implementation prerequisites (plan.md + tasks.md required)
-  ./check_prerequisites.py --json --require-tasks --include-tasks
+  # Check implementation prerequisites
+  ./check_prerequisites.py --json --require-contract --require-tasks --include-tasks
 
   # Get feature paths only (no validation)
   ./check_prerequisites.py --paths-only
@@ -62,6 +63,7 @@ EXAMPLES:
 class Args:
     json_mode: bool = False
     require_spec: bool = False
+    require_contract: bool = False
     require_tasks: bool = False
     include_tasks: bool = False
     paths_only: bool = False
@@ -71,6 +73,7 @@ class Args:
 def _parse_args(argv: list[str]) -> Args:
     json_mode = False
     require_spec = False
+    require_contract = False
     require_tasks = False
     include_tasks = False
     paths_only = False
@@ -83,6 +86,8 @@ def _parse_args(argv: list[str]) -> Args:
             json_mode = True
         elif arg == "--require-spec":
             require_spec = True
+        elif arg == "--require-contract":
+            require_contract = True
         elif arg == "--require-tasks":
             require_tasks = True
         elif arg == "--include-tasks":
@@ -112,6 +117,7 @@ def _parse_args(argv: list[str]) -> Args:
     return Args(
         json_mode=json_mode,
         require_spec=require_spec,
+        require_contract=require_contract,
         require_tasks=require_tasks,
         include_tasks=include_tasks,
         paths_only=paths_only,
@@ -119,21 +125,12 @@ def _parse_args(argv: list[str]) -> Args:
     )
 
 
-def _dir_has_entries(path: Path) -> bool:
-    try:
-        return path.is_dir() and any(path.iterdir())
-    except OSError:
-        return False
-
-
 def _available_docs(paths: FeaturePaths, include_tasks: bool) -> list[str]:
     docs: list[str] = []
-    if paths.research.is_file():
-        docs.append("research.md")
-    if paths.data_model.is_file():
-        docs.append("data-model.md")
-    if _dir_has_entries(paths.contracts_dir):
-        docs.append("contracts/")
+    if paths.feature_spec.is_file():
+        docs.append("spec.md")
+    if paths.prototype.is_file():
+        docs.append("prototype.html")
     if paths.quickstart.is_file():
         docs.append("quickstart.md")
     if include_tasks and paths.tasks.is_file():
@@ -150,7 +147,8 @@ def _print_paths_only(paths: FeaturePaths, json_mode: bool) -> None:
                     "BRANCH": paths.current_branch,
                     "FEATURE_DIR": str(paths.feature_dir),
                     "FEATURE_SPEC": str(paths.feature_spec),
-                    "IMPL_PLAN": str(paths.impl_plan),
+                    "PROTOTYPE": str(paths.prototype),
+                    "QUICKSTART": str(paths.quickstart),
                     "TASKS": str(paths.tasks),
                 }
             )
@@ -161,7 +159,8 @@ def _print_paths_only(paths: FeaturePaths, json_mode: bool) -> None:
     print(f"BRANCH: {paths.current_branch}")
     print(f"FEATURE_DIR: {paths.feature_dir}")
     print(f"FEATURE_SPEC: {paths.feature_spec}")
-    print(f"IMPL_PLAN: {paths.impl_plan}")
+    print(f"PROTOTYPE: {paths.prototype}")
+    print(f"QUICKSTART: {paths.quickstart}")
     print(f"TASKS: {paths.tasks}")
 
 
@@ -188,16 +187,11 @@ def _check_file(path: Path, description: str) -> None:
     print(f"  {_status_marker(path.is_file())} {description}")
 
 
-def _check_dir(path: Path, description: str) -> None:
-    print(f"  {_status_marker(_dir_has_entries(path))} {description}")
-
-
 def _print_text_results(paths: FeaturePaths, include_tasks: bool) -> None:
     print(f"FEATURE_DIR:{paths.feature_dir}")
     print("AVAILABLE_DOCS:")
-    _check_file(paths.research, "research.md")
-    _check_file(paths.data_model, "data-model.md")
-    _check_dir(paths.contracts_dir, "contracts/")
+    _check_file(paths.feature_spec, "spec.md")
+    _check_file(paths.prototype, "prototype.html")
     _check_file(paths.quickstart, "quickstart.md")
     if include_tasks:
         _check_file(paths.tasks, "tasks.md")
@@ -229,24 +223,6 @@ def main(argv: list[str] | None = None) -> int:
         )
         return 1
 
-    if not paths.impl_plan.is_file():
-        print(f"ERROR: plan.md not found in {paths.feature_dir}", file=sys.stderr)
-        print(
-            f"Run {format_speckit_command('plan', paths.repo_root)} first to create the implementation plan.",
-            file=sys.stderr,
-        )
-        return 1
-
-    if paths.impl_plan.stat().st_size == 0:
-        print(f"ERROR: plan.md is empty in {paths.feature_dir}", file=sys.stderr)
-        print(
-            "Populate it, or remove the empty file and rerun "
-            f"{format_speckit_command('plan', paths.repo_root)} "
-            "with a valid plan template.",
-            file=sys.stderr,
-        )
-        return 1
-
     if args.require_spec and not paths.feature_spec.is_file():
         print(f"ERROR: spec.md not found in {paths.feature_dir}", file=sys.stderr)
         print(
@@ -254,6 +230,30 @@ def main(argv: list[str] | None = None) -> int:
             file=sys.stderr,
         )
         return 1
+
+    if args.require_contract:
+        required = (
+            (paths.feature_spec, "spec.md"),
+            (paths.prototype, "prototype.html"),
+            (paths.quickstart, "quickstart.md"),
+        )
+        for path, name in required:
+            if not path.is_file():
+                print(f"ERROR: {name} not found in {paths.feature_dir}", file=sys.stderr)
+                print(
+                    f"Run {format_speckit_command('specify', paths.repo_root)} "
+                    "first to create the frozen requirement contract.",
+                    file=sys.stderr,
+                )
+                return 1
+            if path.stat().st_size == 0:
+                print(f"ERROR: {name} is empty in {paths.feature_dir}", file=sys.stderr)
+                print(
+                    f"Rerun {format_speckit_command('specify', paths.repo_root)} "
+                    f"to regenerate {name}.",
+                    file=sys.stderr,
+                )
+                return 1
 
     if args.require_tasks and not paths.tasks.is_file():
         print(f"ERROR: tasks.md not found in {paths.feature_dir}", file=sys.stderr)

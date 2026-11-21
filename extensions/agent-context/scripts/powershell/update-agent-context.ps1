@@ -8,16 +8,16 @@
 # agent-context extension config:
 #   .specify/extensions/agent-context/agent-context-config.yml
 #
-# Usage: update-agent-context.ps1 [plan_path]
+# Usage: update-agent-context.ps1 [feature_directory]
 #
-# When `plan_path` is omitted, the script derives it from `.specify/feature.json`
-# (written by /speckit-specify). Falls back to the most recently modified
-# `specs/**/plan.md` only when feature.json is absent or its plan does not exist yet.
+# When `feature_directory` is omitted, the script derives it from
+# `.specify/feature.json` (written by /speckit-specify). It safely discovers the
+# most recently modified specs/**/spec.md when the recorded feature is absent.
 
 [CmdletBinding()]
 param(
     [Parameter(Position = 0)]
-    [string]$PlanPath
+    [string]$FeatureDirectory
 )
 
 function Add-MdcFrontmatter {
@@ -164,6 +164,51 @@ function Test-IsSubPath {
     $pathFull = [System.IO.Path]::GetFullPath($Path)
     return $pathFull.Equals($rootFull, $comparison) -or
         $pathFull.StartsWith($rootFull + [System.IO.Path]::DirectorySeparatorChar, $comparison)
+}
+
+function Get-ArtifactDisplayPath {
+    param(
+        [Parameter(Mandatory = $true)][string]$Root,
+        [Parameter(Mandatory = $true)][string]$Path,
+        [switch]$RequireContained
+    )
+
+    $resolvedPath = Resolve-Path -LiteralPath $Path -ErrorAction SilentlyContinue
+    $fullPath = if ($resolvedPath) {
+        $resolvedPath.Path
+    } else {
+        [System.IO.Path]::GetFullPath($Path)
+    }
+    $contained = Test-IsSubPath -Root $Root -Path $fullPath
+    if ($RequireContained -and -not $contained) {
+        return ""
+    }
+    if ($contained) {
+        $normRoot = [System.IO.Path]::GetFullPath($Root).TrimEnd('\', '/') +
+            [System.IO.Path]::DirectorySeparatorChar
+        return $fullPath.Substring($normRoot.Length).Replace('\', '/')
+    }
+    return $fullPath.Replace('\', '/')
+}
+
+function Get-ArtifactPathsForDirectory {
+    param(
+        [Parameter(Mandatory = $true)][string]$Root,
+        [Parameter(Mandatory = $true)][string]$Directory,
+        [switch]$RequireContained
+    )
+
+    $artifactPaths = @()
+    foreach ($artifactName in @('spec.md', 'prototype.html', 'quickstart.md', 'tasks.md')) {
+        $artifact = Join-Path $Directory $artifactName
+        if (Test-Path -LiteralPath $artifact -PathType Leaf) {
+            $displayed = Get-ArtifactDisplayPath -Root $Root -Path $artifact -RequireContained:$RequireContained
+            if ($displayed) {
+                $artifactPaths += $displayed
+            }
+        }
+    }
+    return $artifactPaths
 }
 
 $ErrorActionPreference = 'Stop'
@@ -382,80 +427,64 @@ if ($cm) {
     }
 }
 
-if (-not $PlanPath) {
-    # Prefer .specify/feature.json (written by /speckit-specify) over mtime heuristic.
+$ArtifactPaths = @()
+$featureValue = $FeatureDirectory
+if (-not $featureValue) {
     $FeatureJson = Join-Path $ProjectRoot '.specify/feature.json'
-    if (Test-Path -LiteralPath $FeatureJson) {
+    if (Test-Path -LiteralPath $FeatureJson -PathType Leaf) {
         try {
             $fj = Get-Content -LiteralPath $FeatureJson -Raw -Encoding UTF8 | ConvertFrom-Json
-            $featureDir = $fj.feature_directory
-            if ($featureDir -isnot [string] -or -not $featureDir) {
-                $featureDir = $null
-            } else {
-                $featureDir = $featureDir.TrimEnd('\', '/')
-            }
-            if ($featureDir) {
-                # Join-Path on Unix does not treat absolute ChildPath as "wins"; check explicitly.
-                if ([System.IO.Path]::IsPathRooted($featureDir)) {
-                    $candidatePlan = Join-Path $featureDir 'plan.md'
-                } else {
-                    $candidatePlan = Join-Path (Join-Path $ProjectRoot $featureDir) 'plan.md'
-                }
-                if (Test-Path -LiteralPath $candidatePlan) {
-                    # Resolve ./ .. segments before relativizing (mirrors bash Path.resolve()).
-                    # GetFullPath is available in .NET Framework 4.x (PS 5.1 compatible).
-                    $resolvedPlan = [System.IO.Path]::GetFullPath($candidatePlan)
-                    $resolvedDir  = [System.IO.Path]::GetDirectoryName($resolvedPlan)
-                    $normRoot = $ProjectRoot.TrimEnd('\', '/') + [System.IO.Path]::DirectorySeparatorChar
-                    $normDir  = $resolvedDir.TrimEnd('\', '/') + [System.IO.Path]::DirectorySeparatorChar
-                    $cmp = if ([System.Environment]::OSVersion.Platform -eq [System.PlatformID]::Win32NT) { [System.StringComparison]::OrdinalIgnoreCase } else { [System.StringComparison]::Ordinal }
-                    if ($normDir.StartsWith($normRoot, $cmp)) {
-                        $relDir = $normDir.Substring($normRoot.Length).TrimEnd('\', '/')
-                        $PlanPath = if ($relDir) { $relDir.Replace('\', '/') + '/plan.md' } else { 'plan.md' }
-                    } else {
-                        $PlanPath = $resolvedPlan.Replace('\', '/')
-                    }
-                }
+            if ($fj.feature_directory -is [string] -and $fj.feature_directory) {
+                $featureValue = $fj.feature_directory
             }
         } catch {
-            # Non-fatal: fall through to mtime heuristic.
-        }
-    }
-
-    # Fall back to mtime only when feature.json is absent or its plan does not exist yet.
-    if (-not $PlanPath) {
-        try {
-            $specsDir = Join-Path $ProjectRoot 'specs'
-            # Recurse (rather than the old one-level specs/*/plan.md scan) so scoped
-            # layouts created via SPECIFY_FEATURE_DIRECTORY, e.g.
-            # specs/<scope>/<feature>/plan.md, are still discovered when
-            # feature.json is absent (#3024).
-            $candidate = Get-ChildItem -Path $specsDir -Filter 'plan.md' -File -Recurse -ErrorAction SilentlyContinue |
-                Sort-Object LastWriteTime -Descending |
-                Select-Object -First 1
-            if ($candidate) {
-                # GetRelativePath is .NET 5+ only; strip prefix manually for PS 5.1 compat.
-                # Use case-insensitive comparison on Windows only (matches common.ps1 pattern).
-                $fullPath = $candidate.FullName.Replace('\', '/')
-                $normRoot = $ProjectRoot.Replace('\', '/').TrimEnd('/') + '/'
-                $cmp = if ([System.Environment]::OSVersion.Platform -eq [System.PlatformID]::Win32NT) { [System.StringComparison]::OrdinalIgnoreCase } else { [System.StringComparison]::Ordinal }
-                if ($fullPath.StartsWith($normRoot, $cmp)) {
-                    $PlanPath = $fullPath.Substring($normRoot.Length)
-                } else {
-                    $PlanPath = $fullPath
-                }
-            }
-        } catch {
-            # Non-fatal: continue without a plan path.
+            # Non-fatal: use safe current-feature discovery.
         }
     }
 }
 
+if ($featureValue) {
+    $featureValue = $featureValue.TrimEnd('\', '/')
+    $featureDirPath = if ([System.IO.Path]::IsPathRooted($featureValue)) {
+        $featureValue
+    } else {
+        Join-Path $ProjectRoot $featureValue
+    }
+    if (Test-Path -LiteralPath (Join-Path $featureDirPath 'spec.md') -PathType Leaf) {
+        $ArtifactPaths = @(Get-ArtifactPathsForDirectory -Root $ProjectRoot -Directory $featureDirPath)
+    }
+}
+
+if ($ArtifactPaths.Count -eq 0) {
+    try {
+        $specsDir = Join-Path $ProjectRoot 'specs'
+        $candidate = Get-ChildItem -Path $specsDir -Filter 'spec.md' -File -Recurse -ErrorAction SilentlyContinue |
+            ForEach-Object {
+                $resolvedSpec = Resolve-Path -LiteralPath $_.FullName -ErrorAction SilentlyContinue
+                if ($resolvedSpec -and (Test-IsSubPath -Root $ProjectRoot -Path $resolvedSpec.Path)) {
+                    [PSCustomObject]@{
+                        Path = $resolvedSpec.Path
+                        LastWriteTime = $_.LastWriteTime
+                    }
+                }
+            } |
+            Sort-Object LastWriteTime -Descending |
+            Select-Object -First 1
+        if ($candidate) {
+            $ArtifactPaths = @(
+                Get-ArtifactPathsForDirectory -Root $ProjectRoot `
+                    -Directory (Split-Path -Parent $candidate.Path) -RequireContained
+            )
+        }
+    } catch {
+        # Non-fatal: continue with a contract heading and no artifact paths.
+    }
+}
+
 $lines = @($MarkerStart,
-           'For additional context about technologies to be used, project structure,',
-           'shell commands, and other important information, read the current plan')
-if ($PlanPath) {
-    $lines += "at $PlanPath"
+           'Use the active Spec Kit feature artifacts as the product contract:')
+foreach ($ArtifactPath in $ArtifactPaths) {
+    $lines += '- `{0}`' -f $ArtifactPath
 }
 $lines += $MarkerEnd
 $Section = ($lines -join "`n") + "`n"

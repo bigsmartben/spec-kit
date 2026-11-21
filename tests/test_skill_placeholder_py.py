@@ -11,9 +11,9 @@ from specify_cli.agents import CommandRegistrar
 
 FRONTMATTER = {
     "scripts": {
-        "sh": "scripts/bash/setup-plan.sh --json",
-        "ps": "scripts/powershell/setup-plan.ps1 -Json",
-        "py": "scripts/python/setup_plan.py --json",
+        "sh": "scripts/bash/setup-tasks.sh --json",
+        "ps": "scripts/powershell/setup-tasks.ps1 -Json",
+        "py": "scripts/python/setup_tasks.py --json",
     }
 }
 
@@ -36,13 +36,13 @@ def _resolve(tmp_path: Path, script: str | None, monkeypatch) -> str:
 
 def test_py_variant_prefixes_interpreter(tmp_path, monkeypatch):
     body = _resolve(tmp_path, "py", monkeypatch)
-    assert "python3 .specify/scripts/python/setup_plan.py --json" in body
+    assert "python3 .specify/scripts/python/setup_tasks.py --json" in body
     assert "{SCRIPT}" not in body
 
 
 def test_sh_variant_is_not_prefixed(tmp_path, monkeypatch):
     body = _resolve(tmp_path, "sh", monkeypatch)
-    assert ".specify/scripts/bash/setup-plan.sh --json" in body
+    assert ".specify/scripts/bash/setup-tasks.sh --json" in body
     assert "python3" not in body
 
 
@@ -77,15 +77,15 @@ def test_missing_py_variant_falls_back_to_available_script(tmp_path, monkeypatch
     save_init_options(tmp_path, {"script": "py"})
     frontmatter = {
         "scripts": {
-            "sh": "scripts/bash/setup-plan.sh --json",
-            "ps": "scripts/powershell/setup-plan.ps1 -Json",
+            "sh": "scripts/bash/setup-tasks.sh --json",
+            "ps": "scripts/powershell/setup-tasks.ps1 -Json",
         }
     }
     body = CommandRegistrar.resolve_skill_placeholders(
         "codex", frontmatter, "Run {SCRIPT} now.", tmp_path
     )
     assert "{SCRIPT}" not in body
-    assert "setup-plan" in body
+    assert "setup-tasks" in body
 
 
 def test_py_install_includes_python_and_fallback_scripts(tmp_path, monkeypatch):
@@ -97,7 +97,6 @@ def test_py_install_includes_python_and_fallback_scripts(tmp_path, monkeypatch):
     )
     _install_shared_infra(tmp_path, "py", force=True)
 
-    assert (tmp_path / ".specify/scripts/python/setup_plan.py").is_file()
     assert (tmp_path / ".specify/scripts/python/setup_tasks.py").is_file()
 
     save_init_options(tmp_path, {"script": "py"})

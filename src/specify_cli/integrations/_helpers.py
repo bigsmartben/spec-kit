@@ -680,7 +680,6 @@ def _unregister_enabled_extension_commands_for_agent(
     )
 
 
-# ---------------------------------------------------------------------------
 # CLI formatting helpers (re-exported from _commands.py)
 # ---------------------------------------------------------------------------
 

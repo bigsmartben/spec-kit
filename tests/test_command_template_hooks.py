@@ -23,8 +23,8 @@ REPO_ROOT = Path(__file__).parent.parent
 TEMPLATES_DIR = REPO_ROOT / "templates" / "commands"
 
 _HOOK_KEY = re.compile(r"`hooks\.(before|after)_[a-z_]+`")
-_PARSE_FAILURE_LINE = re.compile(
-    r"^.*If the YAML cannot be parsed or is invalid.*$", re.MULTILINE
+_PARSE_FAILURE_INSTRUCTION = re.compile(
+    r"- If the YAML cannot be parsed or is invalid.*?(?=- Filter out hooks)"
 )
 _SILENT = "skip hook checking silently"
 # Every clause of the replacement instruction, so that dropping any one of
@@ -49,7 +49,7 @@ HOOK_TEMPLATES = sorted(
 def test_hook_templates_discovered():
     # Guard: the glob must find the templates that read extensions.yml,
     # otherwise the parametrized tests below would pass by vacuity.
-    assert {"specify.md", "plan.md", "tasks.md", "implement.md"} <= set(
+    assert {"specify.md", "tasks.md", "implement.md"} <= set(
         HOOK_TEMPLATES
     )
 
@@ -66,7 +66,8 @@ def test_unreadable_manifest_is_never_skipped_silently(name: str):
 @pytest.mark.parametrize("name", HOOK_TEMPLATES)
 def test_every_parse_failure_line_reports_before_continuing(name: str):
     text = (TEMPLATES_DIR / name).read_text(encoding="utf-8")
-    lines = _PARSE_FAILURE_LINE.findall(text)
+    normalized = " ".join(text.split())
+    lines = _PARSE_FAILURE_INSTRUCTION.findall(normalized)
     # One line for the before-hook check, one for the after-hook check.
     assert len(lines) >= 2, (
         f"{name}: expected a parse-failure instruction at both hook sites, "

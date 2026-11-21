@@ -73,7 +73,7 @@ class TestIntegrationUse:
             not_executable = [s.name for s in shared if s != user_script and not os.access(s, os.X_OK)]
             assert not not_executable, f"use left shared scripts non-executable: {not_executable}"
 
-    @pytest.mark.parametrize("edited_command", [None, "plan", "tasks"])
+    @pytest.mark.parametrize("edited_command", [None, "specify", "tasks"])
     def test_use_syncs_manifest_without_blessing_user_edits(
         self, tmp_path, tasks_preset_src, edited_command
     ):
@@ -366,10 +366,10 @@ class TestIntegrationUse:
 
     def test_use_refreshes_shared_templates_between_command_styles(self, tmp_path):
         project = _init_project(tmp_path, "claude")
-        template = project / ".specify" / "templates" / "plan-template.md"
+        template = project / ".specify" / "templates" / "quickstart-template.md"
         script = project / ".specify" / "scripts" / "bash" / "check-prerequisites.sh"
-        assert "/speckit-plan" in template.read_text(encoding="utf-8")
-        assert "/speckit-plan" in script.read_text(encoding="utf-8")
+        assert "/speckit-specify" in template.read_text(encoding="utf-8")
+        assert "/speckit-specify" in script.read_text(encoding="utf-8")
 
         old_cwd = os.getcwd()
         try:
@@ -382,22 +382,22 @@ class TestIntegrationUse:
 
             use_gemini = runner.invoke(app, ["integration", "use", "gemini"], catch_exceptions=False)
             assert use_gemini.exit_code == 0, use_gemini.output
-            assert "/speckit.plan" in template.read_text(encoding="utf-8")
-            assert "/speckit.plan" in script.read_text(encoding="utf-8")
-            assert "/speckit-plan" not in script.read_text(encoding="utf-8")
+            assert "/speckit.specify" in template.read_text(encoding="utf-8")
+            assert "/speckit.specify" in script.read_text(encoding="utf-8")
+            assert "/speckit-specify" not in script.read_text(encoding="utf-8")
 
             use_claude = runner.invoke(app, ["integration", "use", "claude"], catch_exceptions=False)
             assert use_claude.exit_code == 0, use_claude.output
-            assert "/speckit-plan" in template.read_text(encoding="utf-8")
-            assert "/speckit-plan" in script.read_text(encoding="utf-8")
-            assert "/speckit.plan" not in script.read_text(encoding="utf-8")
+            assert "/speckit-specify" in template.read_text(encoding="utf-8")
+            assert "/speckit-specify" in script.read_text(encoding="utf-8")
+            assert "/speckit.specify" not in script.read_text(encoding="utf-8")
         finally:
             os.chdir(old_cwd)
 
     def test_use_preserves_modified_templates_unless_forced(self, tmp_path):
         project = _init_project(tmp_path, "claude")
-        template = project / ".specify" / "templates" / "plan-template.md"
-        template.write_text("custom template with /speckit-plan\n", encoding="utf-8")
+        template = project / ".specify" / "templates" / "quickstart-template.md"
+        template.write_text("custom template with /speckit-specify\n", encoding="utf-8")
 
         old_cwd = os.getcwd()
         try:
@@ -412,7 +412,7 @@ class TestIntegrationUse:
             assert use_gemini.exit_code == 0, use_gemini.output
             normalized = " ".join(use_gemini.output.split())
             assert "specify integration use gemini --force" in normalized
-            assert template.read_text(encoding="utf-8") == "custom template with /speckit-plan\n"
+            assert template.read_text(encoding="utf-8") == "custom template with /speckit-specify\n"
 
             force_use = runner.invoke(app, [
                 "integration", "use", "gemini",
@@ -423,7 +423,7 @@ class TestIntegrationUse:
             os.chdir(old_cwd)
 
         updated = template.read_text(encoding="utf-8")
-        assert "/speckit.plan" in updated
+        assert "/speckit.specify" in updated
         assert "custom template" not in updated
 
     def test_use_does_not_persist_default_when_shared_infra_refresh_fails(self, tmp_path, monkeypatch):

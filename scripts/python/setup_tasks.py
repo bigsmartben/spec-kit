@@ -40,24 +40,8 @@ def _help_text(argv0: str) -> str:
 """
 
 
-def _dir_has_entries(path: Path) -> bool:
-    try:
-        return path.is_dir() and any(path.iterdir())
-    except OSError:
-        return False
-
-
 def _available_docs(paths: FeaturePaths) -> list[str]:
-    docs: list[str] = []
-    if paths.research.is_file():
-        docs.append("research.md")
-    if paths.data_model.is_file():
-        docs.append("data-model.md")
-    if _dir_has_entries(paths.contracts_dir):
-        docs.append("contracts/")
-    if paths.quickstart.is_file():
-        docs.append("quickstart.md")
-    return docs
+    return ["spec.md", "prototype.html", "quickstart.md"]
 
 
 def _status_marker(ok: bool) -> str:
@@ -83,8 +67,24 @@ def _check_file(path: Path, description: str) -> None:
     print(f"  {_status_marker(path.is_file())} {description}")
 
 
-def _check_dir(path: Path, description: str) -> None:
-    print(f"  {_status_marker(_dir_has_entries(path))} {description}")
+def _require_nonempty(path: Path, description: str, paths: FeaturePaths) -> bool:
+    if not path.is_file():
+        print(f"ERROR: {description} not found in {paths.feature_dir}", file=sys.stderr)
+        print(
+            f"Run {format_speckit_command('specify', paths.repo_root)} first "
+            "to create the frozen requirement contract.",
+            file=sys.stderr,
+        )
+        return False
+    if path.stat().st_size == 0:
+        print(f"ERROR: {description} is empty in {paths.feature_dir}", file=sys.stderr)
+        print(
+            f"Rerun {format_speckit_command('specify', paths.repo_root)} "
+            f"to regenerate {description}.",
+            file=sys.stderr,
+        )
+        return False
+    return True
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -107,20 +107,12 @@ def main(argv: list[str] | None = None) -> int:
         print("ERROR: Failed to resolve feature paths", file=sys.stderr)
         return int(exc.code) if isinstance(exc.code, int) else 1
 
-    if not paths.impl_plan.is_file():
-        print(f"ERROR: plan.md not found in {paths.feature_dir}", file=sys.stderr)
-        print(
-            f"Run {format_speckit_command('plan', paths.repo_root)} first to create the implementation plan.",
-            file=sys.stderr,
-        )
-        return 1
-
-    if not paths.feature_spec.is_file():
-        print(f"ERROR: spec.md not found in {paths.feature_dir}", file=sys.stderr)
-        print(
-            f"Run {format_speckit_command('specify', paths.repo_root)} first to create the feature structure.",
-            file=sys.stderr,
-        )
+    required = (
+        (paths.feature_spec, "spec.md"),
+        (paths.prototype, "prototype.html"),
+        (paths.quickstart, "quickstart.md"),
+    )
+    if not all(_require_nonempty(path, name, paths) for path, name in required):
         return 1
 
     docs = _available_docs(paths)
@@ -154,6 +146,9 @@ def main(argv: list[str] | None = None) -> int:
             _json_line(
                 {
                     "FEATURE_DIR": str(paths.feature_dir),
+                    "FEATURE_SPEC": str(paths.feature_spec),
+                    "PROTOTYPE": str(paths.prototype),
+                    "QUICKSTART": str(paths.quickstart),
                     "AVAILABLE_DOCS": docs,
                     "TASKS_TEMPLATE": str(tasks_template) if tasks_template else "",
                     "TASKS_TEMPLATE_CONTENT": tasks_template_content,
@@ -165,9 +160,8 @@ def main(argv: list[str] | None = None) -> int:
         print(f"FEATURE_DIR: {paths.feature_dir}")
         print(f"TASKS_TEMPLATE: {tasks_template or 'not found'}")
         print("AVAILABLE_DOCS:")
-        _check_file(paths.research, "research.md")
-        _check_file(paths.data_model, "data-model.md")
-        _check_dir(paths.contracts_dir, "contracts/")
+        _check_file(paths.feature_spec, "spec.md")
+        _check_file(paths.prototype, "prototype.html")
         _check_file(paths.quickstart, "quickstart.md")
     return 0
 

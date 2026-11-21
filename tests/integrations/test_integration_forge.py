@@ -162,16 +162,16 @@ class TestForgeIntegration:
                 "Forge requires hyphen notation (/speckit-<cmd>) for ZSH compatibility"
             )
 
-    def test_plan_command_has_no_context_placeholder(self, tmp_path):
-        """The core plan command must not carry a context-file placeholder —
+    def test_tasks_command_has_no_context_placeholder(self, tmp_path):
+        """The core tasks command must not carry a context-file placeholder —
         agent context files are owned by the opt-in agent-context extension."""
         from specify_cli.integrations.forge import ForgeIntegration
         forge = ForgeIntegration()
         m = IntegrationManifest("forge", tmp_path)
         forge.setup(tmp_path, m)
-        plan_file = tmp_path / ".forge" / "commands" / "speckit.plan.md"
-        assert plan_file.exists()
-        content = plan_file.read_text(encoding="utf-8")
+        tasks_file = tmp_path / ".forge" / "commands" / "speckit.tasks.md"
+        assert tasks_file.exists()
+        content = tasks_file.read_text(encoding="utf-8")
         assert "__CONTEXT_FILE__" not in content
 
     def test_forge_specific_transformations(self, tmp_path):

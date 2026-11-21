@@ -515,9 +515,10 @@ def test_core_specify_command_writes_composed_spec_template():
     assert "resolve-template.sh spec-template --json" in content
     assert "resolve-template.ps1 spec-template -Json" in content
     assert "resolve_template.py spec-template --json" in content
-    assert "parse `TEMPLATE_CONTENT` as the active `spec-template`" in content
-    assert "Write `TEMPLATE_CONTENT` to `SPECIFY_FEATURE_DIRECTORY/spec.md`" in content
-    assert "do not continue with only one contributing template layer" in content
+    assert "parse `TEMPLATE_CONTENT` as `SPEC_TEMPLATE_CONTENT`" in content
+    assert "Write the specification to `SPEC_FILE`" in content
+    assert "`PROTOTYPE_TEMPLATE_CONTENT`" in content
+    assert "`QUICKSTART_TEMPLATE_CONTENT`" in content
     assert "Copy the resolved `spec-template` file" not in content
 
 
@@ -604,6 +605,17 @@ class TestBundledPresetLocator:
 
         path = _locate_bundled_preset("nonexistent-preset")
         assert path is None
+
+    def test_historical_workflow_preset_is_not_bundled_or_cataloged(self):
+        from specify_cli import _locate_bundled_preset
+
+        assert _locate_bundled_preset("workflow-preset") is None
+        for catalog_name in ("catalog.json", "catalog.community.json"):
+            catalog_path = (
+                Path(__file__).parent.parent / "presets" / catalog_name
+            )
+            catalog = json.loads(catalog_path.read_text(encoding="utf-8"))
+            assert "workflow-preset" not in catalog["presets"]
 
     def test_locate_bundled_preset_rejects_invalid_id(self):
         """_locate_bundled_preset rejects IDs with invalid characters."""
@@ -767,7 +779,9 @@ class TestConstitutionSyncPreset:
         assert manifest["requires"]["speckit_version"] == ">=0.14.4"
 
     def test_wrapper_uses_core_template_and_propagates(self):
-        text = (self.PRESET_DIR / "commands" / "speckit.constitution.md").read_text()
+        text = (
+            self.PRESET_DIR / "commands" / "speckit.constitution.md"
+        ).read_text(encoding="utf-8")
 
         # Parse the Markdown frontmatter as YAML rather than substring-matching,
         # so `strategy: wrap` is asserted structurally (not as text that could

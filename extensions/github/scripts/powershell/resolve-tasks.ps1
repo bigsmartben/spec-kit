@@ -6,10 +6,9 @@
 # speckit.github.taskstoissues keeps working when the core taskstoissues
 # command (and its check-prerequisites helper invocation) is deprecated and
 # removed. It is a trimmed twin of core check-prerequisites.ps1 -- it resolves
-# the project root and the active feature directory, requires plan.md and
-# tasks.md exactly as core's -RequireTasks -IncludeTasks invocation does, and
-# reports the optional design docs that sit next to them. Core does not require
-# spec.md for this command, so neither does this script.
+# the project root and the active feature directory, requires tasks.md, and
+# reports the frozen contract documents that sit next to it when present.
+# Only tasks.md is a prerequisite for this command.
 #
 # Usage: ./resolve-tasks.ps1 [-Json]
 #
@@ -196,13 +195,6 @@ if (-not [System.IO.Path]::IsPathRooted($featureDir)) {
 if (-not (Test-Path -LiteralPath $featureDir -PathType Container)) {
     [Console]::Error.WriteLine("ERROR: Feature directory not found: $featureDir")
     [Console]::Error.WriteLine("Run the Spec Kit specify command first to create the feature structure.")
-    exit 1
-}
-
-$implPlan = Join-Path $featureDir 'plan.md'
-if (-not (Test-Path -LiteralPath $implPlan -PathType Leaf)) {
-    [Console]::Error.WriteLine("ERROR: plan.md not found in $featureDir")
-    [Console]::Error.WriteLine("Run the Spec Kit plan command first to create the implementation plan.")
     exit 1
 }
 

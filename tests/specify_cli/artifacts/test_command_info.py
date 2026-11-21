@@ -31,7 +31,7 @@ class TestCommandInfo:
 
         result = CliRunner().invoke(
             app,
-            ["artifact", "info", "speckit.plan"],
+            ["artifact", "info", "speckit.tasks"],
         )
 
         assert result.exit_code == 2
@@ -53,7 +53,7 @@ class TestCommandInfo:
             [
                 "artifact",
                 "info",
-                "speckit.plan",
+                "speckit.tasks",
                 "--json",
                 "--kind",
                 "invalid",
@@ -124,13 +124,13 @@ class TestCommandInfo:
         expected = command_info.get_artifact_info(
             command_info.ArtifactInfoRequest(
                 spec_kit_project,
-                "command:speckit.plan",
+                "command:speckit.tasks",
             )
         )
 
         result = CliRunner().invoke(
             app,
-            ["artifact", "info", "command:speckit.plan", "--json"],
+            ["artifact", "info", "command:speckit.tasks", "--json"],
         )
 
         assert result.exit_code == 0, result.stderr
@@ -164,9 +164,9 @@ class TestCommandInfo:
     ):
         monkeypatch.chdir(spec_kit_project)
         runner = CliRunner()
-        by_bare = runner.invoke(app, ["artifact", "info", "speckit.plan", "--json"])
+        by_bare = runner.invoke(app, ["artifact", "info", "speckit.tasks", "--json"])
         by_id = runner.invoke(
-            app, ["artifact", "info", "command:speckit.plan", "--json"]
+            app, ["artifact", "info", "command:speckit.tasks", "--json"]
         )
         assert by_bare.exit_code == 0, by_bare.stderr
         assert by_id.exit_code == 0, by_id.stderr
@@ -217,7 +217,7 @@ class TestCommandInfo:
 
         result = CliRunner().invoke(
             app,
-            ["artifact", "info", "speckit.plan", "--json"],
+            ["artifact", "info", "speckit.tasks", "--json"],
         )
 
         assert result.exit_code == 1

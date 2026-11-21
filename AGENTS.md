@@ -8,6 +8,11 @@
 
 The toolkit supports multiple AI coding assistants, allowing teams to use their preferred tools while maintaining consistent project structure and development practices.
 
+## Personal Fork Workflow
+
+For personal downstream repository operations, read and follow
+[Personal Fork Agent Guide](docs/agent-guides/personal-fork.md).
+
 ## Adding or Updating CLI Commands
 
 Before adding, updating, or reorganizing Specify CLI commands, read

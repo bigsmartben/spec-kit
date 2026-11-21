@@ -3553,8 +3553,8 @@ Real body starts here.
         registrar = AgentCommandRegistrar()
         original = {
             "scripts": {
-                "sh": "../../scripts/bash/setup-plan.sh {ARGS}",
-                "ps": "../../scripts/powershell/setup-plan.ps1 {ARGS}",
+                "sh": "../../scripts/bash/setup-tasks.sh {ARGS}",
+                "ps": "../../scripts/powershell/setup-tasks.ps1 {ARGS}",
             }
         }
         before = json.loads(json.dumps(original))
@@ -3562,8 +3562,8 @@ Real body starts here.
         adjusted = registrar._adjust_script_paths(original)
 
         assert original == before
-        assert adjusted["scripts"]["sh"] == ".specify/scripts/bash/setup-plan.sh {ARGS}"
-        assert adjusted["scripts"]["ps"] == ".specify/scripts/powershell/setup-plan.ps1 {ARGS}"
+        assert adjusted["scripts"]["sh"] == ".specify/scripts/bash/setup-tasks.sh {ARGS}"
+        assert adjusted["scripts"]["ps"] == ".specify/scripts/powershell/setup-tasks.ps1 {ARGS}"
 
     def test_adjust_script_paths_preserves_extension_local_paths(self):
         """Extension-local script paths should not be rewritten into .specify/.specify."""
@@ -3572,14 +3572,14 @@ Real body starts here.
         original = {
             "scripts": {
                 "sh": ".specify/extensions/test-ext/scripts/setup.sh {ARGS}",
-                "ps": "scripts/powershell/setup-plan.ps1 {ARGS}",
+                "ps": "scripts/powershell/setup-tasks.ps1 {ARGS}",
             }
         }
 
         adjusted = registrar._adjust_script_paths(original)
 
         assert adjusted["scripts"]["sh"] == ".specify/extensions/test-ext/scripts/setup.sh {ARGS}"
-        assert adjusted["scripts"]["ps"] == ".specify/scripts/powershell/setup-plan.ps1 {ARGS}"
+        assert adjusted["scripts"]["ps"] == ".specify/scripts/powershell/setup-tasks.ps1 {ARGS}"
 
     def test_adjust_script_paths_rewrites_extension_top_level_scripts(self):
         """Extension command-local scripts should resolve under the installed extension."""
@@ -3589,7 +3589,7 @@ Real body starts here.
         original = {
             "scripts": {
                 "sh": "scripts/bash/resolve-skill.sh {ARGS}",
-                "ps": "../../scripts/powershell/setup-plan.ps1 -Json",
+                "ps": "../../scripts/powershell/setup-tasks.ps1 -Json",
             }
         }
 
@@ -3601,7 +3601,7 @@ Real body starts here.
         )
         assert (
             adjusted["scripts"]["ps"]
-            == ".specify/scripts/powershell/setup-plan.ps1 -Json"
+            == ".specify/scripts/powershell/setup-tasks.ps1 -Json"
         )
 
     def test_rewrite_project_relative_paths_preserves_extension_local_body_paths(self):
@@ -3610,13 +3610,13 @@ Real body starts here.
 
         body = (
             "Read `.specify/extensions/test-ext/templates/spec.md`\n"
-            "Run scripts/bash/setup-plan.sh\n"
+            "Run scripts/bash/setup-tasks.sh\n"
         )
 
         rewritten = AgentCommandRegistrar.rewrite_project_relative_paths(body)
 
         assert ".specify/extensions/test-ext/templates/spec.md" in rewritten
-        assert ".specify/scripts/bash/setup-plan.sh" in rewritten
+        assert ".specify/scripts/bash/setup-tasks.sh" in rewritten
 
     def test_rewrite_project_relative_paths_uses_extension_context_for_scripts(self):
         """Extension source bodies treat top-level scripts/ as extension-local."""
@@ -3624,7 +3624,7 @@ Real body starts here.
 
         body = (
             "Run scripts/bash/ensure-skills.sh\n"
-            "Fallback ../../scripts/bash/setup-plan.sh\n"
+            "Fallback ../../scripts/bash/setup-tasks.sh\n"
             "Read templates/checklist.md\n"
         )
 
@@ -3633,7 +3633,7 @@ Real body starts here.
         )
 
         assert ".specify/extensions/test-ext/scripts/bash/ensure-skills.sh" in rewritten
-        assert ".specify/scripts/bash/setup-plan.sh" in rewritten
+        assert ".specify/scripts/bash/setup-tasks.sh" in rewritten
         assert ".specify/templates/checklist.md" in rewritten
 
     def test_rewrite_project_relative_paths_idempotency(self):
@@ -3641,10 +3641,10 @@ Real body starts here.
         from specify_cli.agents import CommandRegistrar as AgentCommandRegistrar
 
         samples = [
-            ("Run scripts/bash/setup-plan.sh --json", None, "Run .specify/scripts/bash/setup-plan.sh --json"),
-            ("Run ./scripts/bash/setup-plan.sh --json", None, "Run .specify/scripts/bash/setup-plan.sh --json"),
-            ("Run ../../scripts/bash/setup-plan.sh", None, "Run .specify/scripts/bash/setup-plan.sh"),
-            ("Run ../../../scripts/bash/setup-plan.sh", None, "Run .specify/scripts/bash/setup-plan.sh"),
+            ("Run scripts/bash/setup-tasks.sh --json", None, "Run .specify/scripts/bash/setup-tasks.sh --json"),
+            ("Run ./scripts/bash/setup-tasks.sh --json", None, "Run .specify/scripts/bash/setup-tasks.sh --json"),
+            ("Run ../../scripts/bash/setup-tasks.sh", None, "Run .specify/scripts/bash/setup-tasks.sh"),
+            ("Run ../../../scripts/bash/setup-tasks.sh", None, "Run .specify/scripts/bash/setup-tasks.sh"),
             ("Read memory/constitution.md", None, "Read .specify/memory/constitution.md"),
             ("Read /memory/constitution.md", None, "Read .specify/memory/constitution.md"),
             ("Read ./memory/constitution.md", None, "Read .specify/memory/constitution.md"),
@@ -3652,7 +3652,7 @@ Real body starts here.
             ("Read templates/spec.md", None, "Read .specify/templates/spec.md"),
             ("Read ./templates/spec.md", None, "Read .specify/templates/spec.md"),
             ("Read ../../templates/spec.md", None, "Read .specify/templates/spec.md"),
-            ("Run .specify/scripts/bash/setup-plan.sh", None, "Run .specify/scripts/bash/setup-plan.sh"),
+            ("Run .specify/scripts/bash/setup-tasks.sh", None, "Run .specify/scripts/bash/setup-tasks.sh"),
             ("Read .specify/memory/constitution.md", None, "Read .specify/memory/constitution.md"),
             ("Read .specify/templates/spec.md", None, "Read .specify/templates/spec.md"),
             ("Run scripts/tool.sh", "my-ext", "Run .specify/extensions/my-ext/scripts/tool.sh"),
@@ -4091,7 +4091,8 @@ Real body starts here.
         skills_dir.mkdir(parents=True)
         command = extension_dir / "commands" / "hello.md"
         command.write_text(
-            "---\ndescription: Test hello command\n---\n\nRun __SPECKIT_COMMAND_PLAN__.",
+            "---\ndescription: Test hello command\n---\n\n"
+            "Run __SPECKIT_COMMAND_TEST-EXT_PLAN__.",
             encoding="utf-8",
         )
 
@@ -4103,8 +4104,8 @@ Real body starts here.
 
         skill_file = skills_dir / "speckit-test-ext-hello" / "SKILL.md"
         content = skill_file.read_text(encoding="utf-8")
-        assert "$speckit-plan" in content
-        assert "/speckit-plan" not in content
+        assert "$speckit-test-ext-plan" in content
+        assert "/speckit-test-ext-plan" not in content
 
     def test_codex_skill_registration_resolves_script_placeholders(self, project_dir, temp_dir):
         """Codex SKILL.md overrides should resolve script placeholders."""
@@ -4140,8 +4141,8 @@ Real body starts here.
             """---
 description: "Scripted command"
 scripts:
-  sh: ../../scripts/bash/setup-plan.sh --json "{ARGS}"
-  ps: ../../scripts/powershell/setup-plan.ps1 -Json
+  sh: ../../scripts/bash/setup-tasks.sh --json "{ARGS}"
+  ps: ../../scripts/powershell/setup-tasks.ps1 -Json
 ---
 
 Run {SCRIPT}
@@ -4167,7 +4168,7 @@ Agent __AGENT__
         assert "{SCRIPT}" not in content
         assert "__AGENT__" not in content
         assert "{ARGS}" not in content
-        assert '.specify/scripts/bash/setup-plan.sh --json "$ARGUMENTS"' in content
+        assert '.specify/scripts/bash/setup-tasks.sh --json "$ARGUMENTS"' in content
 
     def test_command_mode_registration_strips_scripts_key(self, project_dir, temp_dir):
         """Extension commands rendered in command mode (non-SKILL.md agents)
@@ -4205,8 +4206,8 @@ Agent __AGENT__
             "---\n"
             "description: Scripted command\n"
             "scripts:\n"
-            '  sh: ../../scripts/bash/setup-plan.sh --json "{ARGS}"\n'
-            "  ps: ../../scripts/powershell/setup-plan.ps1 -Json\n"
+            '  sh: ../../scripts/bash/setup-tasks.sh --json "{ARGS}"\n'
+            "  ps: ../../scripts/powershell/setup-tasks.ps1 -Json\n"
             "---\n\n"
             "Run {SCRIPT}\n"
         )
@@ -4227,7 +4228,7 @@ Agent __AGENT__
 
         content = command_file.read_text()
         assert "{SCRIPT}" not in content
-        assert '.specify/scripts/bash/setup-plan.sh --json "$ARGUMENTS"' in content
+        assert '.specify/scripts/bash/setup-tasks.sh --json "$ARGUMENTS"' in content
         assert "scripts:" not in content
         assert "sh:" not in content
 
@@ -4275,7 +4276,7 @@ Agent __AGENT__
             "---\n"
             "description: Scripted command\n"
             "scripts:\n"
-            '  sh: ../../scripts/bash/setup-plan.sh --json "{ARGS}"\n'
+            '  sh: ../../scripts/bash/setup-tasks.sh --json "{ARGS}"\n'
             "---\n\n"
             "Run {SCRIPT}\n"
             "Agent is __AGENT__.\n"
@@ -4302,7 +4303,7 @@ Agent __AGENT__
         assert "{SCRIPT}" not in content, f"{{SCRIPT}} not resolved for {agent_name}"
         assert "__AGENT__" not in content, f"__AGENT__ not resolved for {agent_name}"
         assert "{ARGS}" not in content, f"{{ARGS}} not resolved for {agent_name}"
-        assert '.specify/scripts/bash/setup-plan.sh' in content
+        assert '.specify/scripts/bash/setup-tasks.sh' in content
 
     def test_codex_skill_alias_frontmatter_matches_alias_name(self, project_dir, temp_dir):
         """Codex alias skills should render their own matching `name:` frontmatter."""
@@ -4386,8 +4387,8 @@ Agent __AGENT__
             """---
 description: "Fallback scripted command"
 scripts:
-  sh: ../../scripts/bash/setup-plan.sh --json "{ARGS}"
-  ps: ../../scripts/powershell/setup-plan.ps1 -Json
+  sh: ../../scripts/bash/setup-tasks.sh --json "{ARGS}"
+  ps: ../../scripts/powershell/setup-tasks.ps1 -Json
 ---
 
 Run {SCRIPT}
@@ -4408,9 +4409,9 @@ Run {SCRIPT}
         content = skill_file.read_text()
         assert "{SCRIPT}" not in content
         if platform.system().lower().startswith("win"):
-            assert ".specify/scripts/powershell/setup-plan.ps1 -Json" in content
+            assert ".specify/scripts/powershell/setup-tasks.ps1 -Json" in content
         else:
-            assert '.specify/scripts/bash/setup-plan.sh --json "$ARGUMENTS"' in content
+            assert '.specify/scripts/bash/setup-tasks.sh --json "$ARGUMENTS"' in content
 
     def test_codex_skill_registration_handles_non_dict_init_options(
         self, project_dir, temp_dir
@@ -4447,7 +4448,7 @@ Run {SCRIPT}
             """---
 description: "List init scripted command"
 scripts:
-  sh: ../../scripts/bash/setup-plan.sh --json "{ARGS}"
+  sh: ../../scripts/bash/setup-tasks.sh --json "{ARGS}"
 ---
 
 Run {SCRIPT}
@@ -4466,7 +4467,7 @@ Run {SCRIPT}
         registrar.register_commands_for_agent("codex", manifest, ext_dir, project_dir)
 
         content = (skills_dir / "speckit-ext-script-list-init-plan" / "SKILL.md").read_text()
-        assert '.specify/scripts/bash/setup-plan.sh --json "$ARGUMENTS"' in content
+        assert '.specify/scripts/bash/setup-tasks.sh --json "$ARGUMENTS"' in content
 
     def test_codex_skill_registration_fallback_prefers_powershell_on_windows(
         self, project_dir, temp_dir, monkeypatch
@@ -4507,8 +4508,8 @@ Run {SCRIPT}
             """---
 description: "Windows fallback scripted command"
 scripts:
-  sh: ../../scripts/bash/setup-plan.sh --json "{ARGS}"
-  ps: ../../scripts/powershell/setup-plan.ps1 -Json
+  sh: ../../scripts/bash/setup-tasks.sh --json "{ARGS}"
+  ps: ../../scripts/powershell/setup-tasks.ps1 -Json
 ---
 
 Run {SCRIPT}
@@ -4526,8 +4527,8 @@ Run {SCRIPT}
         assert skill_file.exists()
 
         content = skill_file.read_text()
-        assert ".specify/scripts/powershell/setup-plan.ps1 -Json" in content
-        assert ".specify/scripts/bash/setup-plan.sh" not in content
+        assert ".specify/scripts/powershell/setup-tasks.ps1 -Json" in content
+        assert ".specify/scripts/bash/setup-tasks.sh" not in content
 
     @staticmethod
     def _make_subdir_extension(temp_dir, ext_id="echelon", aliases=None):
@@ -8539,15 +8540,15 @@ class TestHookInvocationRendering:
             [
                 {
                     "extension": "test-ext",
-                    "command": "speckit.plan",
+                    "command": "speckit.test-ext.plan",
                     "optional": False,
                 }
             ],
         )
 
-        assert "Executing: `/skill:speckit-plan`" in message
-        assert "EXECUTE_COMMAND: speckit.plan" in message
-        assert "EXECUTE_COMMAND_INVOCATION: /skill:speckit-plan" in message
+        assert "Executing: `/skill:speckit-test-ext-plan`" in message
+        assert "EXECUTE_COMMAND: speckit.test-ext.plan" in message
+        assert "EXECUTE_COMMAND_INVOCATION: /skill:speckit-test-ext-plan" in message
 
     def test_codex_hooks_render_dollar_skill_invocation(self, project_dir):
         """Codex projects with skills mode should render $speckit-* invocations."""
@@ -8733,7 +8734,10 @@ class TestHookInvocationRendering:
         monkeypatch.setattr("specify_cli.load_init_options", fake_load_init_options)
 
         hook_executor = HookExecutor(project_dir)
-        assert hook_executor._render_hook_invocation("speckit.plan") == "/skill:speckit-plan"
+        assert (
+            hook_executor._render_hook_invocation("speckit.test-ext.plan")
+            == "/skill:speckit-test-ext-plan"
+        )
         assert hook_executor._render_hook_invocation("speckit.tasks") == "/skill:speckit-tasks"
         assert calls["count"] == 1
 

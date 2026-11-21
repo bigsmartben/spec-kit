@@ -17,6 +17,7 @@ from specify_cli.integrations.manifest import IntegrationManifest, _sha256
 from specify_cli.integration_state import INTEGRATION_STATE_SCHEMA, write_integration_json
 from specify_cli.extensions import ExtensionCatalog, ExtensionError, ExtensionManager, HookExecutor
 from specify_cli import save_init_options
+from tests.integrations.community_defaults import bundled_personal_default_files
 
 
 @pytest.fixture
@@ -2406,11 +2407,11 @@ class TestGenericIntegration:
             tmp_path, m,
             parsed_options={"commands_dir": ".myagent/skills", "skills": True},
         )
-        plan_skill = tmp_path / ".myagent" / "skills" / "speckit-plan" / "SKILL.md"
-        assert plan_skill.exists()
-        content = plan_skill.read_text(encoding="utf-8")
+        tasks_skill = tmp_path / ".myagent" / "skills" / "speckit-tasks" / "SKILL.md"
+        assert tasks_skill.exists()
+        content = tasks_skill.read_text(encoding="utf-8")
         assert content.startswith("---\n")
-        assert 'name: "speckit-plan"' in content
+        assert 'name: "speckit-tasks"' in content
         assert "description:" in content
         assert "compatibility:" in content
         assert "{SCRIPT}" not in content
@@ -2489,30 +2490,29 @@ class TestGenericIntegration:
                 text = path.read_text(encoding="utf-8", errors="ignore")
                 assert "<!-- SPECKIT START -->" not in text
 
-    def test_plan_command_has_no_context_placeholder(self, tmp_path):
-        """The core plan command must not carry a context-file placeholder —
+    def test_tasks_command_has_no_context_placeholder(self, tmp_path):
+        """The core tasks command must not carry a context-file placeholder —
         agent context files are owned by the opt-in agent-context extension."""
         i = get_integration("generic")
         m = IntegrationManifest("generic", tmp_path)
         i.setup(tmp_path, m, parsed_options={"commands_dir": ".custom/cmds"})
-        plan_file = tmp_path / ".custom" / "cmds" / "speckit.plan.md"
-        assert plan_file.exists()
-        content = plan_file.read_text(encoding="utf-8")
+        tasks_file = tmp_path / ".custom" / "cmds" / "speckit.tasks.md"
+        assert tasks_file.exists()
+        content = tasks_file.read_text(encoding="utf-8")
         assert "__CONTEXT_FILE__" not in content
 
-    def test_plan_defines_quickstart_as_validation_guide(self, tmp_path):
-        """The generated plan command should keep quickstart.md out of implementation scope."""
+    def test_tasks_define_uat_as_implement_execution(self, tmp_path):
+        """The Task command must make UAT execution an Implement responsibility."""
         i = get_integration("generic")
         m = IntegrationManifest("generic", tmp_path)
         i.setup(tmp_path, m, parsed_options={"commands_dir": ".custom/cmds"})
-        plan_file = tmp_path / ".custom" / "cmds" / "speckit.plan.md"
-        assert plan_file.exists()
-        content = plan_file.read_text(encoding="utf-8")
+        tasks_file = tmp_path / ".custom" / "cmds" / "speckit.tasks.md"
+        assert tasks_file.exists()
+        content = tasks_file.read_text(encoding="utf-8")
 
-        assert "Create quickstart validation guide" in content
-        assert "runnable validation scenarios" in content
-        assert "Do not include full implementation code" in content
-        assert "implementation details belong in `tasks.md` and the implementation phase" in content
+        assert "explicit execution task per `UAT-*`" in content
+        assert "[UAT]" in content
+        assert "Implement owns those decisions" in content
 
     def test_implement_loads_constitution_context(self, tmp_path):
         """The generated implement command should load constitution governance context."""
@@ -2531,7 +2531,6 @@ class TestGenericIntegration:
             "clarify",
             "converge",
             "implement",
-            "plan",
             "checklist",
             "specify",
             "tasks",
@@ -2593,14 +2592,13 @@ class TestGenericIntegration:
             p.relative_to(project).as_posix()
             for p in project.rglob("*") if p.is_file() and ".git" not in p.parts
         )
-        expected = sorted([
+        expected = [
             ".myagent/commands/speckit.analyze.md",
             ".myagent/commands/speckit.checklist.md",
             ".myagent/commands/speckit.clarify.md",
             ".myagent/commands/speckit.constitution.md",
             ".myagent/commands/speckit.converge.md",
             ".myagent/commands/speckit.implement.md",
-            ".myagent/commands/speckit.plan.md",
             ".myagent/commands/speckit.specify.md",
             ".myagent/commands/speckit.tasks.md",
             ".specify/init-options.json",
@@ -2615,16 +2613,22 @@ class TestGenericIntegration:
             ".specify/scripts/bash/create-new-feature.sh",
             ".specify/scripts/bash/markdown_sections.py",
             ".specify/scripts/bash/resolve-template.sh",
-            ".specify/scripts/bash/setup-plan.sh",
             ".specify/scripts/bash/setup-tasks.sh",
             ".specify/templates/checklist-template.md",
             ".specify/templates/constitution-template.md",
-            ".specify/templates/plan-template.md",
+            ".specify/templates/prototype-template.md",
+            ".specify/templates/quickstart-template.md",
             ".specify/templates/spec-template.md",
             ".specify/templates/tasks-template.md",
             ".specify/workflows/speckit/workflow.yml",
             ".specify/workflows/workflow-registry.json",
-        ])
+        ]
+        expected.extend(
+            bundled_personal_default_files(
+                "generic", commands_dir=".myagent/commands"
+            )
+        )
+        expected = sorted(set(expected))
         assert actual == expected, (
             f"Missing: {sorted(set(expected) - set(actual))}\n"
             f"Extra: {sorted(set(actual) - set(expected))}"
@@ -2642,7 +2646,7 @@ class TestGenericIntegration:
 
     def test_shared_template_and_next_steps_use_hyphen_in_skills_mode(self, tmp_path):
         """End-to-end: with --skills, shared templates and the printed next
-        steps must reference /speckit-plan (the layout actually generated),
+        steps must reference /speckit-tasks (the layout actually generated),
         not the nonexistent flat /speckit.plan."""
         from typer.testing import CliRunner
         from specify_cli import app
@@ -2661,14 +2665,14 @@ class TestGenericIntegration:
             os.chdir(old_cwd)
         assert result.exit_code == 0, f"init failed: {result.output}"
 
-        plan_template = project / ".specify" / "templates" / "plan-template.md"
-        content = plan_template.read_text(encoding="utf-8")
-        assert "__SPECKIT_COMMAND_PLAN__" not in content
-        assert "/speckit-plan" in content
-        assert "/speckit.plan" not in content
+        uat_template = project / ".specify" / "templates" / "quickstart-template.md"
+        content = uat_template.read_text(encoding="utf-8")
+        assert "__SPECKIT_COMMAND_SPECIFY__" not in content
+        assert "/speckit-specify" in content
+        assert "/speckit.specify" not in content
 
-        assert "/speckit-plan" in result.output
-        assert "/speckit.plan" not in result.output
+        assert "/speckit-tasks" in result.output
+        assert "/speckit.tasks" not in result.output
 
     def test_shared_template_and_next_steps_use_dot_without_skills_flag(
         self, tmp_path
@@ -2692,13 +2696,13 @@ class TestGenericIntegration:
             os.chdir(old_cwd)
         assert result.exit_code == 0, f"init failed: {result.output}"
 
-        plan_template = project / ".specify" / "templates" / "plan-template.md"
-        content = plan_template.read_text(encoding="utf-8")
-        assert "/speckit.plan" in content
-        assert "/speckit-plan" not in content
+        uat_template = project / ".specify" / "templates" / "quickstart-template.md"
+        content = uat_template.read_text(encoding="utf-8")
+        assert "/speckit.specify" in content
+        assert "/speckit-specify" not in content
 
-        assert "/speckit.plan" in result.output
-        assert "/speckit-plan" not in result.output
+        assert "/speckit.tasks" in result.output
+        assert "/speckit-tasks" not in result.output
 
     def test_generic_skills_mode_resolves_configured_dir_not_default(
         self, tmp_path
@@ -2741,14 +2745,13 @@ class TestGenericIntegration:
             p.relative_to(project).as_posix()
             for p in project.rglob("*") if p.is_file() and ".git" not in p.parts
         )
-        expected = sorted([
+        expected = [
             ".myagent/commands/speckit.analyze.md",
             ".myagent/commands/speckit.checklist.md",
             ".myagent/commands/speckit.clarify.md",
             ".myagent/commands/speckit.constitution.md",
             ".myagent/commands/speckit.converge.md",
             ".myagent/commands/speckit.implement.md",
-            ".myagent/commands/speckit.plan.md",
             ".myagent/commands/speckit.specify.md",
             ".myagent/commands/speckit.tasks.md",
             ".specify/init-options.json",
@@ -2763,16 +2766,22 @@ class TestGenericIntegration:
             ".specify/scripts/powershell/create-new-feature.ps1",
             ".specify/scripts/powershell/markdown_sections.py",
             ".specify/scripts/powershell/resolve-template.ps1",
-            ".specify/scripts/powershell/setup-plan.ps1",
             ".specify/scripts/powershell/setup-tasks.ps1",
             ".specify/templates/checklist-template.md",
             ".specify/templates/constitution-template.md",
-            ".specify/templates/plan-template.md",
+            ".specify/templates/prototype-template.md",
+            ".specify/templates/quickstart-template.md",
             ".specify/templates/spec-template.md",
             ".specify/templates/tasks-template.md",
             ".specify/workflows/speckit/workflow.yml",
             ".specify/workflows/workflow-registry.json",
-        ])
+        ]
+        expected.extend(
+            bundled_personal_default_files(
+                "generic", commands_dir=".myagent/commands"
+            )
+        )
+        expected = sorted(set(expected))
         assert actual == expected, (
             f"Missing: {sorted(set(expected) - set(actual))}\n"
             f"Extra: {sorted(set(actual) - set(expected))}"

@@ -15,6 +15,7 @@ import yaml
 from specify_cli.integrations import INTEGRATION_REGISTRY, get_integration
 from specify_cli.integrations.base import SkillsIntegration
 from specify_cli.integrations.manifest import IntegrationManifest
+from tests.integrations.community_defaults import bundled_personal_default_files
 
 
 class SkillsIntegrationTests:
@@ -95,13 +96,13 @@ class SkillsIntegrationTests:
 
         expected_commands = {
             "analyze", "clarify", "constitution", "converge", "implement",
-            "plan", "checklist", "specify", "tasks",
+            "checklist", "specify", "tasks",
         }
 
         # Derive command names from the skill directory names
         actual_commands = set()
         for f in skill_files:
-            skill_dir_name = f.parent.name  # e.g. "speckit-plan"
+            skill_dir_name = f.parent.name  # e.g. "speckit-tasks"
             assert skill_dir_name.startswith("speckit-")
             actual_commands.add(skill_dir_name.removeprefix("speckit-"))
 
@@ -301,8 +302,8 @@ class SkillsIntegrationTests:
             body = parts[2].strip() if len(parts) >= 3 else ""
             assert len(body) > 0, f"{f} has empty body"
 
-    def test_plan_skill_has_no_context_placeholder(self, tmp_path):
-        """The generated plan skill must not carry a context-file placeholder.
+    def test_tasks_skill_has_no_context_placeholder(self, tmp_path):
+        """The generated tasks skill must not carry a context-file placeholder.
 
         Agent context files are owned entirely by the opt-in agent-context
         extension, so the core plan skill must not reference one.
@@ -310,11 +311,11 @@ class SkillsIntegrationTests:
         i = get_integration(self.KEY)
         m = IntegrationManifest(self.KEY, tmp_path)
         i.setup(tmp_path, m)
-        plan_file = i.skills_dest(tmp_path) / "speckit-plan" / "SKILL.md"
-        assert plan_file.exists(), f"Plan skill {plan_file} not created"
-        content = plan_file.read_text(encoding="utf-8")
+        tasks_file = i.skills_dest(tmp_path) / "speckit-tasks" / "SKILL.md"
+        assert tasks_file.exists(), f"Tasks skill {tasks_file} not created"
+        content = tasks_file.read_text(encoding="utf-8")
         assert "__CONTEXT_FILE__" not in content, (
-            "Plan skill has unprocessed __CONTEXT_FILE__ placeholder"
+            "Tasks skill has unprocessed __CONTEXT_FILE__ placeholder"
         )
 
     def test_all_files_tracked_in_manifest(self, tmp_path):
@@ -466,7 +467,7 @@ class SkillsIntegrationTests:
 
     _SKILL_COMMANDS = [
         "analyze", "clarify", "constitution", "converge", "implement",
-        "plan", "checklist", "specify", "tasks",
+        "checklist", "specify", "tasks",
     ]
 
     def _expected_files(self, script_variant: str) -> list[str]:
@@ -496,7 +497,6 @@ class SkillsIntegrationTests:
                 ".specify/scripts/bash/create-new-feature.sh",
                 ".specify/scripts/bash/markdown_sections.py",
                 ".specify/scripts/bash/resolve-template.sh",
-                ".specify/scripts/bash/setup-plan.sh",
                 ".specify/scripts/bash/setup-tasks.sh",
             ]
         else:
@@ -506,14 +506,14 @@ class SkillsIntegrationTests:
                 ".specify/scripts/powershell/create-new-feature.ps1",
                 ".specify/scripts/powershell/markdown_sections.py",
                 ".specify/scripts/powershell/resolve-template.ps1",
-                ".specify/scripts/powershell/setup-plan.ps1",
                 ".specify/scripts/powershell/setup-tasks.ps1",
             ]
         # Templates
         files += [
             ".specify/templates/checklist-template.md",
             ".specify/templates/constitution-template.md",
-            ".specify/templates/plan-template.md",
+            ".specify/templates/prototype-template.md",
+            ".specify/templates/quickstart-template.md",
             ".specify/templates/spec-template.md",
             ".specify/templates/tasks-template.md",
         ]
@@ -522,7 +522,10 @@ class SkillsIntegrationTests:
             ".specify/workflows/speckit/workflow.yml",
             ".specify/workflows/workflow-registry.json",
         ]
-        return sorted(files)
+        files.extend(
+            bundled_personal_default_files(self.KEY, skills_mode=True)
+        )
+        return sorted(set(files))
 
     def test_complete_file_inventory_sh(self, tmp_path):
         """Every file produced by specify init --integration <key> --script sh."""

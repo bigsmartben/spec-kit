@@ -196,11 +196,11 @@ class TestIntegrationUpgradeDetailed:
         project = _init_project(
             tmp_path, "copilot", integration_options="--commands"
         )
-        template = project / ".specify" / "templates" / "plan-template.md"
+        template = project / ".specify" / "templates" / "quickstart-template.md"
         managed_script = project / ".specify" / "scripts" / "bash" / "check-prerequisites.sh"
         customized_script = project / ".specify" / "scripts" / "bash" / "setup-tasks.sh"
 
-        assert "/speckit.plan" in template.read_text(encoding="utf-8")
+        assert "/speckit.specify" in template.read_text(encoding="utf-8")
         assert "/speckit.specify" in managed_script.read_text(encoding="utf-8")
         customized_before = customized_script.read_text(encoding="utf-8") + "\n# user customization\n"
         customized_script.write_text(customized_before, encoding="utf-8")
@@ -211,7 +211,7 @@ class TestIntegrationUpgradeDetailed:
         ])
 
         assert result.exit_code == 0, result.output
-        assert "/speckit-plan" in template.read_text(encoding="utf-8")
+        assert "/speckit-specify" in template.read_text(encoding="utf-8")
         managed_content = managed_script.read_text(encoding="utf-8")
         assert "/speckit-specify" in managed_content
         assert "/speckit.specify" not in managed_content
@@ -247,7 +247,7 @@ class TestIntegrationUpgradeDetailed:
 
         assert result.exit_code == 0, result.output
         assert (
-            project / ".github" / "agents" / "speckit.plan.agent.md"
+            project / ".github" / "agents" / "speckit.tasks.agent.md"
         ).exists()
         assert not (project / ".github" / "skills").exists()
         init_options = json.loads(
@@ -259,10 +259,10 @@ class TestIntegrationUpgradeDetailed:
 
     def test_upgrade_non_default_keeps_default_template_invocations(self, tmp_path):
         project = _init_project(tmp_path, "gemini")
-        template = project / ".specify" / "templates" / "plan-template.md"
+        template = project / ".specify" / "templates" / "quickstart-template.md"
         script = project / ".specify" / "scripts" / "bash" / "check-prerequisites.sh"
-        assert "/speckit.plan" in template.read_text(encoding="utf-8")
-        assert "/speckit.plan" in script.read_text(encoding="utf-8")
+        assert "/speckit.specify" in template.read_text(encoding="utf-8")
+        assert "/speckit.specify" in script.read_text(encoding="utf-8")
 
         old_cwd = os.getcwd()
         try:
@@ -284,9 +284,9 @@ class TestIntegrationUpgradeDetailed:
 
         data = json.loads((project / ".specify" / "integration.json").read_text(encoding="utf-8"))
         assert data["integration"] == "gemini"
-        assert "/speckit.plan" in template.read_text(encoding="utf-8")
-        assert "/speckit.plan" in script.read_text(encoding="utf-8")
-        assert "/speckit-plan" not in script.read_text(encoding="utf-8")
+        assert "/speckit.specify" in template.read_text(encoding="utf-8")
+        assert "/speckit.specify" in script.read_text(encoding="utf-8")
+        assert "/speckit-specify" not in script.read_text(encoding="utf-8")
 
     def test_upgrade_migrates_opencode_legacy_dir(self, tmp_path):
         """Upgrade moves OpenCode commands from .opencode/command/ to .opencode/commands/."""
@@ -1991,9 +1991,9 @@ def test_builtin_upgrade_rolls_back_when_it_fails_before_committing(tmp_path, mo
 
     project = _init_project(tmp_path, "claude")
     skills = project / ".claude" / "skills"
-    (skills / "speckit-plan" / "SKILL.md").write_text("# user customization\n", encoding="utf-8")
-    (skills / "speckit-tasks" / "SKILL.md").unlink()
-    (skills / "speckit-tasks").rmdir()
+    (skills / "speckit-tasks" / "SKILL.md").write_text("# user customization\n", encoding="utf-8")
+    (skills / "speckit-specify" / "SKILL.md").unlink()
+    (skills / "speckit-specify").rmdir()
     # --force makes the first shared-infrastructure pass overwrite this.
     template = next((project / ".specify" / "templates").glob("*.md"))
     template.write_text("customized\n", encoding="utf-8")
@@ -2034,6 +2034,171 @@ def test_builtin_upgrade_rolls_back_when_it_fails_before_committing(tmp_path, mo
     assert result.exit_code != 0
     assert "disk full" in result.output
     assert _tree(project) == before
+
+
+def test_upgrade_removes_unmodified_stale_core_plan_skill(tmp_path):
+    """The removed core Plan asset is cleaned after a historical install."""
+    from specify_cli.integrations.manifest import IntegrationManifest
+
+    project = _init_project(tmp_path, "claude")
+    manifest = IntegrationManifest.load("claude", project)
+    stale_rel = ".claude/skills/speckit-plan/SKILL.md"
+    stale_file = manifest.record_file(stale_rel, "# historical core plan\n")
+    manifest.save()
+
+    result = _run_in_project(project, ["integration", "upgrade", "claude"])
+
+    assert result.exit_code == 0, result.output
+    assert not stale_file.exists()
+    refreshed = IntegrationManifest.load("claude", project)
+    assert stale_rel not in refreshed.files
+
+
+def test_upgrade_preserves_modified_stale_core_plan_skill_without_force(tmp_path):
+    """A historical Plan skill modified by the user remains owned by the user."""
+    from specify_cli.integrations.manifest import IntegrationManifest
+
+    project = _init_project(tmp_path, "claude")
+    manifest = IntegrationManifest.load("claude", project)
+    stale_rel = ".claude/skills/speckit-plan/SKILL.md"
+    stale_file = manifest.record_file(stale_rel, "# historical core plan\n")
+    manifest.save()
+    stale_file.write_text("# user-owned Plan skill\n", encoding="utf-8")
+
+    result = _run_in_project(project, ["integration", "upgrade", "claude"])
+
+    assert result.exit_code != 0
+    assert "modified since installation" in result.output
+    assert stale_file.read_text(encoding="utf-8") == "# user-owned Plan skill\n"
+
+
+@pytest.mark.parametrize("owner", ["preset", "extension"])
+def test_upgrade_preserves_stale_plan_skill_owned_by_installed_addon(
+    tmp_path, owner
+):
+    """Stale cleanup must not delete a Plan override owned by an add-on."""
+    from specify_cli.integrations.manifest import IntegrationManifest
+
+    project = _init_project(tmp_path, "claude")
+    result = _run_in_project(
+        project, ["integration", "install", "codex", "--script", "sh"]
+    )
+    assert result.exit_code == 0, result.output
+    manifest = IntegrationManifest.load("codex", project)
+    stale_rel = ".agents/skills/speckit-plan/SKILL.md"
+    stale_file = manifest.record_file(stale_rel, "# add-on Plan override\n")
+    manifest.save()
+
+    if owner == "preset":
+        registry_path = project / ".specify" / "presets" / ".registry"
+        registry_path.parent.mkdir(parents=True, exist_ok=True)
+        registry_path.write_text(
+            json.dumps(
+                {
+                    "schema_version": "1.0",
+                    "presets": {
+                        "legacy-plan": {
+                            "version": "1.0.0",
+                            "enabled": False,
+                            "registered_commands": {},
+                            "registered_skills": {
+                                "codex": ["speckit-plan"]
+                            },
+                        }
+                    },
+                }
+            ),
+            encoding="utf-8",
+        )
+    else:
+        registry_path = project / ".specify" / "extensions" / ".registry"
+        registry_path.parent.mkdir(parents=True, exist_ok=True)
+        registry_path.write_text(
+            json.dumps(
+                {
+                    "schema_version": "1.0",
+                    "extensions": {
+                        "legacy-plan": {
+                            "version": "1.0.0",
+                            "enabled": False,
+                            "registered_commands": {
+                                "codex": ["speckit.plan"]
+                            },
+                            "registered_skills": ["speckit-plan"],
+                        }
+                    },
+                }
+            ),
+            encoding="utf-8",
+        )
+
+    result = _run_in_project(
+        project, ["integration", "upgrade", "codex", "--script", "sh"]
+    )
+
+    assert result.exit_code == 0, result.output
+    assert stale_file.exists()
+    assert stale_file.read_text(encoding="utf-8") == "# add-on Plan override\n"
+
+
+@pytest.mark.parametrize("owner", ["preset", "extension"])
+def test_upgrade_preserves_stale_plan_when_addon_registry_is_unreadable(
+    tmp_path, owner
+):
+    """Unknown add-on ownership fails closed for the removed Plan artifact."""
+    from specify_cli.integrations.manifest import IntegrationManifest
+
+    project = _init_project(tmp_path, "claude")
+    result = _run_in_project(
+        project, ["integration", "install", "codex", "--script", "sh"]
+    )
+    assert result.exit_code == 0, result.output
+    manifest = IntegrationManifest.load("codex", project)
+    stale_rel = ".agents/skills/speckit-plan/SKILL.md"
+    stale_file = manifest.record_file(stale_rel, "# possibly owned Plan\n")
+    manifest.save()
+
+    registry_dir = project / ".specify" / (
+        "presets" if owner == "preset" else "extensions"
+    )
+    registry_dir.mkdir(parents=True, exist_ok=True)
+    (registry_dir / ".registry").write_text("{invalid", encoding="utf-8")
+
+    result = _run_in_project(
+        project, ["integration", "upgrade", "codex", "--script", "sh"]
+    )
+
+    assert result.exit_code == 0, result.output
+    assert "ownership registry is unreadable" in result.output
+    assert stale_file.exists()
+
+
+def test_upgrade_preserves_all_stale_paths_when_addon_registry_is_unreadable(
+    tmp_path,
+):
+    """Unknown add-on ownership protects more than the removed Plan command."""
+    from specify_cli.integrations.manifest import IntegrationManifest
+
+    project = _init_project(tmp_path, "claude")
+    result = _run_in_project(
+        project, ["integration", "install", "codex", "--script", "sh"]
+    )
+    assert result.exit_code == 0, result.output
+    manifest = IntegrationManifest.load("codex", project)
+    stale_rel = ".agents/skills/speckit-legacy-review/SKILL.md"
+    stale_file = manifest.record_file(stale_rel, "# possibly owned override\n")
+    manifest.save()
+    registry_dir = project / ".specify" / "presets"
+    registry_dir.mkdir(parents=True, exist_ok=True)
+    (registry_dir / ".registry").write_text("{invalid", encoding="utf-8")
+
+    result = _run_in_project(
+        project, ["integration", "upgrade", "codex", "--script", "sh"]
+    )
+
+    assert result.exit_code == 0, result.output
+    assert "ownership registry is unreadable" in result.output
+    assert stale_file.exists()
 
 
 def test_builtin_upgrade_journal_needs_no_trust_store_or_other_manifests(tmp_path, monkeypatch):

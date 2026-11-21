@@ -279,8 +279,8 @@ def test_artifact_info_bare_and_public_identifiers_are_semantically_equal(
 ):
     server = create_server(launch_directory=spec_kit_project)
 
-    by_name = _run(server.call_tool(TOOL_NAME, {"identifier": "speckit.plan"}))
-    by_id = _run(server.call_tool(TOOL_NAME, {"identifier": "command:speckit.plan"}))
+    by_name = _run(server.call_tool(TOOL_NAME, {"identifier": "speckit.tasks"}))
+    by_id = _run(server.call_tool(TOOL_NAME, {"identifier": "command:speckit.tasks"}))
 
     assert by_name.is_error is False
     assert by_id.is_error is False
@@ -292,7 +292,7 @@ def test_artifact_info_bare_and_public_identifiers_are_semantically_equal(
     [
         ("speckit.constitution", "command"),
         ("spec-template", "template"),
-        ("setup-plan", "script"),
+        ("setup-tasks", "script"),
     ],
 )
 def test_artifact_info_accepts_each_explicit_named_kind(
@@ -360,8 +360,8 @@ def test_artifact_info_is_deterministic_across_repeated_calls(
 ):
     server = create_server(launch_directory=spec_kit_project)
 
-    first = _run(server.call_tool(TOOL_NAME, {"identifier": "speckit.plan"}))
-    second = _run(server.call_tool(TOOL_NAME, {"identifier": "speckit.plan"}))
+    first = _run(server.call_tool(TOOL_NAME, {"identifier": "speckit.tasks"}))
+    second = _run(server.call_tool(TOOL_NAME, {"identifier": "speckit.tasks"}))
 
     assert first == second
 
@@ -536,7 +536,7 @@ def test_artifact_info_rejects_unknown_arguments_before_dispatch(
         _run(
             create_server(launch_directory=spec_kit_project).call_tool(
                 TOOL_NAME,
-                {"identifier": "speckit.plan", "unexpected": True},
+                {"identifier": "speckit.tasks", "unexpected": True},
             )
         )
 
@@ -548,10 +548,10 @@ def test_artifact_info_rejects_unknown_arguments_before_dispatch(
     [
         {"identifier": 1},
         {"identifier": True},
-        {"identifier": "speckit.plan", "kind": 1},
-        {"identifier": "speckit.plan", "kind": True},
-        {"identifier": "speckit.plan", "project_directory": 1},
-        {"identifier": "speckit.plan", "project_directory": True},
+        {"identifier": "speckit.tasks", "kind": 1},
+        {"identifier": "speckit.tasks", "kind": True},
+        {"identifier": "speckit.tasks", "project_directory": 1},
+        {"identifier": "speckit.tasks", "project_directory": True},
     ],
 )
 def test_artifact_info_rejects_type_coercion_before_dispatch(
@@ -584,7 +584,7 @@ def test_artifact_info_rejects_invalid_kind_before_dispatch(
         _run(
             create_server(launch_directory=spec_kit_project).call_tool(
                 TOOL_NAME,
-                {"identifier": "speckit.plan", "kind": "invalid"},
+                {"identifier": "speckit.tasks", "kind": "invalid"},
             )
         )
 
@@ -598,7 +598,7 @@ def test_artifact_info_maps_relative_project_directory(
         create_server(launch_directory=spec_kit_project).call_tool(
             TOOL_NAME,
             {
-                "identifier": "speckit.plan",
+                "identifier": "speckit.tasks",
                 "project_directory": "relative-project",
             },
         )
@@ -616,7 +616,7 @@ def test_artifact_info_maps_non_project_error(non_project: Path):
     result = _run(
         create_server(launch_directory=non_project).call_tool(
             TOOL_NAME,
-            {"identifier": "speckit.plan"},
+            {"identifier": "speckit.tasks"},
         )
     )
 
@@ -713,7 +713,7 @@ def test_artifact_info_maps_corrupt_registry_error(spec_kit_project: Path):
     result = _run(
         create_server(launch_directory=spec_kit_project).call_tool(
             TOOL_NAME,
-            {"identifier": "speckit.plan"},
+            {"identifier": "speckit.tasks"},
         )
     )
 
@@ -723,7 +723,7 @@ def test_artifact_info_maps_corrupt_registry_error(spec_kit_project: Path):
         "artifact resolution failed",
         details={
             "project_directory": str(spec_kit_project),
-            "identifier": "speckit.plan",
+            "identifier": "speckit.tasks",
         },
     )
 
@@ -749,7 +749,7 @@ def test_artifact_info_preserves_operation_owned_resolution_mapping(
         result = _run(
             create_server(launch_directory=spec_kit_project).call_tool(
                 TOOL_NAME,
-                {"identifier": "speckit.plan"},
+                {"identifier": "speckit.tasks"},
             )
         )
 
@@ -759,7 +759,7 @@ def test_artifact_info_preserves_operation_owned_resolution_mapping(
         "artifact resolution failed",
         details={
             "project_directory": str(spec_kit_project),
-            "identifier": "speckit.plan",
+            "identifier": "speckit.tasks",
         },
     )
 
@@ -774,8 +774,8 @@ def test_artifact_info_preserves_operation_owned_resolution_mapping(
         ArtifactInfoNotFoundError("missing"),
         ArtifactInfoHookNotFoundError("hook:missing:command"),
         ArtifactInfoAmbiguousError("shared", "ambiguous artifact shared"),
-        ArtifactInfoResolutionError(Path("/project"), "speckit.plan"),
-        ArtifactInfoInvalidResultError(Path("/project"), "speckit.plan"),
+        ArtifactInfoResolutionError(Path("/project"), "speckit.tasks"),
+        ArtifactInfoInvalidResultError(Path("/project"), "speckit.tasks"),
         ArtifactInfoError(
             code="temporary_failure",
             message="try again",
@@ -795,7 +795,7 @@ def test_artifact_info_preserves_expected_operation_error_contract(
         result = _run(
             create_server(launch_directory=spec_kit_project).call_tool(
                 TOOL_NAME,
-                {"identifier": "speckit.plan"},
+                {"identifier": "speckit.tasks"},
             )
         )
 
@@ -864,7 +864,7 @@ def test_artifact_info_rejects_invalid_operation_results(
         result = _run(
             create_server(launch_directory=spec_kit_project).call_tool(
                 TOOL_NAME,
-                {"identifier": "speckit.plan"},
+                {"identifier": "speckit.tasks"},
             )
         )
 
@@ -890,7 +890,7 @@ def test_artifact_info_sanitizes_and_logs_unexpected_failure(
         result = _run(
             create_server(launch_directory=spec_kit_project).call_tool(
                 TOOL_NAME,
-                {"identifier": "speckit.plan"},
+                {"identifier": "speckit.tasks"},
             )
         )
 
@@ -1209,7 +1209,7 @@ def test_in_memory_client_preserves_artifact_info_wire_shapes(
                 tools = await session.list_tools()
                 success = await session.call_tool(
                     TOOL_NAME,
-                    {"identifier": "speckit.plan"},
+                    {"identifier": "speckit.tasks"},
                 )
                 failure = await session.call_tool(
                     TOOL_NAME,
@@ -1217,7 +1217,7 @@ def test_in_memory_client_preserves_artifact_info_wire_shapes(
                 )
                 schema_failure = await session.call_tool(
                     TOOL_NAME,
-                    {"identifier": "speckit.plan", "unexpected": True},
+                    {"identifier": "speckit.tasks", "unexpected": True},
                 )
             task_group.cancel_scope.cancel()
         return tools, success, failure, schema_failure
@@ -1227,7 +1227,7 @@ def test_in_memory_client_preserves_artifact_info_wire_shapes(
     discovered = next(tool for tool in tools.tools if tool.name == TOOL_NAME)
     assert discovered.input_schema["additionalProperties"] is False
     assert success.is_error is False
-    assert success.structured_content["id"] == "command:speckit.plan"
+    assert success.structured_content["id"] == "command:speckit.tasks"
     assert failure.is_error is True
     assert failure.structured_content["error"]["code"] == "unknown_artifact"
     assert schema_failure.is_error is True

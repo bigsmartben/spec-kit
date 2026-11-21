@@ -97,7 +97,7 @@ class TestIntegrationUninstall:
         result = _run_in_project(project, args)
 
         assert result.exit_code == 0, result.output
-        assert not (project / ".claude/skills/speckit-plan/SKILL.md").exists()
+        assert not (project / ".claude/skills/speckit-tasks/SKILL.md").exists()
         assert not manifest.manifest_path.exists()
         assert dispatcher.read_text(encoding="utf-8") == original
         assert "unreadable dispatcher" in caplog.text
@@ -133,7 +133,7 @@ class TestIntegrationUninstall:
     def test_uninstall_removes_files(self, tmp_path):
         project = _init_project(tmp_path, "claude")
         # Claude uses skills directory
-        assert (project / ".claude" / "skills" / "speckit-plan" / "SKILL.md").exists()
+        assert (project / ".claude" / "skills" / "speckit-tasks" / "SKILL.md").exists()
         assert (project / ".specify" / "integrations" / "claude.manifest.json").exists()
 
         old_cwd = os.getcwd()
@@ -146,7 +146,7 @@ class TestIntegrationUninstall:
         assert "uninstalled" in result.output
 
         # Command files removed
-        assert not (project / ".claude" / "skills" / "speckit-plan" / "SKILL.md").exists()
+        assert not (project / ".claude" / "skills" / "speckit-tasks" / "SKILL.md").exists()
 
         # Manifest removed
         assert not (project / ".specify" / "integrations" / "claude.manifest.json").exists()
@@ -157,11 +157,11 @@ class TestIntegrationUninstall:
     def test_uninstall_preserves_modified_files(self, tmp_path):
         """Full lifecycle: install → modify → uninstall → modified file kept."""
         project = _init_project(tmp_path, "claude")
-        plan_file = project / ".claude" / "skills" / "speckit-plan" / "SKILL.md"
-        assert plan_file.exists()
+        tasks_file = project / ".claude" / "skills" / "speckit-tasks" / "SKILL.md"
+        assert tasks_file.exists()
 
         # Modify a file
-        plan_file.write_text("# My custom plan command\n", encoding="utf-8")
+        tasks_file.write_text("# My custom tasks command\n", encoding="utf-8")
 
         old_cwd = os.getcwd()
         try:
@@ -171,11 +171,11 @@ class TestIntegrationUninstall:
             os.chdir(old_cwd)
         assert result.exit_code == 0
         assert "preserved" in result.output
-        assert ".claude/skills/speckit-plan/SKILL.md" in result.output
+        assert ".claude/skills/speckit-tasks/SKILL.md" in result.output
 
         # Modified file kept
-        assert plan_file.exists()
-        assert plan_file.read_text(encoding="utf-8") == "# My custom plan command\n"
+        assert tasks_file.exists()
+        assert tasks_file.read_text(encoding="utf-8") == "# My custom tasks command\n"
 
     def test_uninstall_wrong_key(self, tmp_path):
         project = _init_project(tmp_path, "copilot")
@@ -219,8 +219,8 @@ class TestIntegrationUninstall:
         finally:
             os.chdir(old_cwd)
         assert result.exit_code == 0, result.output
-        assert not (project / ".agents" / "skills" / "speckit-plan" / "SKILL.md").exists()
-        assert (project / ".claude" / "skills" / "speckit-plan" / "SKILL.md").exists()
+        assert not (project / ".agents" / "skills" / "speckit-tasks" / "SKILL.md").exists()
+        assert (project / ".claude" / "skills" / "speckit-tasks" / "SKILL.md").exists()
 
         data = json.loads((project / ".specify" / "integration.json").read_text(encoding="utf-8"))
         assert data["integration"] == "claude"
@@ -228,10 +228,10 @@ class TestIntegrationUninstall:
 
     def test_uninstall_default_refreshes_templates_for_fallback(self, tmp_path):
         project = _init_project(tmp_path, "gemini")
-        template = project / ".specify" / "templates" / "plan-template.md"
+        template = project / ".specify" / "templates" / "quickstart-template.md"
         script = project / ".specify" / "scripts" / "bash" / "check-prerequisites.sh"
-        assert "/speckit.plan" in template.read_text(encoding="utf-8")
-        assert "/speckit.plan" in script.read_text(encoding="utf-8")
+        assert "/speckit.specify" in template.read_text(encoding="utf-8")
+        assert "/speckit.specify" in script.read_text(encoding="utf-8")
 
         old_cwd = os.getcwd()
         try:
@@ -249,8 +249,8 @@ class TestIntegrationUninstall:
 
         data = json.loads((project / ".specify" / "integration.json").read_text(encoding="utf-8"))
         assert data["integration"] == "claude"
-        assert "/speckit-plan" in template.read_text(encoding="utf-8")
-        assert "/speckit-plan" in script.read_text(encoding="utf-8")
+        assert "/speckit-specify" in template.read_text(encoding="utf-8")
+        assert "/speckit-specify" in script.read_text(encoding="utf-8")
 
     def test_uninstall_unregisters_extension_and_preset_artifacts(self, tmp_path):
         """Uninstall must not leave extension or preset files orphaned in the agent's directory."""
@@ -345,7 +345,7 @@ class TestIntegrationUninstall:
 
 class TestUninstallFallbackManifest:
     @pytest.mark.parametrize("missing_manifest", [False, True])
-    @pytest.mark.parametrize("edited_command", [None, "plan", "tasks"])
+    @pytest.mark.parametrize("edited_command", [None, "specify", "tasks"])
     def test_uninstall_syncs_fallback_manifest_without_blessing_user_edits(
         self, tmp_path, tasks_preset_src, missing_manifest, edited_command,
     ):

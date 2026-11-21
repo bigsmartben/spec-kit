@@ -11,7 +11,6 @@ from ..base import SkillsIntegration
 # when a user invokes the slash command in Alquimia AI.
 ARGUMENT_HINTS: dict[str, str] = {
     "specify": "Describe the feature you want to specify",
-    "plan": "Optional guidance for the planning phase",
     "tasks": "Optional task generation constraints",
     "implement": "Optional implementation guidance or task filter",
     "analyze": "Optional focus areas for analysis",

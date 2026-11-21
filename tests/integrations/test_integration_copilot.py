@@ -29,6 +29,7 @@ from specify_cli.workflows.base import RunStatus, StepContext, StepStatus
 from specify_cli.workflows.engine import WorkflowDefinition, WorkflowEngine
 from specify_cli.workflows.step.command import CommandStep
 from specify_cli.workflows.step.prompt import PromptStep
+from tests.integrations.community_defaults import bundled_personal_default_files
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
@@ -213,10 +214,10 @@ class TestCopilotCommandsMode:
         agents_dir = tmp_path / ".github" / "agents"
         assert agents_dir.is_dir()
         agent_files = sorted(agents_dir.glob("speckit.*.agent.md"))
-        assert len(agent_files) == 9
+        assert len(agent_files) == 8
         expected_commands = {
             "analyze", "clarify", "constitution", "converge", "implement",
-            "plan", "checklist", "specify", "tasks",
+            "checklist", "specify", "tasks",
         }
         actual_commands = {f.name.removeprefix("speckit.").removesuffix(".agent.md") for f in agent_files}
         assert actual_commands == expected_commands
@@ -247,8 +248,10 @@ class TestCopilotCommandsMode:
 
         assert "resolve-template" in content
         assert "{SCRIPT}" not in content
-        assert "parse `TEMPLATE_CONTENT` as the active `spec-template`" in content
-        assert "Write `TEMPLATE_CONTENT` to `SPECIFY_FEATURE_DIRECTORY/spec.md`" in content
+        assert "parse `TEMPLATE_CONTENT` as `SPEC_TEMPLATE_CONTENT`" in content
+        assert "`prototype-template`" in content
+        assert "`quickstart-template`" in content
+        assert "Write the specification to `SPEC_FILE` using `SPEC_TEMPLATE_CONTENT`" in content
         assert "Copy the resolved `spec-template` file" not in content
         assert "Copy `.specify/templates/spec-template.md`" not in content
         assert "Load `.specify/templates/spec-template.md`" not in content
@@ -263,7 +266,7 @@ class TestCopilotCommandsMode:
 
         specify_file = tmp_path / ".github" / "agents" / "speckit.specify.agent.md"
         content = specify_file.read_text(encoding="utf-8")
-        assert "Create or update the feature specification" in content
+        assert "Create the feature specification, executable prototype, and pending UAT baseline" in content
         assert "preset override content" not in content
 
     def test_setup_uses_preset_command_override_when_present(self, tmp_path):
@@ -290,16 +293,16 @@ class TestCopilotCommandsMode:
         assert "preset override content" in content
         assert "Create or update the feature specification" not in content
 
-    def test_plan_command_has_no_context_placeholder(self, tmp_path):
-        """The core plan command must not carry a context-file placeholder —
+    def test_tasks_command_has_no_context_placeholder(self, tmp_path):
+        """The core tasks command must not carry a context-file placeholder —
         agent context files are owned by the opt-in agent-context extension."""
         from specify_cli.integrations.copilot import CopilotIntegration
         copilot = CopilotIntegration()
         m = IntegrationManifest("copilot", tmp_path)
         copilot.setup(tmp_path, m, parsed_options={"commands": True})
-        plan_file = tmp_path / ".github" / "agents" / "speckit.plan.agent.md"
-        assert plan_file.exists()
-        content = plan_file.read_text(encoding="utf-8")
+        tasks_file = tmp_path / ".github" / "agents" / "speckit.tasks.agent.md"
+        assert tasks_file.exists()
+        content = tasks_file.read_text(encoding="utf-8")
         assert "__CONTEXT_FILE__" not in content
 
     def test_complete_file_inventory_sh(self, tmp_path):
@@ -319,14 +322,13 @@ class TestCopilotCommandsMode:
             os.chdir(old_cwd)
         assert result.exit_code == 0
         actual = sorted(p.relative_to(project).as_posix() for p in project.rglob("*") if p.is_file() and ".git" not in p.parts)
-        expected = sorted([
+        expected = [
             ".github/agents/speckit.analyze.agent.md",
             ".github/agents/speckit.checklist.agent.md",
             ".github/agents/speckit.clarify.agent.md",
             ".github/agents/speckit.constitution.agent.md",
             ".github/agents/speckit.converge.agent.md",
             ".github/agents/speckit.implement.agent.md",
-            ".github/agents/speckit.plan.agent.md",
             ".github/agents/speckit.specify.agent.md",
             ".github/agents/speckit.tasks.agent.md",
             ".github/prompts/speckit.analyze.prompt.md",
@@ -335,7 +337,6 @@ class TestCopilotCommandsMode:
             ".github/prompts/speckit.constitution.prompt.md",
             ".github/prompts/speckit.converge.prompt.md",
             ".github/prompts/speckit.implement.prompt.md",
-            ".github/prompts/speckit.plan.prompt.md",
             ".github/prompts/speckit.specify.prompt.md",
             ".github/prompts/speckit.tasks.prompt.md",
             ".vscode/settings.json",
@@ -349,18 +350,21 @@ class TestCopilotCommandsMode:
             ".specify/scripts/bash/create-new-feature.sh",
             ".specify/scripts/bash/markdown_sections.py",
             ".specify/scripts/bash/resolve-template.sh",
-            ".specify/scripts/bash/setup-plan.sh",
             ".specify/scripts/bash/setup-tasks.sh",
             ".specify/templates/checklist-template.md",
             ".specify/templates/constitution-template.md",
-            ".specify/templates/plan-template.md",
+            ".specify/templates/prototype-template.md",
+            ".specify/templates/quickstart-template.md",
             ".specify/templates/spec-template.md",
             ".specify/templates/tasks-template.md",
             ".specify/memory/.constitution-template.json",
             ".specify/memory/constitution.md",
             ".specify/workflows/speckit/workflow.yml",
             ".specify/workflows/workflow-registry.json",
-        ])
+        ]
+        expected = sorted(
+            set(expected) | set(bundled_personal_default_files("copilot"))
+        )
         assert actual == expected, (
             f"Missing: {sorted(set(expected) - set(actual))}\n"
             f"Extra: {sorted(set(actual) - set(expected))}"
@@ -383,14 +387,13 @@ class TestCopilotCommandsMode:
             os.chdir(old_cwd)
         assert result.exit_code == 0
         actual = sorted(p.relative_to(project).as_posix() for p in project.rglob("*") if p.is_file() and ".git" not in p.parts)
-        expected = sorted([
+        expected = [
             ".github/agents/speckit.analyze.agent.md",
             ".github/agents/speckit.checklist.agent.md",
             ".github/agents/speckit.clarify.agent.md",
             ".github/agents/speckit.constitution.agent.md",
             ".github/agents/speckit.converge.agent.md",
             ".github/agents/speckit.implement.agent.md",
-            ".github/agents/speckit.plan.agent.md",
             ".github/agents/speckit.specify.agent.md",
             ".github/agents/speckit.tasks.agent.md",
             ".github/prompts/speckit.analyze.prompt.md",
@@ -399,7 +402,6 @@ class TestCopilotCommandsMode:
             ".github/prompts/speckit.constitution.prompt.md",
             ".github/prompts/speckit.converge.prompt.md",
             ".github/prompts/speckit.implement.prompt.md",
-            ".github/prompts/speckit.plan.prompt.md",
             ".github/prompts/speckit.specify.prompt.md",
             ".github/prompts/speckit.tasks.prompt.md",
             ".vscode/settings.json",
@@ -413,18 +415,21 @@ class TestCopilotCommandsMode:
             ".specify/scripts/powershell/create-new-feature.ps1",
             ".specify/scripts/powershell/markdown_sections.py",
             ".specify/scripts/powershell/resolve-template.ps1",
-            ".specify/scripts/powershell/setup-plan.ps1",
             ".specify/scripts/powershell/setup-tasks.ps1",
             ".specify/templates/checklist-template.md",
             ".specify/templates/constitution-template.md",
-            ".specify/templates/plan-template.md",
+            ".specify/templates/prototype-template.md",
+            ".specify/templates/quickstart-template.md",
             ".specify/templates/spec-template.md",
             ".specify/templates/tasks-template.md",
             ".specify/memory/.constitution-template.json",
             ".specify/memory/constitution.md",
             ".specify/workflows/speckit/workflow.yml",
             ".specify/workflows/workflow-registry.json",
-        ])
+        ]
+        expected = sorted(
+            set(expected) | set(bundled_personal_default_files("copilot"))
+        )
         assert actual == expected, (
             f"Missing: {sorted(set(expected) - set(actual))}\n"
             f"Extra: {sorted(set(actual) - set(expected))}"
@@ -435,7 +440,7 @@ class TestCopilotSkillsMode:
 
     _SKILL_COMMANDS = [
         "analyze", "clarify", "constitution", "converge", "implement",
-        "plan", "checklist", "specify", "tasks",
+        "checklist", "specify", "tasks",
     ]
 
     def _make_copilot(self):
@@ -788,14 +793,14 @@ class TestCopilotSkillsMode:
             body = parts[2].strip() if len(parts) >= 3 else ""
             assert len(body) > 0, f"{f} has empty body"
 
-    def test_plan_skill_has_no_context_placeholder(self, tmp_path):
-        """The core plan skill must not carry a context-file placeholder —
+    def test_tasks_skill_has_no_context_placeholder(self, tmp_path):
+        """The core tasks skill must not carry a context-file placeholder —
         agent context files are owned by the opt-in agent-context extension."""
         copilot = self._make_copilot()
         self._setup_skills(copilot, tmp_path)
-        plan_file = tmp_path / ".github" / "skills" / "speckit-plan" / "SKILL.md"
-        assert plan_file.exists()
-        content = plan_file.read_text(encoding="utf-8")
+        tasks_file = tmp_path / ".github" / "skills" / "speckit-tasks" / "SKILL.md"
+        assert tasks_file.exists()
+        content = tasks_file.read_text(encoding="utf-8")
         assert "__CONTEXT_FILE__" not in content
 
     # -- Manifest tracking ------------------------------------------------
@@ -888,8 +893,9 @@ class TestCopilotSkillsMode:
         assert result.exit_code == 0, f"init failed: {result.output}"
         skills_dir = project / ".github" / "skills"
         assert skills_dir.is_dir(), "Skills directory was not created"
-        plan_skill = skills_dir / "speckit-plan" / "SKILL.md"
-        assert plan_skill.exists(), "speckit-plan/SKILL.md not found"
+        tasks_skill = skills_dir / "speckit-tasks" / "SKILL.md"
+        assert tasks_skill.exists(), "speckit-tasks/SKILL.md not found"
+        assert not (skills_dir / "speckit-plan").exists()
         # Verify no default-mode artifacts
         assert not (project / ".github" / "agents").exists()
         assert not (project / ".github" / "prompts").exists()
@@ -912,7 +918,7 @@ class TestCopilotSkillsMode:
             os.chdir(old_cwd)
         assert result.exit_code == 0, f"init failed: {result.output}"
         actual = sorted(p.relative_to(project).as_posix() for p in project.rglob("*") if p.is_file() and ".git" not in p.parts)
-        expected = sorted([
+        expected = [
             # Skill files (core commands)
             *[f".github/skills/speckit-{cmd}/SKILL.md" for cmd in self._SKILL_COMMANDS],
             # Integration metadata
@@ -927,12 +933,12 @@ class TestCopilotSkillsMode:
             ".specify/scripts/bash/create-new-feature.sh",
             ".specify/scripts/bash/markdown_sections.py",
             ".specify/scripts/bash/resolve-template.sh",
-            ".specify/scripts/bash/setup-plan.sh",
             ".specify/scripts/bash/setup-tasks.sh",
             # Templates
             ".specify/templates/checklist-template.md",
             ".specify/templates/constitution-template.md",
-            ".specify/templates/plan-template.md",
+            ".specify/templates/prototype-template.md",
+            ".specify/templates/quickstart-template.md",
             ".specify/templates/spec-template.md",
             ".specify/templates/tasks-template.md",
             ".specify/memory/.constitution-template.json",
@@ -940,7 +946,15 @@ class TestCopilotSkillsMode:
             # Bundled workflow
             ".specify/workflows/speckit/workflow.yml",
             ".specify/workflows/workflow-registry.json",
-        ])
+        ]
+        expected = sorted(
+            set(expected)
+            | set(
+                bundled_personal_default_files(
+                    "copilot", skills_mode=True
+                )
+            )
+        )
         assert actual == expected, (
             f"Missing: {sorted(set(expected) - set(actual))}\n"
             f"Extra: {sorted(set(actual) - set(expected))}"
@@ -1064,7 +1078,7 @@ class TestCopilotNoModelInvocationOption:
             parsed_options={"no_model_invocation": True},
             script_type="sh",
         )
-        result = i.post_process_skill_content("---\nname: speckit-plan\n---\n\nBody\n")
+        result = i.post_process_skill_content("---\nname: speckit-tasks\n---\n\nBody\n")
         assert "disable-model-invocation: true" in result
 
     def test_extension_skills_stay_model_invocable(self, tmp_path):
@@ -1102,7 +1116,7 @@ class TestCopilotNoModelInvocationOption:
             parsed_options={"no_model_invocation": True},
             script_type="sh",
         )
-        result = i.post_process_skill_content("---\r\nname: speckit-plan\r\n---\r\nBody\r\n")
+        result = i.post_process_skill_content("---\r\nname: speckit-tasks\r\n---\r\nBody\r\n")
         assert "disable-model-invocation: true\r\n---" in result
         assert "true\n---" not in result.replace("\r\n", "")
 
@@ -1190,7 +1204,11 @@ class TestCopilotNoModelInvocationOption:
 
         project = _init_project(tmp_path, "copilot", "--no-model-invocation")
         skills_dir = project / ".github" / "skills"
-        skill_files = sorted(skills_dir.glob("speckit-*/SKILL.md"))
+        skill_files = sorted(
+            path
+            for path in skills_dir.glob("speckit-*/SKILL.md")
+            if not path.parent.name.startswith("speckit-bug-")
+        )
         assert len(skill_files) > 0
         for f in skill_files:
             assert _skill_frontmatter(f)["disable-model-invocation"] is True, f.parent.name
@@ -1226,7 +1244,7 @@ class TestCopilotNoModelInvocationOption:
         from tests.specify_cli.integrations._helpers import _init_project, _run_in_project
 
         project = _init_project(tmp_path, "copilot", "--no-model-invocation")
-        skill_file = project / ".github" / "skills" / "speckit-plan" / "SKILL.md"
+        skill_file = project / ".github" / "skills" / "speckit-tasks" / "SKILL.md"
         assert _skill_frontmatter(skill_file)["disable-model-invocation"] is True
 
         get_integration("copilot")._disable_model_invocation = False

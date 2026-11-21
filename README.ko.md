@@ -26,7 +26,7 @@ Spec Kit은 AI 코딩 에이전트에게 체계적인 프로세스, 재사용 �
 
 | 필요한 것 | 프로세스 | 결과 |
 | --- | --- | --- |
-| 기능이나 애플리케이션 만들기 | [스펙 주도 개발](#스펙-주도-개발) | 계획, 구현, 수렴까지 이어지는 스펙 |
+| 기능이나 애플리케이션 만들기 | [스펙 주도 개발](#스펙-주도-개발) | 고정된 제품 계약에서 작업 패키지, 구현, UAT 증거로 이어지는 흐름 |
 | 잘못된 동작을 진단하고 고치기 | [버그 수정](#버그-수정) | 평가를 거친 원인, 범위를 한정한 수정, 기록으로 남는 검증 |
 | 아이디어에 투자할 가치가 있는지 판단하기 | [아이디어 평가](#아이디어-평가) | 근거에 기반한 진행, 명확화, 중단 결정 |
 | 다른 프로세스를 도입하거나 새로 만들기 | [직접 만든 프로세스](#제공-기능) | 재사용 가능한 메커니즘으로 조정하거나 조립한 프로세스 |
@@ -98,7 +98,8 @@ Specify CLI를 설치하고 프로젝트를 만들었다면, 프로젝트 디렉
 
 ## 스펙 주도 개발
 
-무엇을, 왜 만드는지 정의한 다음, 스펙을 계획, 작업, 동작하는 코드로 바꿉니다.
+무엇을, 왜 만드는지 정의하고 관찰 가능한 제품 계약으로 고정한 다음, 독립적으로
+전달 가능한 요구사항 수준 작업 패키지와 동작하는 코드로 바꿉니다.
 
 아래는 최소 흐름입니다. 원칙(constitution)은 프로젝트당 한 번 만들고, 나머지 단계는 기능마다
 반복합니다. 이 스킬들은 터미널이 아니라 에이전트 채팅에서 한 번에 하나씩 실행하고, 결과를 검토한 뒤
@@ -110,13 +111,15 @@ Specify CLI를 설치하고 프로젝트를 만들었다면, 프로젝트 디렉
 ```text
 /speckit-constitution Create principles focused on code quality, testing, and maintainability.
 /speckit-specify Build a photo organizer with albums grouped by date and a tile preview of each album.
-/speckit-plan Use Vite with vanilla JavaScript. Keep images local and store metadata in SQLite.
 /speckit-tasks
 /speckit-implement
-/speckit-converge
 ```
 
-수렴 결과가 `Converged`로 나올 때까지 implement와 converge를 반복하세요.
+Specify는 `spec.md`, `prototype.html`, `quickstart.md`의 미실행 UAT 기준을
+고정합니다. Task는 이 계약과 constitution만 읽고 기술 중립적인 작업 패키지를
+만듭니다. 충돌이나 누락된 매핑은 Specify로 돌려보냅니다. Implement가 기술
+결정과 실행을 맡으며 해당 UAT의 `Status`, `Actual Result`, `Evidence`,
+`Deviation`만 갱신합니다.
 명확화, 체크리스트, 일관성 분석은 SDD 실습 가이드를 참고하세요.
 
 [SDD 실습 가이드](https://github.github.io/spec-kit/quickstart.html) ·

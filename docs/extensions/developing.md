@@ -232,7 +232,6 @@ Integration hooks for automatic execution.
 Available hook points:
 
 - `before_specify` / `after_specify`: Before/after specification generation
-- `before_plan` / `after_plan`: Before/after implementation planning
 - `before_tasks` / `after_tasks`: Before/after task generation
 - `before_implement` / `after_implement`: Before/after implementation
 - `before_analyze` / `after_analyze`: Before/after cross-artifact analysis
@@ -245,6 +244,11 @@ Available hook points:
 - `before_bug_test` / `after_bug_test`: Before/after bug verification (bundled `bug` extension)
 
 Each event accepts a single hook object or a list of hook objects (multiple commands on one event).
+These are the events surfaced by current first-party commands. The hook engine
+also accepts arbitrary extension-defined event names. A custom name is storage
+and lookup support only: core commands do not emit it automatically, so an
+extension command or other caller must query and dispatch that event
+explicitly.
 
 Hook object:
 
@@ -432,7 +436,7 @@ Encode the command name in upper case, dropping the `speckit.` prefix and turnin
 
 | Command file | Token |
 | --- | --- |
-| `speckit.plan.md` | `__SPECKIT_COMMAND_PLAN__` |
+| `speckit.tasks.md` | `__SPECKIT_COMMAND_TASKS__` |
 | `speckit.bug.fix.md` | `__SPECKIT_COMMAND_BUG_FIX__` |
 | `speckit.git.commit.md` | `__SPECKIT_COMMAND_GIT_COMMIT__` |
 | `speckit.agent-context.update.md` | `__SPECKIT_COMMAND_AGENT-CONTEXT_UPDATE__` |
@@ -874,16 +878,16 @@ templates (`HookExecutor` instead sorts by `priority`, lower first):
 ```yaml
 # extension.yml
 hooks:
-  after_plan:
+  after_tasks:
     - command: "speckit.my-ext.verify"
       priority: 5
       optional: false
-      description: "Verify the plan"
+      description: "Verify task coverage"
     - command: "speckit.my-ext.report"
       priority: 10
       optional: true
       prompt: "Generate the report?"
-      description: "Generate a report from the plan"
+      description: "Report task-package coverage"
 ```
 
 ---

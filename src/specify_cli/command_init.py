@@ -22,12 +22,15 @@ from ._agent_config import (
     resolve_default_init_integration,
 )
 from ._assets import (
+    _locate_bundled_extension,
     _locate_bundled_preset,
     _locate_bundled_workflow,
     get_speckit_version,
 )
 from ._console import StepTracker, console, select_with_arrows, show_banner
 from ._utils import check_tool
+
+DEFAULT_BUNDLED_EXTENSIONS = ("bug",)
 
 
 def _stdin_is_interactive() -> bool:
@@ -109,7 +112,6 @@ def _install_extension_during_init(project_path: Path, ext_spec: str, speckit_ve
     """
     from urllib.parse import urlparse
 
-    from ._assets import _locate_bundled_extension
     from .extensions import ExtensionCatalog, ExtensionError, ExtensionManager
     from .extensions._commands import (
         _resolve_catalog_extension,
@@ -661,6 +663,7 @@ def register(app: typer.Typer) -> None:
 
         tracker.add("integration", "Install integration")
         tracker.add("shared-infra", "Install shared infrastructure")
+        tracker.add("default-extensions", "Install default extensions")
 
         for key, label in [
             ("chmod", "Ensure scripts executable"),
@@ -899,6 +902,30 @@ def register(app: typer.Typer) -> None:
                 else:
                     init_opts.pop("ai_skills", None)
                 save_init_options(project_path, init_opts)
+
+                if resolved_integration.list_command_templates():
+                    tracker.start("default-extensions")
+                    try:
+                        statuses = [
+                            _install_extension_during_init(
+                                project_path, extension_id, get_speckit_version()
+                            )
+                            for extension_id in DEFAULT_BUNDLED_EXTENSIONS
+                        ]
+                        tracker.complete("default-extensions", "; ".join(statuses))
+                    except Exception as default_ext_err:
+                        sanitized_default_ext = (
+                            str(default_ext_err).replace("\n", " ").strip()
+                        )
+                        tracker.error(
+                            "default-extensions",
+                            f"install failed: {sanitized_default_ext[:120]}",
+                        )
+                else:
+                    tracker.skip(
+                        "default-extensions",
+                        "integration has no command artifacts",
+                    )
 
                 ensure_executable_scripts(project_path, tracker=tracker)
 
@@ -1230,16 +1257,13 @@ def register(app: typer.Typer) -> None:
             f"   {step_num}.2 [cyan]{_display_cmd('specify')}[/] - Create baseline specification"
         )
         steps_lines.append(
-            f"   {step_num}.3 [cyan]{_display_cmd('plan')}[/] - Create implementation plan"
+            f"   {step_num}.3 [cyan]{_display_cmd('tasks')}[/] - Generate traceable work packages"
         )
         steps_lines.append(
-            f"   {step_num}.4 [cyan]{_display_cmd('tasks')}[/] - Generate actionable tasks"
+            f"   {step_num}.4 [cyan]{_display_cmd('implement')}[/] - Choose the technical approach and execute implementation"
         )
         steps_lines.append(
-            f"   {step_num}.5 [cyan]{_display_cmd('implement')}[/] - Execute implementation"
-        )
-        steps_lines.append(
-            f"   {step_num}.6 [cyan]{_display_cmd('converge')}[/] - Assess the codebase and append remaining work as tasks"
+            f"   {step_num}.5 [cyan]{_display_cmd('converge')}[/] - Assess the codebase and append remaining work as tasks"
         )
 
         steps_panel = Panel(
@@ -1259,9 +1283,9 @@ def register(app: typer.Typer) -> None:
         enhancement_lines = [
             enhancement_intro,
             "",
-            f"○ [cyan]{_display_cmd('clarify')}[/] [bright_black](optional)[/bright_black] - Ask structured questions to de-risk ambiguous areas before planning (run before [cyan]{_display_cmd('plan')}[/] if used)",
+            f"○ [cyan]{_display_cmd('clarify')}[/] [bright_black](optional)[/bright_black] - Ask structured questions to de-risk ambiguous areas (run before [cyan]{_display_cmd('tasks')}[/] if used)",
             f"○ [cyan]{_display_cmd('analyze')}[/] [bright_black](optional)[/bright_black] - Cross-artifact consistency & alignment report (after [cyan]{_display_cmd('tasks')}[/], before [cyan]{_display_cmd('implement')}[/])",
-            f"○ [cyan]{_display_cmd('checklist')}[/] [bright_black](optional)[/bright_black] - Generate quality checklists to validate requirements completeness, clarity, and consistency (after [cyan]{_display_cmd('plan')}[/])",
+            f"○ [cyan]{_display_cmd('checklist')}[/] [bright_black](optional)[/bright_black] - Generate quality checklists to validate requirements completeness, clarity, and consistency (after [cyan]{_display_cmd('specify')}[/])",
         ]
         enhancements_title = (
             "Enhancement Skills" if native_skill_mode else "Enhancement Commands"

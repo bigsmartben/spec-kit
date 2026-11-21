@@ -72,7 +72,10 @@ class TestInitIntegrationFlag(IntegrationCatalogCliTestBase):
             os.chdir(old_cwd)
         assert result.exit_code == 0, f"init failed: {result.output}"
         assert (
-            project / ".github" / "skills" / "speckit-plan" / "SKILL.md"
+            project / ".github" / "skills" / "speckit-tasks" / "SKILL.md"
+        ).exists()
+        assert not (
+            project / ".github" / "skills" / "speckit-plan"
         ).exists()
         assert not (project / ".github" / "agents").exists()
         assert not (project / ".github" / "prompts").exists()
@@ -118,7 +121,7 @@ class TestInitIntegrationFlag(IntegrationCatalogCliTestBase):
         assert result.exit_code == 0, result.output
         assert f"defaulting to '{specify_cli.DEFAULT_INIT_INTEGRATION}'" in result.output
         assert (
-            project / ".github" / "skills" / "speckit-plan" / "SKILL.md"
+            project / ".github" / "skills" / "speckit-tasks" / "SKILL.md"
         ).exists()
 
         data = json.loads((project / ".specify" / "integration.json").read_text(encoding="utf-8"))
@@ -387,7 +390,7 @@ class TestInitIntegrationFlag(IntegrationCatalogCliTestBase):
             os.chdir(old_cwd)
         assert result.exit_code == 0
         assert (
-            project / ".github" / "skills" / "speckit-plan" / "SKILL.md"
+            project / ".github" / "skills" / "speckit-tasks" / "SKILL.md"
         ).exists()
 
     def test_init_optional_preset_failure_reports_target_and_continues(
@@ -513,7 +516,8 @@ class TestInitIntegrationFlag(IntegrationCatalogCliTestBase):
         # init replaces skills (not additive); verify the file has valid skill content
         assert command_file.exists()
         assert "speckit-specify" in command_file.read_text(encoding="utf-8")
-        assert (project / ".claude" / "skills" / "speckit-plan" / "SKILL.md").exists()
+        assert (project / ".claude" / "skills" / "speckit-tasks" / "SKILL.md").exists()
+        assert not (project / ".claude" / "skills" / "speckit-plan").exists()
 
     def test_shared_infra_skips_existing_files_without_force(self, tmp_path):
         """Pre-existing shared files are not overwritten without --force."""
@@ -542,8 +546,10 @@ class TestInitIntegrationFlag(IntegrationCatalogCliTestBase):
         assert (templates_dir / "spec-template.md").read_text(encoding="utf-8") == custom_template
 
         # Other shared files should still be installed
-        assert (scripts_dir / "setup-plan.sh").exists()
-        assert (templates_dir / "plan-template.md").exists()
+        assert (scripts_dir / "setup-tasks.sh").exists()
+        assert (templates_dir / "tasks-template.md").exists()
+        assert not (scripts_dir / "setup-plan.sh").exists()
+        assert not (templates_dir / "plan-template.md").exists()
 
     def test_shared_infra_overwrites_existing_files_with_force(self, tmp_path):
         """Pre-existing shared files ARE overwritten when force=True."""
@@ -572,8 +578,10 @@ class TestInitIntegrationFlag(IntegrationCatalogCliTestBase):
         assert (templates_dir / "spec-template.md").read_text(encoding="utf-8") != custom_template
 
         # Other shared files should also be installed
-        assert (scripts_dir / "setup-plan.sh").exists()
-        assert (templates_dir / "plan-template.md").exists()
+        assert (scripts_dir / "setup-tasks.sh").exists()
+        assert (templates_dir / "tasks-template.md").exists()
+        assert not (scripts_dir / "setup-plan.sh").exists()
+        assert not (templates_dir / "plan-template.md").exists()
 
     def test_shared_infra_installs_python_scripts_for_py(self, tmp_path):
         from specify_cli import _install_shared_infra
@@ -664,6 +672,89 @@ class TestInitIntegrationFlag(IntegrationCatalogCliTestBase):
         # Preserved: it is no longer a managed (hash-matching) copy.
         assert stale.exists()
         assert stale.read_text(encoding="utf-8") == "# user customization\n"
+
+    def test_shared_infra_removes_stale_managed_plan_template(self, tmp_path):
+        """A removed core Plan template is pruned when it is still managed."""
+        from specify_cli import _install_shared_infra
+        from specify_cli.integrations.manifest import IntegrationManifest
+
+        project = tmp_path / "stale-plan-template"
+        templates = project / ".specify" / "templates"
+        templates.mkdir(parents=True)
+        stale_rel = ".specify/templates/plan-template.md"
+        stale = templates / "plan-template.md"
+        stale.write_text("# historical Plan template\n", encoding="utf-8")
+        manifest = IntegrationManifest("speckit", project, version="test")
+        manifest.record_existing(stale_rel)
+        manifest.save()
+
+        _install_shared_infra(project, "sh", force=False)
+
+        assert not stale.exists()
+        assert stale_rel not in IntegrationManifest.load("speckit", project).files
+
+    def test_shared_infra_preserves_modified_stale_plan_template(self, tmp_path):
+        """A user-owned historical Plan template is not deleted on refresh."""
+        from specify_cli import _install_shared_infra
+        from specify_cli.integrations.manifest import IntegrationManifest
+
+        project = tmp_path / "stale-plan-template-modified"
+        templates = project / ".specify" / "templates"
+        templates.mkdir(parents=True)
+        stale_rel = ".specify/templates/plan-template.md"
+        stale = templates / "plan-template.md"
+        stale.write_text("# historical Plan template\n", encoding="utf-8")
+        manifest = IntegrationManifest("speckit", project, version="test")
+        manifest.record_existing(stale_rel)
+        manifest.save()
+        stale.write_text("# user-owned Plan template\n", encoding="utf-8")
+
+        _install_shared_infra(project, "sh", force=False)
+
+        assert stale.read_text(encoding="utf-8") == "# user-owned Plan template\n"
+
+    def test_shared_infra_force_removes_modified_stale_plan_asset(self, tmp_path):
+        """Explicit force authorizes removal of a stale modified Plan asset."""
+        from specify_cli import _install_shared_infra
+        from specify_cli.integrations.manifest import IntegrationManifest
+
+        project = tmp_path / "stale-plan-template-force"
+        templates = project / ".specify" / "templates"
+        templates.mkdir(parents=True)
+        stale_rel = ".specify/templates/plan-template.md"
+        stale = templates / "plan-template.md"
+        stale.write_text("# historical Plan template\n", encoding="utf-8")
+        manifest = IntegrationManifest("speckit", project, version="test")
+        manifest.record_existing(stale_rel)
+        manifest.save()
+        stale.write_text("# user-owned Plan template\n", encoding="utf-8")
+
+        _install_shared_infra(project, "sh", force=True)
+
+        assert not stale.exists()
+        assert stale_rel not in IntegrationManifest.load("speckit", project).files
+
+    def test_shared_infra_removes_retired_plan_script_from_inactive_variant(
+        self, tmp_path
+    ):
+        """A runtime switch still removes an old managed Plan script."""
+        from specify_cli import _install_shared_infra
+        from specify_cli.integrations.manifest import IntegrationManifest
+
+        project = tmp_path / "stale-plan-script-inactive"
+        scripts = project / ".specify" / "scripts" / "powershell"
+        scripts.mkdir(parents=True)
+        stale_rel = ".specify/scripts/powershell/setup-plan.ps1"
+        stale = scripts / "setup-plan.ps1"
+        stale.write_text("# historical Plan script\n", encoding="utf-8")
+        manifest = IntegrationManifest("speckit", project, version="test")
+        manifest.record_existing(stale_rel)
+        manifest.save()
+
+        _install_shared_infra(project, "sh", force=False)
+
+        assert not stale.exists()
+        assert stale_rel not in IntegrationManifest.load("speckit", project).files
 
     def test_shared_infra_prunes_orphan_manifest_entry_when_file_absent(self, tmp_path):
         """A stale manifest entry whose file is already gone from disk is pruned
@@ -898,7 +989,7 @@ class TestInitIntegrationFlag(IntegrationCatalogCliTestBase):
         outside.write_text("# outside\n", encoding="utf-8")
         templates_dir = project / ".specify" / "templates"
         templates_dir.mkdir(parents=True)
-        os.symlink(outside, templates_dir / "plan-template.md")
+        os.symlink(outside, templates_dir / "tasks-template.md")
 
         _install_shared_infra(project, "sh", force=True)
 
@@ -919,7 +1010,7 @@ class TestInitIntegrationFlag(IntegrationCatalogCliTestBase):
         outside.write_text("# outside\n", encoding="utf-8")
         templates_dir = project / ".specify" / "templates"
         templates_dir.mkdir(parents=True)
-        os.symlink(outside, templates_dir / "plan-template.md")
+        os.symlink(outside, templates_dir / "tasks-template.md")
 
         with pytest.raises(ValueError, match="Refusing to overwrite symlinked"):
             _refresh_shared_templates(project, invoke_separator=".", force=True)
@@ -962,7 +1053,7 @@ class TestInitIntegrationFlag(IntegrationCatalogCliTestBase):
         core_pack = tmp_path / "core-pack"
         templates_src = core_pack / "templates"
         templates_src.mkdir(parents=True)
-        (templates_src / "plan-template.md").write_text("# plan\n", encoding="utf-8")
+        (templates_src / "tasks-template.md").write_text("# tasks\n", encoding="utf-8")
 
         with pytest.raises(ValueError, match="symlinked integration manifest"):
             install_shared_infra(
@@ -1086,7 +1177,7 @@ class TestInitIntegrationFlag(IntegrationCatalogCliTestBase):
 
         templates_dest = project / ".specify" / "templates"
         templates_dest.mkdir(parents=True)
-        (templates_dest / "plan-template.md").write_text("# existing template\n", encoding="utf-8")
+        (templates_dest / "tasks-template.md").write_text("# existing template\n", encoding="utf-8")
 
         core_pack = tmp_path / "core-pack"
         nested_src = core_pack / "scripts" / "bash" / "nested"
@@ -1095,7 +1186,7 @@ class TestInitIntegrationFlag(IntegrationCatalogCliTestBase):
 
         templates_src = core_pack / "templates"
         templates_src.mkdir(parents=True)
-        (templates_src / "plan-template.md").write_text("# bundled template\n", encoding="utf-8")
+        (templates_src / "tasks-template.md").write_text("# bundled template\n", encoding="utf-8")
 
         buffer = io.StringIO()
         install_shared_infra(
@@ -1110,7 +1201,7 @@ class TestInitIntegrationFlag(IntegrationCatalogCliTestBase):
 
         output = buffer.getvalue()
         assert ".specify/scripts/bash/nested/deep.sh" in output
-        assert ".specify/templates/plan-template.md" in output
+        assert ".specify/templates/tasks-template.md" in output
 
     @pytest.mark.skipif(os.name == "nt", reason="POSIX mode bits are not stable on Windows")
     def test_shared_template_writes_are_not_world_writable(self, tmp_path):
@@ -1123,7 +1214,7 @@ class TestInitIntegrationFlag(IntegrationCatalogCliTestBase):
         core_pack = tmp_path / "core-pack"
         templates_src = core_pack / "templates"
         templates_src.mkdir(parents=True)
-        (templates_src / "plan-template.md").write_text("# plan\n", encoding="utf-8")
+        (templates_src / "tasks-template.md").write_text("# tasks\n", encoding="utf-8")
 
         install_shared_infra(
             project,
@@ -1135,7 +1226,7 @@ class TestInitIntegrationFlag(IntegrationCatalogCliTestBase):
             force=True,
         )
 
-        written = project / ".specify" / "templates" / "plan-template.md"
+        written = project / ".specify" / "templates" / "tasks-template.md"
         assert written.stat().st_mode & 0o777 == 0o644
 
     def test_shared_infra_no_warning_when_forced(self, tmp_path, capsys):
@@ -1338,6 +1429,8 @@ class TestForceExistingDirectory:
         # Spec Kit files should be installed
         assert (target / ".specify" / "init-options.json").exists()
         assert (target / ".specify" / "templates" / "spec-template.md").exists()
+        assert (target / ".specify" / "templates" / "prototype-template.md").exists()
+        assert (target / ".specify" / "templates" / "quickstart-template.md").exists()
 
     def test_without_force_errors_on_existing_dir(self, tmp_path):
         """specify init <dir> without --force errors when directory exists."""
@@ -1461,11 +1554,11 @@ class TestSharedInfraCommandRefs:
 
         _install_shared_infra(project, "sh", invoke_separator=".")
 
-        plan = project / ".specify" / "templates" / "plan-template.md"
-        assert plan.exists()
-        content = plan.read_text(encoding="utf-8")
-        assert "__SPECKIT_COMMAND_" not in content, "unresolved placeholder in plan-template.md"
-        assert "/speckit.plan" in content
+        quickstart = project / ".specify" / "templates" / "quickstart-template.md"
+        assert quickstart.exists()
+        content = quickstart.read_text(encoding="utf-8")
+        assert "__SPECKIT_COMMAND_" not in content, "unresolved placeholder in quickstart-template.md"
+        assert "/speckit.specify" in content
 
         checklist = project / ".specify" / "templates" / "checklist-template.md"
         content = checklist.read_text(encoding="utf-8")
@@ -1482,17 +1575,17 @@ class TestSharedInfraCommandRefs:
 
         _install_shared_infra(project, "sh", invoke_separator="-")
 
-        plan = project / ".specify" / "templates" / "plan-template.md"
-        assert plan.exists()
-        content = plan.read_text(encoding="utf-8")
-        assert "__SPECKIT_COMMAND_" not in content, "unresolved placeholder in plan-template.md"
-        assert "/speckit-plan" in content
-        assert "/speckit.plan" not in content, "dot-notation leaked into skills page template"
+        quickstart = project / ".specify" / "templates" / "quickstart-template.md"
+        assert quickstart.exists()
+        content = quickstart.read_text(encoding="utf-8")
+        assert "__SPECKIT_COMMAND_" not in content, "unresolved placeholder in quickstart-template.md"
+        assert "/speckit-specify" in content
+        assert "/speckit.specify" not in content, "dot-notation leaked into skills page template"
 
-        tasks = project / ".specify" / "templates" / "tasks-template.md"
-        content = tasks.read_text(encoding="utf-8")
+        checklist = project / ".specify" / "templates" / "checklist-template.md"
+        content = checklist.read_text(encoding="utf-8")
         assert "__SPECKIT_COMMAND_" not in content
-        assert "/speckit-tasks" in content
+        assert "/speckit-implement" in content
 
     def test_dollar_prefix_in_page_templates(self, tmp_path):
         """Dollar-style skills agents get $speckit-<name> in page templates."""
@@ -1506,10 +1599,10 @@ class TestSharedInfraCommandRefs:
             project, "sh", invoke_separator="-", invoke_prefix="$"
         )
 
-        plan = project / ".specify" / "templates" / "plan-template.md"
-        content = plan.read_text(encoding="utf-8")
-        assert "$speckit-plan" in content
-        assert "/speckit-plan" not in content
+        quickstart = project / ".specify" / "templates" / "quickstart-template.md"
+        content = quickstart.read_text(encoding="utf-8")
+        assert "$speckit-specify" in content
+        assert "/speckit-specify" not in content
 
     @pytest.mark.parametrize("script_type", ["sh", "ps"])
     def test_dot_separator_in_shared_scripts(self, tmp_path, script_type):
@@ -1525,10 +1618,8 @@ class TestSharedInfraCommandRefs:
         content = self._combined_script_content(project, script_type)
         assert "__SPECKIT_COMMAND_" not in content
         assert "/speckit.specify" in content
-        assert "/speckit.plan" in content
         assert "/speckit.tasks" in content
         assert "/speckit-specify" not in content
-        assert "/speckit-plan" not in content
         assert "/speckit-tasks" not in content
 
     @pytest.mark.parametrize("script_type", ["sh", "ps"])
@@ -1545,10 +1636,8 @@ class TestSharedInfraCommandRefs:
         content = self._combined_script_content(project, script_type)
         assert "__SPECKIT_COMMAND_" not in content
         assert "/speckit-specify" in content
-        assert "/speckit-plan" in content
         assert "/speckit-tasks" in content
         assert "/speckit.specify" not in content
-        assert "/speckit.plan" not in content
         assert "/speckit.tasks" not in content
 
     @pytest.mark.parametrize("script_type", ["sh", "ps", "py"])
@@ -1583,14 +1672,11 @@ class TestSharedInfraCommandRefs:
 
         content = self._combined_script_content(project, script_type)
         assert "$speckit-specify" in content
-        assert "$speckit-plan" in content
         assert "$speckit-tasks" in content
         assert "/speckit-specify" not in content
-        assert "/speckit-plan" not in content
         assert "/speckit-tasks" not in content
         if script_type == "sh":
             assert r"\$speckit-specify" in content
-            assert r"\$speckit-plan" in content
             assert r"\$speckit-tasks" in content
 
     def test_full_init_claude_resolves_page_templates(self, tmp_path):
@@ -1614,9 +1700,9 @@ class TestSharedInfraCommandRefs:
 
         assert result.exit_code == 0, f"init failed: {result.output}"
 
-        plan = project / ".specify" / "templates" / "plan-template.md"
-        content = plan.read_text(encoding="utf-8")
-        assert "/speckit-plan" in content, "Claude (skills) should use /speckit-plan"
+        quickstart = project / ".specify" / "templates" / "quickstart-template.md"
+        content = quickstart.read_text(encoding="utf-8")
+        assert "/speckit-specify" in content, "Claude (skills) should use /speckit-specify"
         assert "__SPECKIT_COMMAND_" not in content
 
         script_content = self._combined_script_content(project, "sh")
@@ -1644,10 +1730,10 @@ class TestSharedInfraCommandRefs:
 
         assert result.exit_code == 0, f"init failed: {result.output}"
 
-        plan = project / ".specify" / "templates" / "plan-template.md"
-        content = plan.read_text(encoding="utf-8")
-        assert "/speckit-plan" in content, "Copilot skills should use /speckit-plan"
-        assert "/speckit.plan" not in content
+        quickstart = project / ".specify" / "templates" / "quickstart-template.md"
+        content = quickstart.read_text(encoding="utf-8")
+        assert "/speckit-specify" in content, "Copilot skills should use /speckit-specify"
+        assert "/speckit.specify" not in content
         assert "__SPECKIT_COMMAND_" not in content
 
         script_content = self._combined_script_content(project, "sh")
@@ -1676,10 +1762,10 @@ class TestSharedInfraCommandRefs:
 
         assert result.exit_code == 0, f"init failed: {result.output}"
 
-        plan = project / ".specify" / "templates" / "plan-template.md"
-        content = plan.read_text(encoding="utf-8")
-        assert "/speckit.plan" in content, "Copilot --commands should use /speckit.plan"
-        assert "/speckit-plan" not in content
+        quickstart = project / ".specify" / "templates" / "quickstart-template.md"
+        content = quickstart.read_text(encoding="utf-8")
+        assert "/speckit.specify" in content, "Copilot --commands should use /speckit.specify"
+        assert "/speckit-specify" not in content
         assert "__SPECKIT_COMMAND_" not in content
 
         script_content = self._combined_script_content(project, "sh")

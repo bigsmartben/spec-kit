@@ -12,13 +12,20 @@ it described three ways to apply Spec-Driven Development:
 - **Iterative Enhancement ("Brownfield")** adds features to and modernizes
   existing systems.
 
-All three moved from durable planning artifacts into implementation:
+Historically, all three moved from durable planning artifacts into implementation:
 
 **Specify → Plan → Tasks → Implement**
 
-Those development paths and that core sequence remain, but the project has
-grown into an extensible harness for coding agents, software delivery
-processes, and other structured work.
+That was the former core sequence. The current first-party delivery sequence is:
+
+**Specify → Task → Implement**
+
+Specify now freezes the product contract, Task creates technology-neutral and
+independently deliverable work packages, and Implement owns technical decisions
+and UAT execution. Historical `plan.md` files remain historical user content;
+the migration does not reinterpret or delete them. The three development paths
+remain, and the project has grown into an extensible harness for coding agents,
+software delivery processes, and other structured work.
 
 ## Project stewardship
 
@@ -36,7 +43,7 @@ August 21, 2025 and led the repository through its first months.
 
 That founding period established the shape users still recognize: the Specify
 CLI, coding-agent-specific scaffolding, project constitutions, and the
-specification → plan → tasks → implementation process. It also framed SDD as
+specification → plan → tasks → implementation process used at that time. It also framed SDD as
 useful for greenfield development, parallel exploration, and brownfield
 enhancement rather than tying the method to a single agent or development
 scenario.
@@ -129,11 +136,16 @@ processes alongside feature delivery:
   Its intake → research → define → shape → decide process evaluates an idea
   before it enters SDD.
 
-June also closed the core delivery loop with `/speckit.converge`. Rather than
+At that point in the product's history, June also closed the core delivery
+loop with `/speckit.converge`. Rather than
 treating implementation as the endpoint, it assesses the code against the
 specification, plan, and tasks, then appends traceable tasks for remaining gaps.
-Those tasks return to `/speckit.implement`, creating a convergence loop without
-rewriting the specification or plan. The
+The current three-stage implementation evolved that loop: Converge now assesses
+the frozen Specify contract, Constitution authority, and tasks, then appends
+only uncovered corrective `[BUILD]` work. It reuses existing unchecked tasks
+and the single existing `[UAT]` task for each acceptance scenario. Those tasks
+return to `/speckit.implement` without rewriting the contract or Constitution.
+The
 [June newsletter](https://github.com/github/spec-kit/blob/main/newsletters/2026-June.md)
 records this shift from generating an implementation to checking whether it
 satisfies the recorded intent.
@@ -238,8 +250,9 @@ evolution:
 
 - **Intent comes before implementation.** Specifications capture what should be
   built before technical decisions dominate the work.
-- **Artifacts should be durable.** Specs, plans, and tasks remain useful beyond
-  a single prompt or agent session.
+- **Artifacts should be durable.** Frozen product contracts, task packages, and
+  UAT records remain useful beyond a single prompt or agent session. Historical
+  plan artifacts remain preserved when users choose to retain them.
 - **The process should be agent-independent.** Teams can change coding agents
   without abandoning their development method.
 - **The method should adapt to the work.** The original development paths grew

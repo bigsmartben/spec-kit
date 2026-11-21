@@ -88,7 +88,8 @@ You **MUST** consider the user input before proceeding (if not empty).
 2. **IF EXISTS**: Load `/memory/constitution.md` for project principles and governance constraints.
 
 3. **Clarify intent (dynamic)**: Derive up to THREE initial contextual clarifying questions (no pre-baked catalog). They MUST:
-   - Be generated from the user's phrasing + extracted signals from spec/plan/tasks
+   - Be generated from the user's phrasing + signals from the frozen Specify
+     contract and tasks
    - Only ask about information that materially changes checklist content
    - Be skipped individually if already unambiguous in `$ARGUMENTS`
    - Prefer precision over breadth
@@ -123,11 +124,14 @@ You **MUST** consider the user input before proceeding (if not empty).
    - Derive checklist theme (e.g., security, review, deploy, ux)
    - Consolidate explicit must-have items mentioned by user
    - Map focus selections to category scaffolding
-   - Infer any missing context from spec/plan/tasks (do NOT hallucinate)
+   - Infer any missing context from the frozen Specify contract and tasks
+     (do NOT hallucinate)
 
 5. **Load feature context**: Read from FEATURE_DIR:
    - spec.md: Feature requirements and scope
-   - plan.md (if exists): Technical details, dependencies
+   - prototype.html (if exists): Visible behavior, interaction, and state
+     contract
+   - quickstart.md (if exists): UAT scenarios and expected results
    - tasks.md (if exists): Implementation tasks
 
    **Context Loading Strategy**:
@@ -185,7 +189,7 @@ You **MUST** consider the user input before proceeding (if not empty).
    **ITEM STRUCTURE**:
    Each item should follow this pattern:
    - Question format asking about requirement quality
-   - Focus on what's WRITTEN (or not written) in the spec/plan
+   - Focus on what's WRITTEN (or not written) in the frozen contract and task work packages
    - Include quality dimension in brackets [Completeness/Clarity/Consistency/etc.]
    - Reference spec section `[Spec §X.Y]` when checking existing requirements
    - Use `[Gap]` marker when checking for missing requirements

@@ -1,10 +1,10 @@
 # How to implement complex features in bounded runs
 
 Large or complex features often run smoothly through `/speckit.specify`,
-`/speckit.plan`, and `/speckit.tasks`, then degrade during implementation. In
-the middle of a long `/speckit.implement` run, agents can start to lose track of
-the plan, ignore tasks, or hallucinate — usually right before or after context
-compaction is triggered.
+and `/speckit.tasks`, then degrade during implementation. In the middle of a
+long `/speckit.implement` run, agents can start to lose track of the frozen
+contract, ignore work packages, or hallucinate — usually right before or after
+context compaction is triggered.
 
 The underlying cause is context window exhaustion. When a single
 implementation run tries to hold the entire feature in context, the model
@@ -44,9 +44,9 @@ delegate individual tasks:
 /speckit.implement delegate each parallel [P] task to a sub-agent
 ```
 
-Each sub-agent gets a focused context — one task plus the relevant plan
-excerpts — rather than the full feature context, so compaction never triggers
-in the main session.
+Each sub-agent gets a focused context — one work package plus the relevant
+frozen-contract and constitution excerpts — rather than the full feature
+context, so compaction never triggers in the main session.
 
 ## Option 3: Combine Both
 
@@ -60,8 +60,8 @@ For very large features, combine scoping and delegation:
 
 When even a single phase overwhelms the context, break the feature into
 independently specified sub-features. Each sub-feature gets its own
-`spec.md`, `plan.md`, and `tasks.md`, and runs through its own
-specify/plan/tasks/implement cycle.
+`spec.md`, `prototype.html`, `quickstart.md`, and `tasks.md`, and runs through
+its own specify/tasks/implement cycle.
 
 This is the "spec of specs" approach: a first pass breaks a massive feature into
 smaller, self-contained specs that can each be implemented without overwhelming the

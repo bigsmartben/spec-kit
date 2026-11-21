@@ -5,11 +5,12 @@ contract that consumer can rely on. **Contract-driven development** means
 agreeing on that contract, implementing each side against it, and verifying
 that both sides meet their obligations.
 
-This fits within Spec-Driven Development: product requirements establish the
-intended behavior; contracts define how components collaborate to deliver it;
-each component's implementation plan describes its internal solution. Define
-the interaction boundary first, rather than treating repository boundaries as
-the design.
+This fits within Spec-Driven Development: Specify establishes the observable
+behavior and pending UAT contract; Task packages independently deliverable
+provider and consumer outcomes without selecting an interface technology; and
+Implement owns the concrete contract, internal solution, and compatibility
+decisions. Define the interaction boundary first, rather than treating
+repository boundaries as the design.
 
 This guide uses existing Spec Kit commands and ordinary versioned artifacts.
 It does not introduce automatic contract synchronization, cross-repository
@@ -80,39 +81,43 @@ agreement; it does not guarantee that the deployed provider still supports it.
    behavior with `/speckit.specify`. Identify which components provide and
    consume each interaction. If no contract exists, defining it is part of the
    work, not a prerequisite that must already have been completed elsewhere.
-2. **Agree on the contract before dependent implementation.** During
-   `/speckit.plan`, the owner drafts the interface contract and reviews it with
-   consumers. Resolve observable behavior and compatibility questions before
-   either side implements assumptions about the other. Each side can then
-   develop independently against the agreed version.
+   Keep the frozen contract at the observable level: inputs, outputs, errors,
+   retries, compatibility expectations, and UAT references.
+2. **Package the outcomes without designing the interface.** Run
+   `/speckit.tasks` for provider and consumer work. Task packages the contract
+   obligations, dependencies, and UAT coverage but does not choose a schema
+   format, protocol, architecture, or repository path. Missing obligations or
+   contradictory consumer/provider requirements block back to Specify.
 3. **Supply the agreement to each affected project.** Give the agent the
-   contract's exact version and accessible content, along with the relevant
-   product requirements. Do not assume that a link makes another repository's
-   files available. Each project owns its local `spec.md`, `plan.md`, and
-   `tasks.md`; reference the contract rather than copying another project's
-   implementation plan.
-4. **Plan verification explicitly.** Ask `/speckit.tasks` to include provider
-   and consumer contract tests, including negative cases. Test observable
-   behavior as well as data shapes. Consumer tests against mocks are useful,
-   but do not establish that the real provider conforms; include provider
-   verification and integration validation.
+   authoritative contract's exact version and accessible content along with the
+   relevant product contract. Do not assume that a link makes another
+   repository's files available. Each project owns its local `spec.md`,
+   `prototype.html`, `quickstart.md`, and `tasks.md`; reference the external
+   agreement instead of copying another project's technical records.
+4. **Agree on and verify the technical contract during Implement.** The
+   provider-side Implement phase drafts or updates the authoritative technical
+   contract and reviews it with consumers. Include provider, consumer,
+   negative-case, and real integration verification as required by the mapped
+   work packages. Consumer tests against mocks are useful but do not establish
+   that the real provider conforms.
 5. **Implement and validate each side.** Use `/speckit.implement` in each
-   project, then run the agreed checks. If implementation reveals a contract
-   problem, revise the authoritative agreement and reconcile the affected
-   specs, plans, tests, and consumer versions rather than privately changing a
-   copy.
+   project, then run the agreed checks and mapped UAT scenarios. Implement
+   updates only `Status`, `Actual Result`, `Evidence`, and `Deviation` in the
+   matching UAT entries. If execution reveals a missing or conflicting product
+   obligation, revise the frozen contract and regenerate affected Task
+   packages; do not privately change only a copied schema.
 6. **Release compatible implementations.** Track which deployed component
    versions support which contract versions. Sequence rollout and rollback
    around those dependencies. For breaking changes, agree on a migration and
    overlap period before removing behavior consumers still use.
 
-`/speckit.plan` already produces feature-scoped `contracts/` artifacts when
-external interfaces are involved. Choose explicitly which artifact is
-authoritative: a feature may draft a new contract there, or propose a change to
-an established contract elsewhere in the project. Record the approved source
-and version in the feature artifacts. Historical snapshots and synchronized
-copies are not additional editable sources of truth, and Spec Kit does not
-publish or synchronize them automatically.
+Core does not require or generate a feature-scoped `contracts/` directory.
+During Implement, choose explicitly which technical artifact is authoritative:
+a feature may propose a new contract or a change to an established one
+elsewhere in the project. Record the approved source and version in the
+implementation-owned record. Historical snapshots and synchronized copies are
+not additional editable sources of truth, and Spec Kit does not publish or
+synchronize them automatically.
 
 For artifact evolution after a change, see
 [Evolving Specs in Existing Projects](evolving-specs.md).
@@ -165,15 +170,15 @@ Each project is initialized independently and uses the usual SDD workflow:
 1. The inventory team agrees on Inventory API 1.0.0 with the orders team; the
    orders team agrees on Orders API 1.0.0 with the website team. Each owner
    publishes its approved contract, and consumers pin their copies.
-2. Each team specifies and plans its own part of checkout against those
-   agreements. The website describes customer interaction, orders describes
-   order placement, and inventory describes reservation behavior. The orders
-   plan accounts for both contracts and for failures between reservation and
-   order creation.
+2. Each team specifies, packages, and implements its own part of checkout
+   against those agreements. The website describes customer interaction,
+   orders describes order placement, and inventory describes reservation
+   behavior. During Implement, the orders technical design accounts for both
+   contracts and failures between reservation and order creation.
 3. Link each local feature spec to the same product-feature issue or roadmap
    entry, and record its contract versions and related provider/consumer specs
    or PRs. Local feature numbers and branches need not match. This is
-   traceability, not a shared implementation plan.
+   traceability, not a shared technical design.
 4. Implement and verify both interfaces, including retries, insufficient
    stock, and failures. Validate the complete checkout path as well as each
    component's contract obligations.
@@ -222,9 +227,10 @@ The `r3` team uses that same version to verify the interaction, including
 invalid input, retries, and compatibility with supported implementations. Tests
 are evidence for the agreement, not a competing definition of it.
 
-Each project keeps its own implementation or test plan. Reference the shared
-product intent and contract version without requiring an umbrella repository,
-matching branch names, or atomic commits across the three repositories.
+Each project keeps its own implementation and test decisions. Reference the
+shared product intent and contract version without requiring an umbrella
+repository, matching branch names, or atomic commits across the three
+repositories.
 
 ### Evolve an agreed contract deliberately
 
@@ -233,7 +239,7 @@ TongyiDai. It assumes the initial interaction contract has already been agreed
 and is in use.
 
 Suppose the provider and consumers agree to add a new optional configuration
-field. Plan its compatible adoption explicitly:
+field. Agree on its compatible adoption explicitly:
 
 1. **Publish a compatible change.** Update the authoritative contract in `r2`,
    give it an explicit version, and publish the schema and compatibility

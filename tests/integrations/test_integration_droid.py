@@ -116,7 +116,8 @@ class TestDroidInitFlow:
         )
 
         assert result.exit_code == 0, f"init --integration droid failed: {result.output}"
-        assert (target / ".factory" / "skills" / "speckit-plan" / "SKILL.md").exists()
+        assert (target / ".factory" / "skills" / "speckit-tasks" / "SKILL.md").exists()
+        assert not (target / ".factory" / "skills" / "speckit-plan").exists()
         assert (target / ".factory" / "skills" / "speckit-specify" / "SKILL.md").exists()
 
 
@@ -334,7 +335,7 @@ class TestDroidNoModelInvocationOption:
             parsed_options={"no_model_invocation": True},
             script_type="sh",
         )
-        result = i.post_process_skill_content("---\nname: speckit-plan\n---\n\nBody\n")
+        result = i.post_process_skill_content("---\nname: speckit-tasks\n---\n\nBody\n")
         assert "disable-model-invocation: true" in result
         assert "disable-model-invocation: false" not in result
 
@@ -435,7 +436,11 @@ class TestDroidNoModelInvocationOption:
 
         project = _init_project(tmp_path, "droid", "--no-model-invocation")
         skills_dir = project / ".factory" / "skills"
-        skill_files = sorted(skills_dir.glob("*/SKILL.md"))
+        skill_files = sorted(
+            path
+            for path in skills_dir.glob("*/SKILL.md")
+            if not path.parent.name.startswith("speckit-bug-")
+        )
         assert len(skill_files) > 0
         for f in skill_files:
             assert _skill_frontmatter(f)["disable-model-invocation"] is True, f.parent.name
@@ -471,7 +476,7 @@ class TestDroidNoModelInvocationOption:
         from tests.specify_cli.integrations._helpers import _init_project, _run_in_project
 
         project = _init_project(tmp_path, "droid", "--no-model-invocation")
-        skill_file = project / ".factory" / "skills" / "speckit-plan" / "SKILL.md"
+        skill_file = project / ".factory" / "skills" / "speckit-tasks" / "SKILL.md"
         assert _skill_frontmatter(skill_file)["disable-model-invocation"] is True
 
         get_integration("droid")._disable_model_invocation = False

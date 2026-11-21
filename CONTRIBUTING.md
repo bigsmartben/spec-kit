@@ -221,7 +221,7 @@ enter repository history.
 
 When working on spec-kit:
 
-1. Test changes with the `specify` CLI commands (`/speckit.specify`, `/speckit.plan`, `/speckit.tasks`) in your coding agent of choice
+1. Test changes with the `specify` CLI commands (`/speckit.specify`, `/speckit.tasks`, `/speckit.implement`) in your coding agent of choice
 2. Verify templates are working correctly in `templates/` directory
 3. Test script functionality in the `scripts/` directory
 4. Ensure memory files (`memory/constitution.md`) are updated if major process changes are made
@@ -356,7 +356,7 @@ Any change that affects a slash command's behavior requires manually testing tha
 1. **Identify affected commands** — use the [prompt below](#determining-which-tests-to-run) to have your agent analyze your changed files and determine which commands need testing.
 2. **Set up a test project** — scaffold from your local branch (see [Testing setup](#testing-setup)).
 3. **Run each affected command** — invoke it in your agent, verify it completes successfully, and confirm it produces the expected output (files created, scripts executed, artifacts populated).
-4. **Run prerequisites first** — commands that depend on earlier commands (e.g., `/speckit.tasks` requires `/speckit.plan` which requires `/speckit.specify`) must be run in order.
+4. **Run prerequisites first** — commands that depend on earlier commands (for example, `/speckit.tasks` requires `/speckit.specify`, and `/speckit.implement` requires `/speckit.tasks`) must be run in order.
 5. **Report results** — paste the [reporting template](#reporting-results) into your PR with pass/fail for each command tested.
 
 #### Reporting results
@@ -384,7 +384,7 @@ the command templates in templates/commands/ to understand what each command
 invokes. Use these mapping rules:
 
 - templates/commands/X.md → the command it defines
-- scripts/bash/Y.sh or scripts/powershell/Y.ps1 → every command that invokes that script (grep templates/commands/ for the script name). Also check transitive dependencies: if the changed script is sourced by other scripts (e.g., common.sh is sourced by create-new-feature.sh, check-prerequisites.sh, setup-plan.sh), then every command invoking those downstream scripts is also affected
+- scripts/bash/Y.sh or scripts/powershell/Y.ps1 → every command that invokes that script (grep templates/commands/ for the script name). Also check transitive dependencies: if the changed script is sourced by other scripts (e.g., common.sh is sourced by create-new-feature.sh, check-prerequisites.sh, setup-tasks.sh), then every command invoking those downstream scripts is also affected
 - templates/Z-template.md → every command that consumes that template during execution
 - src/specify_cli/*.py → CLI commands (`specify init`, `specify check`, `specify extension *`, `specify preset *`); test the affected CLI command and, for init/scaffolding changes, at minimum test /speckit.specify
 - extensions/X/commands/* → the extension command it defines

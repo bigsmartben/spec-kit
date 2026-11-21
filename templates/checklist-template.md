@@ -15,7 +15,7 @@
   The __SPECKIT_COMMAND_CHECKLIST__ command MUST replace these with actual items based on:
   - User's specific checklist request
   - Feature requirements from spec.md
-  - Technical context from plan.md
+  - Delivery context from tasks.md, when Task work packages exist
   - Implementation details from tasks.md
 
   DO NOT keep these sample items in the generated checklist file.

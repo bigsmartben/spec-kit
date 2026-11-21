@@ -24,9 +24,9 @@ specify workflow add speckit
 specify workflow run speckit --input spec="Build a kanban board"
 ```
 
-The bundled SDD workflow runs specify, plan, tasks, and implement, with review
-gates after specification and planning. On an interactive terminal a gate asks
-for a verdict; otherwise it pauses. Review the output and resume the same run:
+The bundled SDD workflow runs Specify → Task → Implement, with one review gate
+after specification. On an interactive terminal the gate asks for a verdict;
+otherwise it pauses. Review the frozen contract and resume the same run:
 
 ```bash
 specify workflow status <run_id>
@@ -39,23 +39,19 @@ corresponding verdict input after reviewing the output:
 | Workflow | Review gate | Verdict input |
 | --- | --- | --- |
 | `speckit` | `review-spec` | `speckit_review_spec_verdict` |
-| `speckit` | `review-plan` | `speckit_review_plan_verdict` |
 | `bugfix` | `review-assessment` | `bug_review_assessment_verdict` |
 
 ```bash
 specify workflow resume <sdd_run_id> --input speckit_review_spec_verdict=approve
-specify workflow resume <sdd_run_id> --input speckit_review_plan_verdict=approve
 specify workflow resume <bugfix_run_id> --input bug_review_assessment_verdict=approve
 ```
 
 Use the command matching the active review. These string inputs are optional
 and default to `""`: omitting an input or supplying an empty value keeps the
-existing prompt on an interactive terminal or pause otherwise. Approving the
-specification does not approve the plan review.
+existing prompt on an interactive terminal or pause otherwise.
 
-The inputs are available in `speckit` workflow version 1.0.2 and `bugfix` version
-1.0.1, with Specify CLI 0.15.1 or later. Update the installed workflow and start
-a new run to use its new input declarations. Existing runs keep the workflow
+Use a release containing the current input declarations. Update the installed
+workflow and start a new run to use them. Existing runs keep the workflow
 definition saved when they started; updating the installed workflow does not
 add inputs to those runs.
 
@@ -74,13 +70,13 @@ specify workflow run ./workflow.yml --input spec="Build a kanban board"
 
 | ID | Purpose | Main input |
 | --- | --- | --- |
-| `speckit` | Full SDD delivery cycle with specification and plan review gates | `spec` |
+| `speckit` | Full SDD delivery cycle with a specification review gate | `spec` |
 | `bugfix` | Bug assessment, fixing, and validation | `report` |
 | `assess` | Idea intake, research, definition, shaping, and decision | `idea` |
 
 Use `specify workflow info <id>` for metadata, inputs, and the step graph.
-The `speckit` workflow declares `spec`, optional `integration`, and the two
-optional verdict inputs above, not a `scope` input. Workflows using extension
+The `speckit` workflow declares `spec`, optional `integration`, and the
+specification verdict input above, not a `scope` input. Workflows using extension
 commands also need those commands installed;
 consult each bundled definition's requirements.
 

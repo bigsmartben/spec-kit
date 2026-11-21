@@ -12,6 +12,7 @@ from typer.testing import CliRunner
 from specify_cli import app
 from specify_cli.integrations import get_integration
 from specify_cli.integrations.manifest import IntegrationManifest
+from tests.integrations.community_defaults import DEFAULT_EXTENSION_COMMANDS
 
 
 def _run_init(project, *flags: str) -> Result:
@@ -215,7 +216,7 @@ class TestRovodevIntegration:
         data = yaml.safe_load(prompts_manifest.read_text(encoding="utf-8"))
         names = {entry.get("name") for entry in data.get("prompts", [])}
         assert "my-custom-prompt" in names
-        assert "speckit-plan" in names
+        assert "speckit-tasks" in names
 
     def test_modified_prompts_yml_survives_uninstall(self, tmp_path):
         impl = get_integration(self.KEY)
@@ -256,8 +257,11 @@ class TestRovodevIntegration:
         # Prompts: exactly the core template set.
         assert prompt_stems == core_skill_names
 
-        # Skills: exactly the core template set (no extension auto-install).
-        assert skill_names == core_skill_names
+        extension_skill_names = {
+            command.replace(".", "-")
+            for command in DEFAULT_EXTENSION_COMMANDS
+        }
+        assert skill_names == core_skill_names | extension_skill_names
 
         # prompts.yml mirrors the prompt files exactly.
         prompts_manifest = project / ".rovodev" / "prompts.yml"
@@ -329,6 +333,7 @@ class TestRovodevIntegration:
         project.mkdir()
         result = _run_init(project, "--integration", "rovodev")
         assert result.exit_code == 0, result.output
-        assert (project / ".rovodev" / "skills" / "speckit-plan" / "SKILL.md").exists()
+        assert (project / ".rovodev" / "skills" / "speckit-tasks" / "SKILL.md").exists()
+        assert not (project / ".rovodev" / "skills" / "speckit-plan").exists()
         assert (project / ".rovodev" / "prompts.yml").exists()
         assert (project / ".specify" / "integrations" / "rovodev.manifest.json").exists()

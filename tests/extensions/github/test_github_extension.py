@@ -129,6 +129,7 @@ class TestCatalogEntry:
         assert entry["bundled"] is True
         assert entry["id"] == "github"
         assert entry["author"] == "spec-kit-core"
+        assert entry["version"] == _manifest_dict()["extension"]["version"]
 
     def test_locate_bundled_extension_finds_github(self):
         located = _locate_bundled_extension("github")
@@ -157,7 +158,7 @@ class TestManifest:
 
         m = ExtensionManifest(EXT_DIR / "extension.yml")
         assert m.id == "github"
-        assert m.version == "1.0.6"
+        assert m.version == "1.0.7"
         assert [c["name"] for c in m.commands] == [COMMAND_NAME]
 
     def test_manifest_does_not_restore_legacy_alias(self):
@@ -608,7 +609,6 @@ def _make_feature_project(tmp_path: Path) -> Path:
     (project / ".specify" / "feature.json").write_text(
         json.dumps({"feature_directory": "specs/001-demo"}), encoding="utf-8"
     )
-    (feature / "plan.md").write_text("# Plan\n", encoding="utf-8")
     (feature / "tasks.md").write_text(
         "- [ ] T001 Create project structure\n", encoding="utf-8"
     )
@@ -711,7 +711,6 @@ class TestResolveTasksPython:
         (project / ".specify" / "feature.json").write_text(
             json.dumps({"feature_directory": "specs/001-功能"}), encoding="utf-8"
         )
-        (feature / "plan.md").write_text("# Plan\n", encoding="utf-8")
         (feature / "tasks.md").write_text("- [ ] T001 Task\n", encoding="utf-8")
 
         env = {**_resolver_env(), "PYTHONIOENCODING": "cp1252"}
@@ -1030,7 +1029,6 @@ class TestResolveTasksBashJsonEscape:
             odd.mkdir()
         except OSError:
             pytest.skip("filesystem rejects backslash in a path component")
-        (odd / "plan.md").write_text("# Plan\n", encoding="utf-8")
         (odd / "tasks.md").write_text("- [ ] T001 x\n", encoding="utf-8")
         (project / ".specify" / "feature.json").write_text(
             json.dumps({"feature_directory": "specs/we\\ird"}), encoding="utf-8"
@@ -1106,7 +1104,6 @@ def _run_twin(
 def _add_feature(project: Path, name: str) -> Path:
     feature = project / "specs" / name
     feature.mkdir(parents=True)
-    (feature / "plan.md").write_text("# Plan\n", encoding="utf-8")
     (feature / "tasks.md").write_text("- [ ] T001 Task\n", encoding="utf-8")
     return feature
 
@@ -1148,17 +1145,12 @@ class TestResolverPrerequisiteHints:
                 "Run the Spec Kit specify command first to create the feature structure.",
             ),
             (
-                "plan.md",
-                "plan.md not found",
-                "Run the Spec Kit plan command first to create the implementation plan.",
-            ),
-            (
                 "tasks.md",
                 "tasks.md not found",
                 "Run the Spec Kit tasks command first to create the task list.",
             ),
         ],
-        ids=["missing-feature", "missing-plan", "missing-tasks"],
+        ids=["missing-feature", "missing-tasks"],
     )
     def test_missing_prerequisite_has_a_syntax_neutral_hint(
         self, project: Path, twin: str, missing: str, error: str, hint: str
@@ -1312,13 +1304,11 @@ class TestResolverOverrides:
 class TestCoreResolutionParity:
     """Behaviours core's ``check-prerequisites`` has that this twin must keep.
 
-    Core resolves via ``check-prerequisites --require-tasks --include-tasks``,
-    which persists an override into ``feature.json`` and gates on ``plan.md``
-    before ``tasks.md``. The process-wide ``SPECIFY_FEATURE_NO_PERSIST`` opt-out
-    must suppress that write without changing which feature is resolved.
-    Divergence here is not cosmetic: a lost override makes the next run read a
-    different feature's task list, and a missing plan gate lets the command
-    run where core would stop.
+    Resolution persists an override into ``feature.json`` and requires
+    ``tasks.md``. The process-wide ``SPECIFY_FEATURE_NO_PERSIST`` opt-out must
+    suppress that write without changing which feature is resolved. Divergence
+    here is not cosmetic: a lost override makes the next run read a different
+    feature's task list.
     """
 
     def test_override_persists_for_the_next_run(self, tmp_path: Path, twin: str):
@@ -1391,16 +1381,18 @@ class TestCoreResolutionParity:
         )
         assert not feature_json.exists()
 
-    def test_missing_plan_md_is_rejected(self, tmp_path: Path, twin: str):
-        """Core stops without plan.md even when tasks.md is present."""
+    def test_missing_plan_md_is_accepted(self, tmp_path: Path, twin: str):
+        """tasks.md is the sole artifact prerequisite, not a historical plan."""
         project = _make_feature_project(tmp_path)
-        (project / "specs" / "001-demo" / "plan.md").unlink()
+        assert not (project / "specs" / "001-demo" / "plan.md").exists()
 
         result = _run_twin(twin, project)
 
-        assert result.returncode == 1
-        assert "plan.md not found" in result.stderr
-        assert result.stdout.strip() == ""
+        assert result.returncode == 0, result.stderr
+        assert json.loads(result.stdout)["AVAILABLE_DOCS"] == [
+            "research.md",
+            "tasks.md",
+        ]
 
     def test_spec_md_is_not_required(self, tmp_path: Path, twin: str):
         """Core passes no --require-spec here, so spec.md stays optional."""

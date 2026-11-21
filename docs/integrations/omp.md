@@ -42,9 +42,9 @@ Command steps can pass per-step runtime configuration to `omp --print` (see
 | `tools`                   | `--tools`    | Comma-separated list of tools to select (not an exclusive allowlist)     |
 
 ```yaml
-- id: plan-with-omp
+- id: tasks-with-omp
   type: command
-  command: speckit.plan
+  command: speckit.tasks
   integration: omp
   integration_args:
     - "--no-session"

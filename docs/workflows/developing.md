@@ -26,12 +26,12 @@ schema_version: "1.0"
 workflow:
   id: "speckit"
   name: "Full SDD Cycle"
-  version: "1.0.2"
+  version: "1.0.3"
   author: "GitHub"
-  description: "Runs specify → plan → tasks → implement with review gates"
+  description: "Runs specify → tasks → implement with a specification review gate"
 
 requires:
-  speckit_version: ">=0.15.1"
+  speckit_version: ">=1.4.4.dev0"
   integrations:
     any:
       - "alquimia"
@@ -52,9 +52,6 @@ inputs:
   speckit_review_spec_verdict:
     type: string
     default: ""
-  speckit_review_plan_verdict:
-    type: string
-    default: ""
 
 steps:
   - id: specify
@@ -66,20 +63,7 @@ steps:
   - id: review-spec
     type: gate
     verdict_input: speckit_review_spec_verdict
-    message: "Review the generated spec before planning."
-    options: [approve, reject]
-    on_reject: abort
-
-  - id: plan
-    command: speckit.plan
-    integration: "{{ inputs.integration }}"
-    input:
-      args: "{{ inputs.spec }}"
-
-  - id: review-plan
-    type: gate
-    verdict_input: speckit_review_plan_verdict
-    message: "Review the plan before generating tasks."
+    message: "Review the generated specification and UAT contract before task generation."
     options: [approve, reject]
     on_reject: abort
 
@@ -101,21 +85,15 @@ This produces the following execution flow:
 ```mermaid
 flowchart TB
     A["specify<br/>(command)"] --> B{"review-spec<br/>(gate)"}
-    B -- approve --> C["plan<br/>(command)"]
+    B -- approve --> C["tasks<br/>(command)"]
     B -- reject --> X1["⏹ Abort"]
-    C --> D{"review-plan<br/>(gate)"}
-    D -- approve --> E["tasks<br/>(command)"]
-    D -- reject --> X2["⏹ Abort"]
-    E --> F["implement<br/>(command)"]
+    C --> D["implement<br/>(command)"]
 
     style A fill:#49a,color:#fff
     style B fill:#a94,color:#fff
     style C fill:#49a,color:#fff
-    style D fill:#a94,color:#fff
-    style E fill:#49a,color:#fff
-    style F fill:#49a,color:#fff
+    style D fill:#49a,color:#fff
     style X1 fill:#999,color:#fff
-    style X2 fill:#999,color:#fff
 ```
 
 Run it with:

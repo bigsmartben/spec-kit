@@ -16,6 +16,7 @@ import pytest
 from specify_cli.integrations import INTEGRATION_REGISTRY, get_integration
 from specify_cli.integrations.base import TomlIntegration
 from specify_cli.integrations.manifest import IntegrationManifest
+from tests.integrations.community_defaults import bundled_personal_default_files
 
 
 class TomlIntegrationTests:
@@ -317,7 +318,7 @@ class TomlIntegrationTests:
                 raise AssertionError(f"{f.name} is not valid TOML: {exc}") from exc
             assert "prompt" in parsed, f"{f.name} parsed TOML has no 'prompt' key"
 
-    def test_plan_command_has_no_context_placeholder(self, tmp_path):
+    def test_tasks_command_has_no_context_placeholder(self, tmp_path):
         """The generated plan command must not carry a context-file placeholder.
 
         Agent context files are owned entirely by the opt-in agent-context
@@ -326,11 +327,11 @@ class TomlIntegrationTests:
         i = get_integration(self.KEY)
         m = IntegrationManifest(self.KEY, tmp_path)
         i.setup(tmp_path, m)
-        plan_file = i.commands_dest(tmp_path) / i.command_filename("plan")
-        assert plan_file.exists(), f"Plan file {plan_file} not created"
-        content = plan_file.read_text(encoding="utf-8")
+        tasks_file = i.commands_dest(tmp_path) / i.command_filename("tasks")
+        assert tasks_file.exists(), f"Tasks file {tasks_file} not created"
+        content = tasks_file.read_text(encoding="utf-8")
         assert "__CONTEXT_FILE__" not in content, (
-            f"Plan command has unprocessed __CONTEXT_FILE__ placeholder in {plan_file.name}"
+            f"Tasks command has unprocessed __CONTEXT_FILE__ placeholder in {tasks_file.name}"
         )
 
     def test_all_files_tracked_in_manifest(self, tmp_path):
@@ -466,7 +467,6 @@ class TomlIntegrationTests:
         "constitution",
         "converge",
         "implement",
-        "plan",
         "checklist",
         "specify",
         "tasks",
@@ -496,7 +496,6 @@ class TomlIntegrationTests:
                 "create-new-feature.sh",
                 "markdown_sections.py",
                 "resolve-template.sh",
-                "setup-plan.sh",
                 "setup-tasks.sh",
             ]:
                 files.append(f".specify/scripts/bash/{name}")
@@ -507,7 +506,6 @@ class TomlIntegrationTests:
                 "create-new-feature.ps1",
                 "markdown_sections.py",
                 "resolve-template.ps1",
-                "setup-plan.ps1",
                 "setup-tasks.ps1",
             ]:
                 files.append(f".specify/scripts/powershell/{name}")
@@ -515,7 +513,8 @@ class TomlIntegrationTests:
         for name in [
             "checklist-template.md",
             "constitution-template.md",
-            "plan-template.md",
+            "prototype-template.md",
+            "quickstart-template.md",
             "spec-template.md",
             "tasks-template.md",
         ]:
@@ -529,7 +528,8 @@ class TomlIntegrationTests:
 
 
 
-        return sorted(files)
+        files.extend(bundled_personal_default_files(self.KEY))
+        return sorted(set(files))
 
     def test_complete_file_inventory_sh(self, tmp_path):
         """Every file produced by specify init --integration <key> --script sh."""

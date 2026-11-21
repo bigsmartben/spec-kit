@@ -1,9 +1,9 @@
 ---
-description: Create or update the feature specification from a natural language feature description.
+description: Create the feature specification, executable prototype, and pending UAT baseline from a natural language feature description.
 handoffs:
-  - label: Build Technical Plan
-    agent: speckit.plan
-    prompt: Create a plan for the spec. I am building with...
+  - label: Build Task Work Packages
+    agent: speckit.tasks
+    prompt: Translate the frozen specification, prototype, and UAT contract into work packages
   - label: Clarify Spec Requirements
     agent: speckit.clarify
     prompt: Clarify specification requirements
@@ -81,7 +81,7 @@ Given that feature description, do this:
 
    If the user explicitly provided `GIT_BRANCH_NAME`, pass it through to the hook so the branch script uses the exact value as the branch name (bypassing all prefix/suffix generation).
 
-3. **Create the spec feature directory**:
+3. **Create the feature directory and resolve all Specify templates**:
 
    Specs live under the default `specs/` directory unless the user explicitly provides `SPECIFY_FEATURE_DIRECTORY`.
 
@@ -95,11 +95,16 @@ Given that feature description, do this:
       - Set `SPECIFY_FEATURE_DIRECTORY` to `specs/<directory-name>`
       - If `branch_numbering` was used (and `feature_numbering` was absent), emit a one-line warning: "⚠️ `branch_numbering` in init-options.json is deprecated. Rename to `feature_numbering`."
 
-   **Create the directory and spec file**:
-   - Run `{SCRIPT}` from the repository root and parse `TEMPLATE_CONTENT` as the active `spec-template`. The shared resolver composes project overrides, preset layers, and extension layers over the core template, including `append`, `prepend`, and `wrap` strategies. If it fails, stop and report the resolution error; do not continue with only one contributing template layer.
+   **Create the directory and resolve the artifacts**:
+   - Run `{SCRIPT}` from the repository root and parse `TEMPLATE_CONTENT` as `SPEC_TEMPLATE_CONTENT`, the active `spec-template`.
+   - Run the same resolver command again, replacing the literal `spec-template` template argument in `{SCRIPT}` with `prototype-template`, and parse `TEMPLATE_CONTENT` as `PROTOTYPE_TEMPLATE_CONTENT`.
+   - Run the same resolver command again, replacing the literal `spec-template` template argument in `{SCRIPT}` with `quickstart-template`, and parse `TEMPLATE_CONTENT` as `QUICKSTART_TEMPLATE_CONTENT`.
+   - Each shared resolver call composes project overrides, preset layers, and extension layers over its core template, including `append`, `prepend`, and `wrap` strategies. If any call fails, stop and report the resolution error. Never fall back to a single layer or copy a template file directly from disk.
    - `mkdir -p SPECIFY_FEATURE_DIRECTORY`
-   - Write `TEMPLATE_CONTENT` to `SPECIFY_FEATURE_DIRECTORY/spec.md` as the starting point. Do not copy a template file from disk instead: when a preset composes `spec-template`, no single file holds the full template.
    - Set `SPEC_FILE` to `SPECIFY_FEATURE_DIRECTORY/spec.md`
+   - Set `PROTOTYPE_FILE` to `SPECIFY_FEATURE_DIRECTORY/prototype.html`
+   - Set `QUICKSTART_FILE` to `SPECIFY_FEATURE_DIRECTORY/quickstart.md`
+   - Treat `SPEC_TEMPLATE_CONTENT`, `PROTOTYPE_TEMPLATE_CONTENT`, and `QUICKSTART_TEMPLATE_CONTENT` as the starting structures. Do not copy template files from disk: each resolved value is the fully composed active template.
    - Persist the resolved path to `.specify/feature.json`:
      ```json
      {
@@ -107,14 +112,16 @@ Given that feature description, do this:
      }
      ```
      Write the actual resolved directory path value (for example, `specs/003-user-auth`), not the literal string `SPECIFY_FEATURE_DIRECTORY`.
-     This allows downstream commands (`__SPECKIT_COMMAND_PLAN__`, `__SPECKIT_COMMAND_TASKS__`, etc.) to locate the feature directory without relying on git branch name conventions.
+     This allows downstream commands (`__SPECKIT_COMMAND_TASKS__`,
+     `__SPECKIT_COMMAND_IMPLEMENT__`, etc.) to locate the feature directory
+     without relying on git branch name conventions.
 
    **IMPORTANT**:
    - You must only create one feature per `__SPECKIT_COMMAND_SPECIFY__` invocation
    - The spec directory name and the git branch name are independent — they may be the same but that is the user's choice
-   - The spec directory and file are always created by this command, never by the hook
+   - The feature directory and all three Specify artifacts are always created by this command, never by the hook
 
-4. Use `TEMPLATE_CONTENT` to understand required sections.
+4. Use all three resolved template contents to understand the required sections, prototype contract, and UAT baseline schema.
 
 5. **IF EXISTS**: Load `/memory/constitution.md` for project principles and governance constraints.
 
@@ -136,16 +143,32 @@ Given that feature description, do this:
     5. Generate Functional Requirements
        Each requirement must be testable
        Use reasonable defaults for unspecified details (document assumptions in Assumptions section)
-    6. Define Success Criteria
+    6. Generate the executable medium-fidelity prototype
+       - Express the visible layout, information hierarchy, component relationships, interaction order, responsive behavior, and applicable normal, empty, loading, error, validation, disabled, and success states
+       - Use the resolved prototype structure and keep the result self-contained: inline CSS and only the small inline JavaScript needed to demonstrate behavior
+       - Do not depend on a production framework, external design tool, network resource, font CDN, image CDN, or real backend service
+       - Give every page, region, meaningful component, and state a stable, unique `data-spec-ref`
+       - Treat the prototype as a construction contract. Do not soften the command with "for reference", "inspiration", or discretionary redesign language
+    7. Generate the UAT baseline
+       - Derive acceptance scenarios only from `spec.md` and `prototype.html`; do not infer acceptance from an implementation that already exists
+       - Assign unique, stable `UAT-###` identifiers
+       - For every UAT, record the user/role, preconditions, ordered actions, observable expected result, requirement references, and exact prototype `data-spec-ref` values
+       - Set every initial status to `PENDING`
+       - Leave actual results and evidence unexecuted and do not produce `PASS` or `FAIL` conclusions
+       - Ensure every user story with user-visible behavior has at least one UAT and every UAT resolves to both requirement and prototype references
+    8. Define Success Criteria
        Create measurable, technology-agnostic outcomes
        Include both quantitative metrics (time, performance, volume) and qualitative measures (user satisfaction, task completion)
        Each criterion must be verifiable without implementation details
-    7. Identify Key Entities (if data involved)
-    8. Return: SUCCESS (spec ready for planning)
+    9. Identify Key Entities (if data involved)
+   10. Return: SUCCESS only when the specification, prototype, and UAT baseline are complete and internally consistent
 
-7. Write the specification to SPEC_FILE using the template structure, replacing placeholders with concrete details derived from the feature description (arguments) while preserving section order and headings.
+7. Write all three artifacts:
+   - Write the specification to `SPEC_FILE` using `SPEC_TEMPLATE_CONTENT`, replacing placeholders with concrete details from the feature description while preserving section order and required headings.
+   - Write `prototype.html` to `PROTOTYPE_FILE` using `PROTOTYPE_TEMPLATE_CONTENT` as the starting structure. The file MUST contain raw standalone HTML, not a Markdown code fence or a link to an external prototype. Replace every bracketed placeholder and remove sample-only guidance.
+   - Write the UAT baseline to `QUICKSTART_FILE` using `QUICKSTART_TEMPLATE_CONTENT`. Replace every bracketed placeholder and remove the sample UAT instead of leaving generic acceptance content.
 
-8. **Specification Quality Validation**: After writing the initial spec, validate it against quality criteria:
+8. **Specification Quality Validation**: After writing the three initial artifacts, validate them together:
 
    a. **Create Spec Quality Checklist**: Generate a checklist file at `SPECIFY_FEATURE_DIRECTORY/checklists/requirements.md` using the checklist template structure with these validation items:
 
@@ -158,10 +181,12 @@ Given that feature description, do this:
 
       ## Content Quality
 
-      - [ ] No implementation details (languages, frameworks, APIs)
+      - [ ] No production implementation details in spec.md (languages, frameworks, APIs); prototype HTML/CSS/JS is limited to expressing the UX contract
       - [ ] Focused on user value and business needs
       - [ ] Written for non-technical stakeholders
       - [ ] All mandatory sections completed
+      - [ ] prototype.html is linked from spec.md and opens as standalone HTML
+      - [ ] quickstart.md is linked from spec.md and contains the UAT baseline
 
       ## Requirement Completeness
 
@@ -173,22 +198,33 @@ Given that feature description, do this:
       - [ ] Edge cases are identified
       - [ ] Scope is clearly bounded
       - [ ] Dependencies and assumptions identified
+      - [ ] Every material user-visible requirement maps to a prototype reference
+      - [ ] Every prototype reference is unique and resolves to an exact data-spec-ref
+      - [ ] Every user-visible user story has at least one UAT
+      - [ ] Every UAT maps to at least one requirement and one prototype reference
+      - [ ] All applicable normal, empty, loading, error, validation, disabled, and success states are represented in the prototype and UAT
 
       ## Feature Readiness
 
       - [ ] All functional requirements have clear acceptance criteria
       - [ ] User scenarios cover primary flows
       - [ ] Feature meets measurable outcomes defined in Success Criteria
-      - [ ] No implementation details leak into specification
+      - [ ] No production implementation details leak into specification prose or UAT expectations
+      - [ ] prototype.html is self-contained and has no external runtime dependencies
+      - [ ] UAT identifiers are stable and unique
+      - [ ] Every UAT status is PENDING
+      - [ ] No UAT contains an actual result, evidence claim, or pass/fail conclusion
 
       ## Notes
 
-      - Items marked incomplete require spec updates before `__SPECKIT_COMMAND_CLARIFY__` or `__SPECKIT_COMMAND_PLAN__`
+      - Items marked incomplete require contract updates before `__SPECKIT_COMMAND_CLARIFY__` or `__SPECKIT_COMMAND_TASKS__`
       ```
 
-   b. **Run Validation Check**: Review the spec against each checklist item:
+   b. **Run Validation Check**: Review `spec.md`, `prototype.html`, and `quickstart.md` together against every checklist item:
       - For each item, determine if it passes or fails
-      - Document specific issues found (quote relevant spec sections)
+      - Document specific issues found (quote the relevant artifact section or `data-spec-ref`)
+      - Confirm every prototype reference used in `quickstart.md` exists exactly once in `prototype.html`
+      - Confirm every `UAT-###` appears once in the acceptance baseline and traceability summary
 
    c. **Handle Validation Results**:
 
@@ -196,7 +232,7 @@ Given that feature description, do this:
 
       - **If items fail (excluding [NEEDS CLARIFICATION])**:
         1. List the failing items and specific issues
-        2. Update the spec to address each issue
+        2. Update all affected artifacts together so their requirements, prototype anchors, and UAT references stay aligned
         3. Re-run validation until all items pass (max 3 iterations)
         4. If still failing after 3 iterations, document remaining issues in checklist notes and warn user
 
@@ -232,8 +268,8 @@ Given that feature description, do this:
         5. Number questions sequentially (Q1, Q2, Q3 - max 3 total)
         6. Present all questions together before waiting for responses
         7. Wait for user to respond with their choices for all questions (e.g., "Q1: A, Q2: Custom - [details], Q3: B")
-        8. Update the spec by replacing each [NEEDS CLARIFICATION] marker with the user's selected or provided answer
-        9. Re-run validation after all clarifications are resolved
+        8. Update the spec by replacing each [NEEDS CLARIFICATION] marker with the user's selected or provided answer, then update affected prototype content and UAT mappings
+        9. Re-run cross-artifact validation after all clarifications are resolved
 
    d. **Update Checklist**: After each validation iteration, update the checklist file with current pass/fail status
 
@@ -276,15 +312,20 @@ Check if `.specify/extensions.yml` exists in the project root.
 Report completion to the user with:
 - `SPECIFY_FEATURE_DIRECTORY` — the feature directory path
 - `SPEC_FILE` — the spec file path
+- `PROTOTYPE_FILE` — the construction-contract prototype path
+- `QUICKSTART_FILE` — the pending UAT baseline path
 - Checklist results summary
-- Readiness for the next phase (`__SPECKIT_COMMAND_CLARIFY__` or `__SPECKIT_COMMAND_PLAN__`)
+- Cross-artifact mapping summary for requirements, prototype anchors, and UAT IDs
+- Readiness for the next phase (`__SPECKIT_COMMAND_CLARIFY__` or `__SPECKIT_COMMAND_TASKS__`)
 
-**NOTE:** Branch creation is handled by the `before_specify` hook (git extension). Spec directory and file creation are always handled by this core command.
+**NOTE:** Branch creation is handled by the `before_specify` hook (git extension). Feature directory creation and all three Specify artifacts are always handled by this core command.
 
 ## Quick Guidelines
 
-- Focus on **WHAT** users need and **WHY**.
-- Avoid HOW to implement (no tech stack, APIs, code structure).
+- Focus on **WHAT** users need and **WHY** in `spec.md`.
+- Avoid HOW to implement in `spec.md` (no production tech stack, APIs, or code structure).
+- Use `prototype.html` to define visible UX and interaction behavior exactly enough to implement, but do not turn it into production application code.
+- Use `quickstart.md` to freeze observable acceptance expectations before implementation; this command does not execute UAT.
 - Written for business stakeholders, not developers.
 - DO NOT create any checklists that are embedded in the spec. That will be a separate command.
 
@@ -293,6 +334,21 @@ Report completion to the user with:
 - **Mandatory sections**: Must be completed for every feature
 - **Optional sections**: Include only when relevant to the feature
 - When a section doesn't apply, remove it entirely (don't leave as "N/A")
+
+### Prototype Guidelines
+
+- The prototype is part of the requirement, not a design suggestion
+- Use medium fidelity: clear layout, hierarchy, spacing, component behavior, state transitions, and responsive behavior
+- Keep it self-contained and executable without network access
+- Never duplicate text-only requirements as an implementation substitute; prototype anchors must trace back to specification requirements
+
+### UAT Guidelines
+
+- Use stable `UAT-###` identifiers
+- Each UAT describes a user-observable journey, not an implementation or unit test
+- Include exact prototype references and requirement IDs
+- Keep every status as `PENDING`
+- Do not record actual results, evidence, deviations, or pass/fail decisions during Specify
 
 ### For AI Generation
 
@@ -344,6 +400,9 @@ Success criteria must be:
 
 ## Done When
 
-- [ ] Specification written to `SPEC_FILE` and validated against quality checklist
+- [ ] `SPEC_FILE`, `PROTOTYPE_FILE`, and `QUICKSTART_FILE` written from all three composed templates
+- [ ] Prototype is executable, self-contained, and authoritative for visible behavior
+- [ ] UAT baseline is complete, mapped, and entirely pending
+- [ ] All three artifacts pass the cross-artifact quality checklist
 - [ ] Extension hooks dispatched or skipped according to the rules in Mandatory Post-Execution Hooks above
-- [ ] Completion reported to user with feature directory, spec file path, and checklist results
+- [ ] Completion reported to user with all three paths, mapping summary, and checklist results

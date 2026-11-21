@@ -54,8 +54,9 @@ Run the repository's established unit and integration test suites.
 
 Use the repository's README, architecture decisions, contribution guide, and
 CI configuration as evidence. Do not invent standards merely to fill the
-constitution template. The constitution governs later planning and analysis,
-so unrealistic rules create noise instead of useful constraints.
+constitution template. The constitution governs later task packaging and
+implementation, so unrealistic rules create noise instead of useful
+constraints.
 
 ## 3. Choose a Bounded First Change
 
@@ -76,19 +77,26 @@ The codebase remains implementation context. The new `spec.md` defines the
 change you intend to make, not a retroactive specification of every existing
 behavior.
 
-## 4. Plan Against the Repository
+## 4. Package and Implement the Change
 
 Continue through the normal workflow:
 
 1. Run `/speckit-clarify` to resolve uncertain behavior and compatibility
    requirements.
-2. Run `/speckit-plan` and verify that the proposed design reuses the existing
-   architecture, dependencies, and test conventions.
-3. Run `/speckit-tasks`, then `/speckit-analyze` to check consistency before
-   implementation.
-4. Run `/speckit-implement` and review code and artifact changes together.
-5. Run `/speckit-converge` to find remaining gaps. If it adds tasks, repeat
-   implementation and convergence until the feature is complete.
+2. Run `/speckit-tasks`. Task reads only the frozen `spec.md`,
+   `prototype.html`, `quickstart.md`, and the constitution, so package the
+   change without relying on inferred technical facts from the repository.
+3. Run `/speckit-analyze` to check contract and work-package consistency.
+4. Run `/speckit-implement`. Implement may inspect the codebase and owns the
+   decisions about stack reuse, architecture, files, and paths.
+5. Review code and UAT-result changes together. Implement records only
+   `Status`, `Actual Result`, `Evidence`, and `Deviation` in the matching
+   `quickstart.md` UAT entries.
+
+Existing code is implementation context, not a reason for Task to lock a
+technical approach. If the work exposes a requirement conflict or missing
+acceptance rule, return it to Specify or Clarify rather than resolving the
+product question in code.
 
 For command details and optional quality gates, see the
 [Quick Start Guide](../quickstart.md) and

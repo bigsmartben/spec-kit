@@ -60,6 +60,13 @@ def _write_feature_json(
     )
 
 
+def _write_contract(feature: Path) -> None:
+    feature.mkdir(parents=True, exist_ok=True)
+    (feature / "spec.md").write_text("# Spec\n", encoding="utf-8")
+    (feature / "prototype.html").write_text("<!doctype html>\n", encoding="utf-8")
+    (feature / "quickstart.md").write_text("# UAT\n", encoding="utf-8")
+
+
 def _clean_env() -> dict[str, str]:
     # Delegate to the shared helper so the PATH fix that pins the suite's
     # own interpreter (see parity_helpers.clean_env) applies here too.
@@ -116,6 +123,7 @@ def _run(
         cwd=repo,
         capture_output=True,
         text=True,
+        encoding="utf-8",
         check=False,
         env=env or _clean_env(),
     )
@@ -130,7 +138,6 @@ def test_python_json_preserves_non_ascii_feature_on_legacy_stdout(
 ) -> None:
     feature = prereq_repo / "specs/001-功能"
     feature.mkdir(parents=True)
-    (feature / "plan.md").write_bytes(b"# Plan\r\n")
     _write_feature_json(prereq_repo, "specs/001-功能")
     env = _clean_env()
     env["PYTHONIOENCODING"] = "cp1252"
@@ -149,7 +156,6 @@ def test_powershell_json_preserves_non_ascii_feature_on_legacy_stdout(
 ) -> None:
     feature = prereq_repo / "specs/001-功能"
     feature.mkdir(parents=True)
-    (feature / "plan.md").write_bytes(b"# Plan\r\n")
     _write_feature_json(prereq_repo, "specs/001-功能")
 
     result = run(
@@ -187,7 +193,6 @@ def test_all_variants_resolve_requested_template(
     _write_feature_json(prereq_repo)
     feature = prereq_repo / "specs" / "001-my-feature"
     feature.mkdir(parents=True)
-    (feature / "plan.md").write_text("# Plan\n", encoding="utf-8")
     template_name = "missing-template" if missing else "checklist-template"
     expected = install_composition_stack(
         prereq_repo, "checklist-template", "# Checklist\n"
@@ -216,10 +221,8 @@ def test_all_variants_resolve_requested_template(
     if missing:
         assert all(result.stdout == "" for result in results)
     else:
-        assert all(
-            _json_stdout(result)["TEMPLATE_CONTENT"] == expected
-            for result in results
-        )
+        for variant, result in zip(("bash", "python", "powershell"), results):
+            assert _json_stdout(result)["TEMPLATE_CONTENT"] == expected, variant
 
 
 @requires_bash
@@ -230,7 +233,6 @@ def test_all_variants_validate_requested_template_in_text_mode(
     _write_feature_json(prereq_repo)
     feature = prereq_repo / "specs" / "001-my-feature"
     feature.mkdir(parents=True)
-    (feature / "plan.md").write_text("# Plan\n", encoding="utf-8")
     template_name = "missing-template" if missing else "checklist-template"
     install_composition_stack(
         prereq_repo, "checklist-template", "# Checklist\n"
@@ -272,13 +274,8 @@ def test_all_variants_validate_requested_template_in_text_mode(
 )
 def test_python_json_output_matches_bash(prereq_repo: Path, args: tuple[str, ...]) -> None:
     feat = prereq_repo / "specs" / "001-my-feature"
-    feat.mkdir(parents=True)
-    (feat / "plan.md").write_text("# plan\n", encoding="utf-8")
+    _write_contract(feat)
     (feat / "tasks.md").write_text("# tasks\n", encoding="utf-8")
-    (feat / "research.md").write_text("# research\n", encoding="utf-8")
-    (feat / "data-model.md").write_text("# model\n", encoding="utf-8")
-    (feat / "quickstart.md").write_text("# quickstart\n", encoding="utf-8")
-    (feat / "contracts" / "v1").mkdir(parents=True)
     _write_feature_json(prereq_repo)
 
     bash = _run(_bash_cmd(prereq_repo, *args), prereq_repo)
@@ -293,7 +290,6 @@ def test_python_json_output_matches_bash(prereq_repo: Path, args: tuple[str, ...
 def test_python_require_spec_matches_bash(prereq_repo: Path) -> None:
     feat = prereq_repo / "specs" / "001-my-feature"
     feat.mkdir(parents=True)
-    (feat / "plan.md").write_text("# plan\n", encoding="utf-8")
     (feat / "tasks.md").write_text("# tasks\n", encoding="utf-8")
     _write_feature_json(prereq_repo)
 
@@ -329,7 +325,6 @@ def test_python_require_spec_matches_bash(prereq_repo: Path) -> None:
 def test_powershell_require_spec_matches_python(prereq_repo: Path) -> None:
     feat = prereq_repo / "specs" / "001-my-feature"
     feat.mkdir(parents=True)
-    (feat / "plan.md").write_text("# plan\n", encoding="utf-8")
     (feat / "tasks.md").write_text("# tasks\n", encoding="utf-8")
     _write_feature_json(prereq_repo)
 
@@ -365,8 +360,6 @@ def test_powershell_require_spec_matches_python(prereq_repo: Path) -> None:
 def test_python_text_output_matches_bash(prereq_repo: Path) -> None:
     feat = prereq_repo / "specs" / "001-my-feature"
     feat.mkdir(parents=True)
-    (feat / "plan.md").write_text("# plan\n", encoding="utf-8")
-    (feat / "contracts").mkdir()
     _write_feature_json(prereq_repo)
 
     bash = _run(_bash_cmd(prereq_repo, "--include-tasks"), prereq_repo)
@@ -392,13 +385,11 @@ def test_python_text_output_survives_a_legacy_stdout_code_page(
     """
     feat = prereq_repo / "specs" / "001-my-feature"
     feat.mkdir(parents=True)
-    (feat / "plan.md").write_text("# plan\n", encoding="utf-8")
-    # research.md is present and the rest are not, so BOTH status markers are
+    # spec.md is present and the rest are not, so BOTH status markers are
     # produced in the same cp1252 subprocess: U+2713 for the available document
     # and U+2717 for the missing ones. Asserting only one of them would let a
     # fallback that always returned "[FAIL]" pass.
-    (feat / "research.md").write_text("# research\n", encoding="utf-8")
-    (feat / "contracts").mkdir()  # present but empty -> reported missing
+    (feat / "spec.md").write_text("# spec\n", encoding="utf-8")
     _write_feature_json(prereq_repo)
 
     env = _clean_env()
@@ -411,15 +402,14 @@ def test_python_text_output_survives_a_legacy_stdout_code_page(
     # Every per-document line must still be there, not truncated away by the
     # encode error.
     for doc in (
-        "research.md",
-        "data-model.md",
-        "contracts/",
+        "spec.md",
+        "prototype.html",
         "quickstart.md",
         "tasks.md",
     ):
         assert doc in result.stdout, (doc, result.stdout)
     # Both fallback markers, so neither branch of _status_marker can regress.
-    assert "[OK] research.md" in result.stdout, result.stdout
+    assert "[OK] spec.md" in result.stdout, result.stdout
     assert "[FAIL] quickstart.md" in result.stdout, result.stdout
 
 
@@ -466,13 +456,8 @@ def test_python_json_output_matches_powershell(
     prereq_repo: Path, py_args: tuple[str, ...], ps_args: tuple[str, ...]
 ) -> None:
     feat = prereq_repo / "specs" / "001-my-feature"
-    feat.mkdir(parents=True)
-    (feat / "plan.md").write_text("# plan\n", encoding="utf-8")
+    _write_contract(feat)
     (feat / "tasks.md").write_text("# tasks\n", encoding="utf-8")
-    (feat / "research.md").write_text("# research\n", encoding="utf-8")
-    (feat / "data-model.md").write_text("# model\n", encoding="utf-8")
-    (feat / "quickstart.md").write_text("# quickstart\n", encoding="utf-8")
-    (feat / "contracts" / "v1").mkdir(parents=True)
     _write_feature_json(prereq_repo)
 
     ps = _run(_ps_cmd(prereq_repo, *ps_args), prereq_repo)
@@ -490,14 +475,8 @@ def test_powershell_handles_literal_bracketed_feature_directory(
     """JSON and text output must use the literal feature directory."""
     feature_name = "001-my-feature [v2]"
     feat = prereq_repo / "specs" / feature_name
-    feat.mkdir(parents=True)
-    (feat / "plan.md").write_text("# plan\n", encoding="utf-8")
-    (feat / "spec.md").write_text("# spec\n", encoding="utf-8")
+    _write_contract(feat)
     (feat / "tasks.md").write_text("# tasks\n", encoding="utf-8")
-    (feat / "research.md").write_text("# research\n", encoding="utf-8")
-    (feat / "data-model.md").write_text("# model\n", encoding="utf-8")
-    (feat / "quickstart.md").write_text("# quickstart\n", encoding="utf-8")
-    (feat / "contracts" / "v1").mkdir(parents=True)
     _write_feature_json(prereq_repo, f"specs/{feature_name}")
 
     json_result = _run(
@@ -523,17 +502,15 @@ def test_powershell_handles_literal_bracketed_feature_directory(
     data = _json_stdout(json_result)
     assert Path(data["FEATURE_DIR"]) == feat
     assert data["AVAILABLE_DOCS"] == [
-        "research.md",
-        "data-model.md",
-        "contracts/",
+        "spec.md",
+        "prototype.html",
         "quickstart.md",
         "tasks.md",
     ]
     assert text_result.returncode == 0, text_result.stderr + text_result.stdout
     for document in (
-        "research.md",
-        "data-model.md",
-        "contracts/",
+        "spec.md",
+        "prototype.html",
         "quickstart.md",
         "tasks.md",
     ):
@@ -550,7 +527,7 @@ def test_powershell_does_not_match_wildcard_shaped_feature_neighbor(
     feature_name = "001-my-feature [v2]"
     neighbor = prereq_repo / "specs" / "001-my-feature v"
     neighbor.mkdir(parents=True)
-    (neighbor / "plan.md").write_text("# neighbor plan\n", encoding="utf-8")
+    _write_contract(neighbor)
     _write_feature_json(prereq_repo, f"specs/{feature_name}")
 
     result = _run(_ps_cmd(prereq_repo, "-Json"), prereq_repo)
@@ -600,7 +577,6 @@ def test_python_normal_mode_persists_feature_json(prereq_repo: Path) -> None:
     (prereq_repo / "specs" / "001-my-feature").mkdir(parents=True)
     feat = prereq_repo / "specs" / "002-other"
     feat.mkdir(parents=True)
-    (feat / "plan.md").write_text("# plan\n", encoding="utf-8")
     _write_feature_json(prereq_repo, "specs/001-my-feature")
     env = _clean_env()
     env["SPECIFY_FEATURE_DIRECTORY"] = "specs/002-other"
@@ -624,7 +600,6 @@ def test_persisted_feature_json_is_lexical_when_specs_is_symlink(
     real_specs = tmp_path / "real-specs"
     feat = real_specs / "002-other"
     feat.mkdir(parents=True)
-    (feat / "plan.md").write_text("# plan\n", encoding="utf-8")
     repo = prereq_repo.resolve()
     try:
         (repo / "specs").symlink_to(real_specs, target_is_directory=True)
@@ -651,10 +626,10 @@ def test_persisted_feature_json_is_lexical_when_specs_is_symlink(
     ("args", "expected"),
     [
         (("--json",), "Feature directory not found"),
-        (("--json",), "plan.md not found"),
+        (("--json", "--require-contract"), "spec.md not found"),
         (("--json", "--require-tasks"), "tasks.md not found"),
     ],
-    ids=["missing_feature_context", "missing_plan", "missing_tasks"],
+    ids=["missing_feature_context", "missing_contract", "missing_tasks"],
 )
 def test_python_negative_errors_are_stderr_only(
     tmp_path: Path, args: tuple[str, ...], expected: str
@@ -665,12 +640,10 @@ def test_python_negative_errors_are_stderr_only(
     (repo / ".specify").mkdir()
     _install_scripts(repo)
 
-    if expected in {"plan.md not found", "tasks.md not found"}:
+    if expected in {"spec.md not found", "tasks.md not found"}:
         feat = repo / "specs" / "001-my-feature"
         feat.mkdir(parents=True)
         _write_feature_json(repo)
-        if expected == "tasks.md not found":
-            (feat / "plan.md").write_text("# plan\n", encoding="utf-8")
 
     py = _run(_py_cmd(repo, *args), repo)
 
@@ -694,9 +667,9 @@ def test_python_negative_errors_are_stderr_only(
     ],
 )
 @pytest.mark.parametrize("json_mode", [True, False], ids=["json", "text"])
-@pytest.mark.parametrize("plan_state", ["missing", "empty", "nonempty", "whitespace"])
-def test_plan_prerequisite_diagnostics(
-    tmp_path: Path, port: str, json_mode: bool, plan_state: str
+@pytest.mark.parametrize("contract_state", ["missing", "empty", "nonempty", "whitespace"])
+def test_contract_prerequisite_diagnostics(
+    tmp_path: Path, port: str, json_mode: bool, contract_state: str
 ) -> None:
     repo = tmp_path / "proj"
     repo.mkdir()
@@ -706,42 +679,45 @@ def test_plan_prerequisite_diagnostics(
     _write_feature_json(repo)
     feature = repo / "specs" / "001-my-feature"
     feature.mkdir(parents=True)
-    plan = feature / "plan.md"
-    bodies = {"empty": b"", "nonempty": b"# Plan\n", "whitespace": b" \t\n"}
-    if plan_state != "missing":
-        plan.write_bytes(bodies[plan_state])
-        before = plan.stat().st_mtime_ns
+    spec = feature / "spec.md"
+    prototype = feature / "prototype.html"
+    quickstart = feature / "quickstart.md"
+    prototype.write_text("<!doctype html>\n", encoding="utf-8")
+    quickstart.write_text("# UAT\n", encoding="utf-8")
+    bodies = {"empty": b"", "nonempty": b"# Spec\n", "whitespace": b" \t\n"}
+    if contract_state != "missing":
+        spec.write_bytes(bodies[contract_state])
+        before = spec.stat().st_mtime_ns
     if port == "powershell":
-        command = _ps_cmd(repo, *(("-Json",) if json_mode else ()))
+        command = _ps_cmd(repo, *(("-Json", "-RequireContract") if json_mode else ("-RequireContract",)))
     else:
         command_fn = _bash_cmd if port == "bash" else _py_cmd
-        command = command_fn(repo, *(("--json",) if json_mode else ()))
+        command = command_fn(repo, *(("--json", "--require-contract") if json_mode else ("--require-contract",)))
 
     result = _run(command, repo)
 
-    if plan_state in {"missing", "empty"}:
+    if contract_state in {"missing", "empty"}:
         assert result.returncode == 1
         assert result.stdout == ""
         lines = result.stderr.replace("\\", "/").splitlines()
-        diagnostic = "not found" if plan_state == "missing" else "is empty"
-        assert lines[0].startswith(f"ERROR: plan.md {diagnostic} in ")
+        diagnostic = "not found" if contract_state == "missing" else "is empty"
+        assert lines[0].startswith(f"ERROR: spec.md {diagnostic} in ")
         assert lines[0].endswith("/specs/001-my-feature")
         guidance = (
-            "Run /speckit.plan first to create the implementation plan."
-            if plan_state == "missing"
-            else "Populate it, or remove the empty file and rerun /speckit.plan "
-            "with a valid plan template."
+            "Run /speckit.specify first to create the frozen requirement contract."
+            if contract_state == "missing"
+            else "Rerun /speckit.specify to regenerate spec.md."
         )
         assert lines[1:] == [guidance]
     else:
         assert result.returncode == 0, result.stderr
         if json_mode:
             assert "FEATURE_DIR" in _json_stdout(result)
-    if plan_state == "missing":
-        assert not plan.exists()
+    if contract_state == "missing":
+        assert not spec.exists()
     else:
-        assert plan.read_bytes() == bodies[plan_state]
-        assert plan.stat().st_mtime_ns == before
+        assert spec.read_bytes() == bodies[contract_state]
+        assert spec.stat().st_mtime_ns == before
 
 
 def test_python_branch_falls_back_to_feature_dir_basename(prereq_repo: Path) -> None:
@@ -834,8 +810,7 @@ def test_powershell_text_output_lists_available_docs(prereq_repo: Path) -> None:
     """
     feat = prereq_repo / "specs" / "001-my-feature"
     feat.mkdir(parents=True)
-    (feat / "plan.md").write_text("# plan\n", encoding="utf-8")
-    (feat / "research.md").write_text("# research\n", encoding="utf-8")
+    (feat / "spec.md").write_text("# spec\n", encoding="utf-8")
     _write_feature_json(prereq_repo)
 
     ps = _run(_ps_cmd(prereq_repo, "-IncludeTasks"), prereq_repo)
@@ -843,13 +818,12 @@ def test_powershell_text_output_lists_available_docs(prereq_repo: Path) -> None:
     assert ps.returncode == 0, ps.stderr
     assert "AVAILABLE_DOCS:" in ps.stdout
     for doc in (
-        "research.md",
-        "data-model.md",
-        "contracts/",
+        "spec.md",
+        "prototype.html",
         "quickstart.md",
         "tasks.md",
     ):
         assert doc in ps.stdout, (doc, ps.stdout)
     # The existing file reports [OK], the missing ones [FAIL].
-    assert "[OK] research.md" in _normalize_status_text(ps.stdout), ps.stdout
+    assert "[OK] spec.md" in _normalize_status_text(ps.stdout), ps.stdout
     assert "[FAIL] quickstart.md" in _normalize_status_text(ps.stdout), ps.stdout

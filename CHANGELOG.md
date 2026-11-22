@@ -8,7 +8,7 @@
 
 - Rebuild the personal distribution on current upstream with the recent
   constitution, specify, tasks, implement, and core workflow changes
-- Keep the `bug` extension as the only default extension; Git remains opt-in
+- Keep extensions opt-in during `specify init`, with no default extension install
 - Remove the historical bundled `workflow-preset` from the current tree
 
 ## [1.4.3] - 2026-11-19

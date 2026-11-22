@@ -1909,11 +1909,11 @@ class TestExtensionFlag:
         try:
             os.chdir(project)
             runner = CliRunner()
-            # Patch get_speckit_version to return a stable (non-dev) version so that
-            # the extension compatibility check (SpecifierSet(">=0.2.0")) passes.
+            # Patch get_speckit_version to a stable version accepted by bundled
+            # extensions.
             with patch(
                 "specify_cli.command_init.get_speckit_version",
-                return_value="0.8.2",
+                return_value="0.9.0",
             ):
                 result = runner.invoke(app, [
                     "init", "--here",
@@ -1925,19 +1925,24 @@ class TestExtensionFlag:
             os.chdir(old_cwd)
         return project, result
 
-    def test_bundled_extension_installed(self, tmp_path):
-        """--extension git installs the bundled git extension."""
-        project, result = self._run_init(tmp_path, ["--extension", "git"], project_name="ext-bundled")
+    @pytest.mark.parametrize("extension_id", ["bug", "git"])
+    def test_bundled_extension_installed(self, tmp_path, extension_id):
+        """--extension installs a bundled extension only when explicitly requested."""
+        project, result = self._run_init(
+            tmp_path,
+            ["--extension", extension_id],
+            project_name=f"ext-{extension_id}",
+        )
 
         assert result.exit_code == 0, f"init failed:\n{result.output}"
 
-        ext_dir = project / ".specify" / "extensions" / "git"
-        assert ext_dir.exists(), "git extension directory not found"
+        ext_dir = project / ".specify" / "extensions" / extension_id
+        assert ext_dir.exists(), f"{extension_id} extension directory not found"
         assert (ext_dir / "extension.yml").exists(), "extension.yml not found"
 
         # Tracker should show extension step as done
         normalized = _normalize_cli_output(result.output)
-        assert "Install extension: git" in normalized
+        assert f"Install extension: {extension_id}" in normalized
 
     def test_catalog_extension_init_forwards_catalog_name(self, tmp_path, monkeypatch):
         """The init catalog branch keeps the catalog provenance at install time."""

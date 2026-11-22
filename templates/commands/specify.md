@@ -148,6 +148,23 @@ Given that feature description, do this:
        - Use the resolved prototype structure and keep the result self-contained: inline CSS and only the small inline JavaScript needed to demonstrate behavior
        - Do not depend on a production framework, external design tool, network resource, font CDN, image CDN, or real backend service
        - Give every page, region, meaningful component, and state a stable, unique `data-spec-ref`
+       - Start from the current user's primary task and design one coherent, production-ready screen before adding secondary flows
+       - Build a clear hierarchy: task context, current content or input, one primary action, contextual secondary actions, and state feedback
+       - Use progressive disclosure for advanced options, settings, consent, and supporting explanations; keep the main path focused on the current task
+       - Write realistic end-user copy that tells the user what to do, what happens next, and what changed. Use concise action-oriented labels instead of feature descriptions
+       - Put the primary action in the natural completion position and keep secondary actions quieter, contextually relevant, and easy to reach
+       - Treat empty, loading, success, validation, disabled, and error views as alternate states of the same product screen, not as a catalog of states to display together
+       - Keep visible prototype content limited to copy a product user would see. Use labels, values, actions, help, and state feedback that belong to the product
+       - Never render requirement IDs, prototype anchors, UAT IDs, or internal validation notes as visible prototype text
+       - Keep traceability details in nonvisual attributes such as `data-spec-ref`, `data-prototype-state`, and `data-state`
+       - Do not add feature overviews, implementation notes, design rationale, generation notes, or navigation that exists only to explain the prototype
+       - Do not turn an internal workflow, ordered acceptance scenario, or UAT into a visible progress navigator. Acceptance sequence is not automatically product UI
+       - Only add navigation, progress indicators, headers, sidebars, or multi-step layouts when explicitly required by the specification and justified by the user task
+       - Default to the current user's primary task screen. Do not add an application-wide shell or a showcase of every workflow stage merely because the feature spans multiple steps
+       - Do not expose prototype-only controls, sample data buttons, demo modes, debug panels, or state switchers. Include an example-data or trial path only when the feature specification makes it an end-user requirement
+       - Do not expose vendor, provider, API, backend, model, recognition-service, or implementation settings as user-facing copy. Describe the user outcome or capability instead
+       - Show privacy and data-use explanations only for the current action and the exact data it handles. Do not combine unrelated future-step data flows or cross-feature permissions into the current screen
+       - Make the page credible as production UI: every visible control must represent a real user action with a clear reason to be there
        - Treat the prototype as a construction contract. Do not soften the command with "for reference", "inspiration", or discretionary redesign language
     7. Generate the UAT baseline
        - Derive acceptance scenarios only from `spec.md` and `prototype.html`; do not infer acceptance from an implementation that already exists
@@ -155,7 +172,8 @@ Given that feature description, do this:
        - For every UAT, record the user/role, preconditions, ordered actions, observable expected result, requirement references, and exact prototype `data-spec-ref` values
        - Set every initial status to `PENDING`
        - Leave actual results and evidence unexecuted and do not produce `PASS` or `FAIL` conclusions
-       - Ensure every user story with user-visible behavior has at least one UAT and every UAT resolves to both requirement and prototype references
+       - Ensure every user story with user-visible behavior has at least one UAT
+       - Every UAT resolves to both requirement and prototype references
     8. Define Success Criteria
        Create measurable, technology-agnostic outcomes
        Include both quantitative metrics (time, performance, volume) and qualitative measures (user satisfaction, task completion)
@@ -165,7 +183,7 @@ Given that feature description, do this:
 
 7. Write all three artifacts:
    - Write the specification to `SPEC_FILE` using `SPEC_TEMPLATE_CONTENT`, replacing placeholders with concrete details from the feature description while preserving section order and required headings.
-   - Write `prototype.html` to `PROTOTYPE_FILE` using `PROTOTYPE_TEMPLATE_CONTENT` as the starting structure. The file MUST contain raw standalone HTML, not a Markdown code fence or a link to an external prototype. Replace every bracketed placeholder and remove sample-only guidance.
+   - Write `prototype.html` to `PROTOTYPE_FILE` using `PROTOTYPE_TEMPLATE_CONTENT` as the starting structure. The file MUST contain raw standalone HTML, not a Markdown code fence or a link to an external prototype. Replace every bracketed placeholder and remove sample-only guidance, template comments, and all internal explanatory copy from the rendered page.
    - Write the UAT baseline to `QUICKSTART_FILE` using `QUICKSTART_TEMPLATE_CONTENT`. Replace every bracketed placeholder and remove the sample UAT instead of leaving generic acceptance content.
 
 8. **Specification Quality Validation**: After writing the three initial artifacts, validate them together:
@@ -186,6 +204,12 @@ Given that feature description, do this:
       - [ ] Written for non-technical stakeholders
       - [ ] All mandatory sections completed
       - [ ] prototype.html is linked from spec.md and opens as standalone HTML
+      - [ ] Visible prototype content contains only product UI and copy; requirement, anchor, UAT, checklist, and generation metadata remain nonvisual
+      - [ ] The prototype presents one coherent current-task screen with clear context, content or input, a primary action, contextual secondary actions, and feedback
+      - [ ] Advanced options and supporting explanations use progressive disclosure instead of crowding the primary flow
+      - [ ] The prototype contains no workflow map, progress navigator, header, sidebar, or multi-step shell unless the specification explicitly requires it
+      - [ ] No prototype-only demo control, sample-data shortcut, debug panel, state switcher, or provider implementation setting appears as production UI
+      - [ ] Privacy and data-use copy is scoped to the current action and exact data handled on this screen
       - [ ] quickstart.md is linked from spec.md and contains the UAT baseline
 
       ## Requirement Completeness
@@ -312,11 +336,11 @@ Check if `.specify/extensions.yml` exists in the project root.
 Report completion to the user with:
 - `SPECIFY_FEATURE_DIRECTORY` — the feature directory path
 - `SPEC_FILE` — the spec file path
-- `PROTOTYPE_FILE` — the construction-contract prototype path
+- `PROTOTYPE_FILE` — the prototype preview path
 - `QUICKSTART_FILE` — the pending UAT baseline path
-- Checklist results summary
-- Cross-artifact mapping summary for requirements, prototype anchors, and UAT IDs
 - Readiness for the next phase (`__SPECKIT_COMMAND_CLARIFY__` or `__SPECKIT_COMMAND_TASKS__`)
+
+Keep the completion message concise and user-facing. Report validation failures in detail only when the generated contract does not pass validation. Do not reproduce requirement mappings, prototype-anchor inventories, UAT matrices, or checklist contents after a successful validation; keep them in the artifacts.
 
 **NOTE:** Branch creation is handled by the `before_specify` hook (git extension). Feature directory creation and all three Specify artifacts are always handled by this core command.
 
@@ -325,6 +349,11 @@ Report completion to the user with:
 - Focus on **WHAT** users need and **WHY** in `spec.md`.
 - Avoid HOW to implement in `spec.md` (no production tech stack, APIs, or code structure).
 - Use `prototype.html` to define visible UX and interaction behavior exactly enough to implement, but do not turn it into production application code.
+- Keep `prototype.html` visually indistinguishable from a product preview: traceability belongs in nonvisual attributes and the other contract artifacts, not in explanatory UI.
+- Do not convert specification journeys, user stories, UAT action order, or downstream workflow stages into visible app navigation.
+- Treat every visible element as production UI. Remove demo/sample affordances, technical service controls, and unrelated data-flow explanations unless the user-facing requirements explicitly make them part of the product.
+- Design the primary task screen first: give it clear context, the current content or input, one obvious primary action, quiet contextual secondary actions, and immediate feedback.
+- Use concise, realistic end-user copy and progressive disclosure. Do not write a feature tour into the screen.
 - Use `quickstart.md` to freeze observable acceptance expectations before implementation; this command does not execute UAT.
 - Written for business stakeholders, not developers.
 - DO NOT create any checklists that are embedded in the spec. That will be a separate command.
@@ -339,6 +368,11 @@ Report completion to the user with:
 
 - The prototype is part of the requirement, not a design suggestion
 - Use medium fidelity: clear layout, hierarchy, spacing, component behavior, state transitions, and responsive behavior
+- Start with one coherent production screen for the current task; express other states as alternatives reached through real product interactions
+- Show only product UI and user-facing copy; do not present requirement IDs, anchor names, UAT metadata, validation notes, or design rationale in the page
+- Make the hierarchy legible: task context, content/input, primary action, contextual secondary actions, then feedback
+- Add progress navigation, global headers, sidebars, and multi-step shells only when the user-facing specification explicitly requires them
+- Do not add prototype-only sample data, demo toggles, debug/state controls, vendor names, provider settings, API/backend labels, or cross-feature privacy explanations
 - Keep it self-contained and executable without network access
 - Never duplicate text-only requirements as an implementation substitute; prototype anchors must trace back to specification requirements
 

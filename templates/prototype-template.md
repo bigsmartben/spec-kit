@@ -9,7 +9,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>[FEATURE NAME] - Prototype</title>
+  <title>[FEATURE NAME]</title>
   <style>
     :root {
       color-scheme: light;
@@ -126,23 +126,17 @@
     data-prototype-version="1"
   >
     <main class="prototype-frame prototype-stack">
-      <header data-spec-ref="[FEATURE-REF:page-header]">
-        <h1>[PAGE TITLE]</h1>
-        <p>[PAGE PURPOSE]</p>
-      </header>
-
       <section
         class="prototype-surface prototype-stack"
         data-spec-ref="[US1:primary-flow]"
         data-prototype-state="default"
         style="padding: var(--space)"
       >
-        <h2>[PRIMARY USER TASK]</h2>
-        <p>[Replace this scaffold with the exact page structure, information hierarchy, controls, and interactions required by the specification.]</p>
+        <h1 data-spec-ref="[FEATURE-REF:page-title]">[PAGE TITLE]</h1>
 
         <!--
           Keep applicable states in the same document. Each state must be
-          reachable through the prototype controls or documented state links.
+          reachable through prototype controls that a product user would use.
         -->
         <div
           class="prototype-status"

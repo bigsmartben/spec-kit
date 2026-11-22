@@ -30,9 +30,6 @@ from ._assets import (
 from ._console import StepTracker, console, select_with_arrows, show_banner
 from ._utils import check_tool
 
-DEFAULT_BUNDLED_EXTENSIONS = ("bug",)
-
-
 def _stdin_is_interactive() -> bool:
     return sys.stdin.isatty()
 
@@ -663,8 +660,6 @@ def register(app: typer.Typer) -> None:
 
         tracker.add("integration", "Install integration")
         tracker.add("shared-infra", "Install shared infrastructure")
-        tracker.add("default-extensions", "Install default extensions")
-
         for key, label in [
             ("chmod", "Ensure scripts executable"),
             ("constitution", "Constitution setup"),
@@ -902,30 +897,6 @@ def register(app: typer.Typer) -> None:
                 else:
                     init_opts.pop("ai_skills", None)
                 save_init_options(project_path, init_opts)
-
-                if resolved_integration.list_command_templates():
-                    tracker.start("default-extensions")
-                    try:
-                        statuses = [
-                            _install_extension_during_init(
-                                project_path, extension_id, get_speckit_version()
-                            )
-                            for extension_id in DEFAULT_BUNDLED_EXTENSIONS
-                        ]
-                        tracker.complete("default-extensions", "; ".join(statuses))
-                    except Exception as default_ext_err:
-                        sanitized_default_ext = (
-                            str(default_ext_err).replace("\n", " ").strip()
-                        )
-                        tracker.error(
-                            "default-extensions",
-                            f"install failed: {sanitized_default_ext[:120]}",
-                        )
-                else:
-                    tracker.skip(
-                        "default-extensions",
-                        "integration has no command artifacts",
-                    )
 
                 ensure_executable_scripts(project_path, tracker=tracker)
 

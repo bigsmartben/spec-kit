@@ -45,6 +45,17 @@ Specify creates and validates three artifacts together:
   measurable success criteria.
 - `prototype.html` is a self-contained, executable construction contract with
   stable `data-spec-ref` anchors for visible layout, interactions, and states.
+  Its rendered page contains only product UI and user-facing copy; traceability
+  stays in nonvisual attributes and the other Specify artifacts. Specification
+  journeys and UAT action order do not become visible navigation unless the
+  user-facing requirements explicitly call for it.
+  It is evaluated as a production product screen: prototype-only demos, service
+  providers, technical settings, and unrelated cross-feature data explanations
+  do not appear unless the user-facing contract explicitly requires them.
+  The default composition is one coherent current-task screen with clear
+  context, current content or input, a primary action, contextual secondary
+  actions, and state feedback. Advanced options and explanations are revealed
+  progressively rather than presented as a feature tour.
 - `quickstart.md` defines pending `UAT-*` scenarios, expected observable
   results, and exact requirement and prototype references.
 

@@ -30,10 +30,10 @@ You **MUST** consider the user input before proceeding (if not empty).
 - If the YAML cannot be parsed or is invalid, do not skip silently: tell the user that `.specify/extensions.yml` could not be read (include the parser error) and that no hooks were checked, including any mandatory (`optional: false`) hooks registered there, then continue normally
 - Filter out hooks where `enabled` is explicitly `false`. Treat hooks without an `enabled` field as enabled by default.
 - For each remaining hook, do **not** attempt to interpret or evaluate hook `condition` expressions:
-  - If the hook has no `condition` field, or it is null/empty, treat the hook as executable
-  - If the hook defines a non-empty `condition`, skip the hook and leave condition evaluation to the HookExecutor implementation
+    - If the hook has no `condition` field, or it is null/empty, treat the hook as executable
+    - If the hook defines a non-empty `condition`, skip the hook and leave condition evaluation to the HookExecutor implementation
 - For each executable hook, output the following based on its `optional` flag:
-  - **Optional hook** (`optional: true`):
+    - **Optional hook** (`optional: true`):
     ```
     ## Extension Hooks
 
@@ -44,7 +44,7 @@ You **MUST** consider the user input before proceeding (if not empty).
     Prompt: {prompt}
     To execute: `/{command}`
     ```
-  - **Mandatory hook** (`optional: false`):
+    - **Mandatory hook** (`optional: false`):
     ```
     ## Extension Hooks
 
@@ -64,16 +64,16 @@ The text the user typed after `__SPECKIT_COMMAND_SPECIFY__` in the triggering me
 Given that feature description, do this:
 
 1. **Generate a concise short name** (2-4 words) for the feature:
-   - Analyze the feature description and extract the most meaningful keywords
-   - Create a 2-4 word short name that captures the essence of the feature
-   - Use action-noun format when possible (e.g., "add-user-auth", "fix-payment-bug")
-   - Preserve technical terms and acronyms (OAuth2, API, JWT, etc.)
-   - Keep it concise but descriptive enough to understand the feature at a glance
-   - Examples:
-     - "I want to add user authentication" → "user-auth"
-     - "Implement OAuth2 integration for the API" → "oauth2-api-integration"
-     - "Create a dashboard for analytics" → "analytics-dashboard"
-     - "Fix payment processing timeout bug" → "fix-payment-timeout"
+    - Analyze the feature description and extract the most meaningful keywords
+    - Create a 2-4 word short name that captures the essence of the feature
+    - Use action-noun format when possible (e.g., "add-user-auth", "fix-payment-bug")
+    - Preserve technical terms and acronyms (OAuth2, API, JWT, etc.)
+    - Keep it concise but descriptive enough to understand the feature at a glance
+    - Examples:
+        - "I want to add user authentication" → "user-auth"
+        - "Implement OAuth2 integration for the API" → "oauth2-api-integration"
+        - "Create a dashboard for analytics" → "analytics-dashboard"
+        - "Fix payment processing timeout bug" → "fix-payment-timeout"
 
 2. **Branch creation** (optional, via hook):
 
@@ -86,26 +86,26 @@ Given that feature description, do this:
    Specs live under the default `specs/` directory unless the user explicitly provides `SPECIFY_FEATURE_DIRECTORY`.
 
    **Resolution order for `SPECIFY_FEATURE_DIRECTORY`**:
-   1. If the user explicitly provided `SPECIFY_FEATURE_DIRECTORY` (e.g., via environment variable, argument, or configuration), use it as-is
-   2. Otherwise, auto-generate it under `specs/`:
-      - Check `.specify/init-options.json` for `feature_numbering` (preferred) or `branch_numbering` (deprecated, migration only — will be removed in a future release)
-      - If `"timestamp"`: prefix is `YYYYMMDD-HHMMSS` (current timestamp)
-      - If `"sequential"` or absent: prefix is `NNN` (next available 3-digit number after scanning existing directories in `specs/`)
-      - Construct the directory name: `<prefix>-<short-name>` (e.g., `003-user-auth` or `20260319-143022-user-auth`)
-      - Set `SPECIFY_FEATURE_DIRECTORY` to `specs/<directory-name>`
-      - If `branch_numbering` was used (and `feature_numbering` was absent), emit a one-line warning: "⚠️ `branch_numbering` in init-options.json is deprecated. Rename to `feature_numbering`."
+    1. If the user explicitly provided `SPECIFY_FEATURE_DIRECTORY` (e.g., via environment variable, argument, or configuration), use it as-is
+    2. Otherwise, auto-generate it under `specs/`:
+        - Check `.specify/init-options.json` for `feature_numbering` (preferred) or `branch_numbering` (deprecated, migration only — will be removed in a future release)
+        - If `"timestamp"`: prefix is `YYYYMMDD-HHMMSS` (current timestamp)
+        - If `"sequential"` or absent: prefix is `NNN` (next available 3-digit number after scanning existing directories in `specs/`)
+        - Construct the directory name: `<prefix>-<short-name>` (e.g., `003-user-auth` or `20260319-143022-user-auth`)
+        - Set `SPECIFY_FEATURE_DIRECTORY` to `specs/<directory-name>`
+        - If `branch_numbering` was used (and `feature_numbering` was absent), emit a one-line warning: "⚠️ `branch_numbering` in init-options.json is deprecated. Rename to `feature_numbering`."
 
    **Create the directory and resolve the artifacts**:
-   - Run `{SCRIPT}` from the repository root and parse `TEMPLATE_CONTENT` as `SPEC_TEMPLATE_CONTENT`, the active `spec-template`.
-   - Run the same resolver command again, replacing the literal `spec-template` template argument in `{SCRIPT}` with `prototype-template`, and parse `TEMPLATE_CONTENT` as `PROTOTYPE_TEMPLATE_CONTENT`.
-   - Run the same resolver command again, replacing the literal `spec-template` template argument in `{SCRIPT}` with `quickstart-template`, and parse `TEMPLATE_CONTENT` as `QUICKSTART_TEMPLATE_CONTENT`.
-   - Each shared resolver call composes project overrides, preset layers, and extension layers over its core template, including `append`, `prepend`, and `wrap` strategies. If any call fails, stop and report the resolution error. Never fall back to a single layer or copy a template file directly from disk.
-   - `mkdir -p SPECIFY_FEATURE_DIRECTORY`
-   - Set `SPEC_FILE` to `SPECIFY_FEATURE_DIRECTORY/spec.md`
-   - Set `PROTOTYPE_FILE` to `SPECIFY_FEATURE_DIRECTORY/prototype.html`
-   - Set `QUICKSTART_FILE` to `SPECIFY_FEATURE_DIRECTORY/quickstart.md`
-   - Treat `SPEC_TEMPLATE_CONTENT`, `PROTOTYPE_TEMPLATE_CONTENT`, and `QUICKSTART_TEMPLATE_CONTENT` as the starting structures. Do not copy template files from disk: each resolved value is the fully composed active template.
-   - Persist the resolved path to `.specify/feature.json`:
+    - Run `{SCRIPT}` from the repository root and parse `TEMPLATE_CONTENT` as `SPEC_TEMPLATE_CONTENT`, the active `spec-template`.
+    - Run the same resolver command again, replacing the literal `spec-template` template argument in `{SCRIPT}` with `prototype-template`, and parse `TEMPLATE_CONTENT` as `PROTOTYPE_TEMPLATE_CONTENT`.
+    - Run the same resolver command again, replacing the literal `spec-template` template argument in `{SCRIPT}` with `quickstart-template`, and parse `TEMPLATE_CONTENT` as `QUICKSTART_TEMPLATE_CONTENT`.
+    - Each shared resolver call composes project overrides, preset layers, and extension layers over its core template, including `append`, `prepend`, and `wrap` strategies. If any call fails, stop and report the resolution error. Never fall back to a single layer or copy a template file directly from disk.
+    - `mkdir -p SPECIFY_FEATURE_DIRECTORY`
+    - Set `SPEC_FILE` to `SPECIFY_FEATURE_DIRECTORY/spec.md`
+    - Set `PROTOTYPE_FILE` to `SPECIFY_FEATURE_DIRECTORY/prototype.html`
+    - Set `QUICKSTART_FILE` to `SPECIFY_FEATURE_DIRECTORY/quickstart.md`
+    - Treat `SPEC_TEMPLATE_CONTENT`, `PROTOTYPE_TEMPLATE_CONTENT`, and `QUICKSTART_TEMPLATE_CONTENT` as the starting structures. Do not copy template files from disk: each resolved value is the fully composed active template.
+    - Persist the resolved path to `.specify/feature.json`:
      ```json
      {
        "feature_directory": "<resolved feature dir>"
@@ -117,9 +117,9 @@ Given that feature description, do this:
      without relying on git branch name conventions.
 
    **IMPORTANT**:
-   - You must only create one feature per `__SPECKIT_COMMAND_SPECIFY__` invocation
-   - The spec directory name and the git branch name are independent — they may be the same but that is the user's choice
-   - The feature directory and all three Specify artifacts are always created by this command, never by the hook
+    - You must only create one feature per `__SPECKIT_COMMAND_SPECIFY__` invocation
+    - The spec directory name and the git branch name are independent — they may be the same but that is the user's choice
+    - The feature directory and all three Specify artifacts are always created by this command, never by the hook
 
 4. Use all three resolved template contents to understand the required sections, prototype contract, and UAT baseline schema.
 
@@ -131,60 +131,60 @@ Given that feature description, do this:
     2. Extract key concepts from description
        Identify: actors, actions, data, constraints
     3. For unclear aspects:
-       - Make informed guesses based on context and industry standards
-       - Only mark with [NEEDS CLARIFICATION: specific question] if:
-         - The choice significantly impacts feature scope or user experience
-         - Multiple reasonable interpretations exist with different implications
-         - No reasonable default exists
-       - **LIMIT: Maximum 3 [NEEDS CLARIFICATION] markers total**
-       - Prioritize clarifications by impact: scope > security/privacy > user experience > technical details
+        - Make informed guesses based on context and industry standards
+        - Only mark with [NEEDS CLARIFICATION: specific question] if:
+            - The choice significantly impacts feature scope or user experience
+            - Multiple reasonable interpretations exist with different implications
+            - No reasonable default exists
+        - **LIMIT: Maximum 3 [NEEDS CLARIFICATION] markers total**
+        - Prioritize clarifications by impact: scope > security/privacy > user experience > technical details
     4. Fill User Scenarios & Testing section
        If no clear user flow: ERROR "Cannot determine user scenarios"
     5. Generate Functional Requirements
        Each requirement must be testable
        Use reasonable defaults for unspecified details (document assumptions in Assumptions section)
     6. Generate the executable medium-fidelity prototype
-       - Express the visible layout, information hierarchy, component relationships, interaction order, responsive behavior, and applicable normal, empty, loading, error, validation, disabled, and success states
-       - Use the resolved prototype structure and keep the result self-contained: inline CSS and only the small inline JavaScript needed to demonstrate behavior
-       - Do not depend on a production framework, external design tool, network resource, font CDN, image CDN, or real backend service
-       - Give every page, region, meaningful component, and state a stable, unique `data-spec-ref`
-       - Start from the current user's primary task and design one coherent, production-ready screen before adding secondary flows
-       - Build a clear hierarchy: task context, current content or input, one primary action, contextual secondary actions, and state feedback
-       - Use progressive disclosure for advanced options, settings, consent, and supporting explanations; keep the main path focused on the current task
-       - Write realistic end-user copy that tells the user what to do, what happens next, and what changed. Use concise action-oriented labels instead of feature descriptions
-       - Put the primary action in the natural completion position and keep secondary actions quieter, contextually relevant, and easy to reach
-       - Treat empty, loading, success, validation, disabled, and error views as alternate states of the same product screen, not as a catalog of states to display together
-       - Keep visible prototype content limited to copy a product user would see. Use labels, values, actions, help, and state feedback that belong to the product
-       - Never render requirement IDs, prototype anchors, UAT IDs, or internal validation notes as visible prototype text
-       - Keep traceability details in nonvisual attributes such as `data-spec-ref`, `data-prototype-state`, and `data-state`
-       - Do not add feature overviews, implementation notes, design rationale, generation notes, or navigation that exists only to explain the prototype
-       - Do not turn an internal workflow, ordered acceptance scenario, or UAT into a visible progress navigator. Acceptance sequence is not automatically product UI
-       - Only add navigation, progress indicators, headers, sidebars, or multi-step layouts when explicitly required by the specification and justified by the user task
-       - Default to the current user's primary task screen. Do not add an application-wide shell or a showcase of every workflow stage merely because the feature spans multiple steps
-       - Do not expose prototype-only controls, sample data buttons, demo modes, debug panels, or state switchers. Include an example-data or trial path only when the feature specification makes it an end-user requirement
-       - Do not expose vendor, provider, API, backend, model, recognition-service, or implementation settings as user-facing copy. Describe the user outcome or capability instead
-       - Show privacy and data-use explanations only for the current action and the exact data it handles. Do not combine unrelated future-step data flows or cross-feature permissions into the current screen
-       - Make the page credible as production UI: every visible control must represent a real user action with a clear reason to be there
-       - Treat the prototype as a construction contract. Do not soften the command with "for reference", "inspiration", or discretionary redesign language
+        - Express the visible layout, information hierarchy, component relationships, interaction order, responsive behavior, and applicable normal, empty, loading, error, validation, disabled, and success states
+        - Use the resolved prototype structure and keep the result self-contained: inline CSS and only the small inline JavaScript needed to demonstrate behavior
+        - Do not depend on a production framework, external design tool, network resource, font CDN, image CDN, or real backend service
+        - Give every page, region, meaningful component, and state a stable, unique `data-spec-ref`
+        - Start from the current user's primary task and design one coherent, production-ready screen before adding secondary flows
+        - Build a clear hierarchy: task context, current content or input, one primary action, contextual secondary actions, and state feedback
+        - Use progressive disclosure for advanced options, settings, consent, and supporting explanations; keep the main path focused on the current task
+        - Write realistic end-user copy that tells the user what to do, what happens next, and what changed. Use concise action-oriented labels instead of feature descriptions
+        - Put the primary action in the natural completion position and keep secondary actions quieter, contextually relevant, and easy to reach
+        - Treat empty, loading, success, validation, disabled, and error views as alternate states of the same product screen, not as a catalog of states to display together
+        - Keep visible prototype content limited to copy a product user would see. Use labels, values, actions, help, and state feedback that belong to the product
+        - Never render requirement IDs, prototype anchors, UAT IDs, or internal validation notes as visible prototype text
+        - Keep traceability details in nonvisual attributes such as `data-spec-ref`, `data-prototype-state`, and `data-state`
+        - Do not add feature overviews, implementation notes, design rationale, generation notes, or navigation that exists only to explain the prototype
+        - Do not turn an internal workflow, ordered acceptance scenario, or UAT into a visible progress navigator. Acceptance sequence is not automatically product UI
+        - Only add navigation, progress indicators, headers, sidebars, or multi-step layouts when explicitly required by the specification and justified by the user task
+        - Default to the current user's primary task screen. Do not add an application-wide shell or a showcase of every workflow stage merely because the feature spans multiple steps
+        - Do not expose prototype-only controls, sample data buttons, demo modes, debug panels, or state switchers. Include an example-data or trial path only when the feature specification makes it an end-user requirement
+        - Do not expose vendor, provider, API, backend, model, recognition-service, or implementation settings as user-facing copy. Describe the user outcome or capability instead
+        - Show privacy and data-use explanations only for the current action and the exact data it handles. Do not combine unrelated future-step data flows or cross-feature permissions into the current screen
+        - Make the page credible as production UI: every visible control must represent a real user action with a clear reason to be there
+        - Treat the prototype as a construction contract. Do not soften the command with "for reference", "inspiration", or discretionary redesign language
     7. Generate the UAT baseline
-       - Derive acceptance scenarios only from `spec.md` and `prototype.html`; do not infer acceptance from an implementation that already exists
-       - Assign unique, stable `UAT-###` identifiers
-       - For every UAT, record the user/role, preconditions, ordered actions, observable expected result, requirement references, and exact prototype `data-spec-ref` values
-       - Set every initial status to `PENDING`
-       - Leave actual results and evidence unexecuted and do not produce `PASS` or `FAIL` conclusions
-       - Ensure every user story with user-visible behavior has at least one UAT
-       - Every UAT resolves to both requirement and prototype references
+        - Derive acceptance scenarios only from `spec.md` and `prototype.html`; do not infer acceptance from an implementation that already exists
+        - Assign unique, stable `UAT-###` identifiers
+        - For every UAT, record the user/role, preconditions, ordered actions, observable expected result, requirement references, and exact prototype `data-spec-ref` values
+        - Set every initial status to `PENDING`
+        - Leave actual results and evidence unexecuted and do not produce `PASS` or `FAIL` conclusions
+        - Ensure every user story with user-visible behavior has at least one UAT
+        - Every UAT resolves to both requirement and prototype references
     8. Define Success Criteria
        Create measurable, technology-agnostic outcomes
        Include both quantitative metrics (time, performance, volume) and qualitative measures (user satisfaction, task completion)
        Each criterion must be verifiable without implementation details
     9. Identify Key Entities (if data involved)
-   10. Return: SUCCESS only when the specification, prototype, and UAT baseline are complete and internally consistent
+    10. Return: SUCCESS only when the specification, prototype, and UAT baseline are complete and internally consistent
 
 7. Write all three artifacts:
-   - Write the specification to `SPEC_FILE` using `SPEC_TEMPLATE_CONTENT`, replacing placeholders with concrete details from the feature description while preserving section order and required headings.
-   - Write `prototype.html` to `PROTOTYPE_FILE` using `PROTOTYPE_TEMPLATE_CONTENT` as the starting structure. The file MUST contain raw standalone HTML, not a Markdown code fence or a link to an external prototype. Replace every bracketed placeholder and remove sample-only guidance, template comments, and all internal explanatory copy from the rendered page.
-   - Write the UAT baseline to `QUICKSTART_FILE` using `QUICKSTART_TEMPLATE_CONTENT`. Replace every bracketed placeholder and remove the sample UAT instead of leaving generic acceptance content.
+    - Write the specification to `SPEC_FILE` using `SPEC_TEMPLATE_CONTENT`, replacing placeholders with concrete details from the feature description while preserving section order and required headings.
+    - Write `prototype.html` to `PROTOTYPE_FILE` using `PROTOTYPE_TEMPLATE_CONTENT` as the starting structure. The file MUST contain raw standalone HTML, not a Markdown code fence or a link to an external prototype. Replace every bracketed placeholder and remove sample-only guidance, template comments, and all internal explanatory copy from the rendered page.
+    - Write the UAT baseline to `QUICKSTART_FILE` using `QUICKSTART_TEMPLATE_CONTENT`. Replace every bracketed placeholder and remove the sample UAT instead of leaving generic acceptance content.
 
 8. **Specification Quality Validation**: After writing the three initial artifacts, validate them together:
 
@@ -245,22 +245,22 @@ Given that feature description, do this:
       ```
 
    b. **Run Validation Check**: Review `spec.md`, `prototype.html`, and `quickstart.md` together against every checklist item:
-      - For each item, determine if it passes or fails
-      - Document specific issues found (quote the relevant artifact section or `data-spec-ref`)
-      - Confirm every prototype reference used in `quickstart.md` exists exactly once in `prototype.html`
-      - Confirm every `UAT-###` appears once in the acceptance baseline and traceability summary
+    - For each item, determine if it passes or fails
+    - Document specific issues found (quote the relevant artifact section or `data-spec-ref`)
+    - Confirm every prototype reference used in `quickstart.md` exists exactly once in `prototype.html`
+    - Confirm every `UAT-###` appears once in the acceptance baseline and traceability summary
 
    c. **Handle Validation Results**:
 
-      - **If all items pass**: Mark checklist complete and proceed to the Mandatory Post-Execution Hooks section
+    - **If all items pass**: Mark checklist complete and proceed to the Mandatory Post-Execution Hooks section
 
-      - **If items fail (excluding [NEEDS CLARIFICATION])**:
+    - **If items fail (excluding [NEEDS CLARIFICATION])**:
         1. List the failing items and specific issues
         2. Update all affected artifacts together so their requirements, prototype anchors, and UAT references stay aligned
         3. Re-run validation until all items pass (max 3 iterations)
         4. If still failing after 3 iterations, document remaining issues in checklist notes and warn user
 
-      - **If [NEEDS CLARIFICATION] markers remain**:
+    - **If [NEEDS CLARIFICATION] markers remain**:
         1. Extract all [NEEDS CLARIFICATION: ...] markers from the spec
         2. **LIMIT CHECK**: If more than 3 markers exist, keep only the 3 most critical (by scope/security/UX impact) and make informed guesses for the rest
         3. For each clarification needed (max 3), present options to user in this format:
@@ -285,10 +285,10 @@ Given that feature description, do this:
            ```
 
         4. **CRITICAL - Table Formatting**: Ensure markdown tables are properly formatted:
-           - Use consistent spacing with pipes aligned
-           - Each cell should have spaces around content: `| Content |` not `|Content|`
-           - Header separator must have at least 3 dashes: `|--------|`
-           - Test that the table renders correctly in markdown preview
+            - Use consistent spacing with pipes aligned
+            - Each cell should have spaces around content: `| Content |` not `|Content|`
+            - Header separator must have at least 3 dashes: `|--------|`
+            - Test that the table renders correctly in markdown preview
         5. Number questions sequentially (Q1, Q2, Q3 - max 3 total)
         6. Present all questions together before waiting for responses
         7. Wait for user to respond with their choices for all questions (e.g., "Q1: A, Q2: Custom - [details], Q3: B")
@@ -307,10 +307,10 @@ Check if `.specify/extensions.yml` exists in the project root.
 - If the YAML cannot be parsed or is invalid, do not skip silently: tell the user that `.specify/extensions.yml` could not be read (include the parser error) and that no hooks were checked, including any mandatory (`optional: false`) hooks registered there, then continue to the Completion Report.
 - Filter out hooks where `enabled` is explicitly `false`. Treat hooks without an `enabled` field as enabled by default.
 - For each remaining hook, do **not** attempt to interpret or evaluate hook `condition` expressions:
-  - If the hook has no `condition` field, or it is null/empty, treat the hook as executable
-  - If the hook defines a non-empty `condition`, skip the hook and leave condition evaluation to the HookExecutor implementation
+    - If the hook has no `condition` field, or it is null/empty, treat the hook as executable
+    - If the hook defines a non-empty `condition`, skip the hook and leave condition evaluation to the HookExecutor implementation
 - For each executable hook, output the following based on its `optional` flag:
-  - **Mandatory hook** (`optional: false`) — **You MUST emit `EXECUTE_COMMAND:` for each mandatory hook**:
+    - **Mandatory hook** (`optional: false`) — **You MUST emit `EXECUTE_COMMAND:` for each mandatory hook**:
     ```
     ## Extension Hooks
 
@@ -319,7 +319,7 @@ Check if `.specify/extensions.yml` exists in the project root.
     EXECUTE_COMMAND: {command}
     ```
     After emitting the block above you MUST actually invoke the hook and wait for it to finish before continuing. Run it the same way you would run the command yourself in this agent/session (the invocation may differ from the literal `{command}` id shown above, e.g. a skills-mode agent runs it as `/skill:speckit-...` or `$speckit-...`). Emitting the block alone does not run the hook.
-  - **Optional hook** (`optional: true`):
+    - **Optional hook** (`optional: true`):
     ```
     ## Extension Hooks
 
